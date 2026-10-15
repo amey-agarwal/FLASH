@@ -74,6 +74,11 @@ def run_arms(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str
         result["arms"]["centralized"] = run_centralized(fed, cfg, seed, device)
     if "local_only" in cfg.arms:
         result["arms"]["local_only"] = run_local_only(fed, cfg, seed, device)
+    if "federated" in cfg.arms:
+        from fedastro.fl.server import run_federated
+
+        centralized_final = result["arms"]["centralized"]["final"] if "centralized" in cfg.arms else None
+        result["arms"]["federated"] = run_federated(fed, cfg, seed, device, centralized_final)
 
 
 def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
@@ -97,7 +102,9 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
     notes = []
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
-    notes.append(f"Arms run: {', '.join(cfg.arms)}. Federated arm not implemented yet (Phase 3).")
+    notes.append(f"Arms run: {', '.join(cfg.arms)}.")
+    if "federated" in cfg.arms:
+        notes.append("Federated arm: synchronous lossless links; sim_wallclock_s null until Phase 6.")
     if cfg.notes:
         notes.append(cfg.notes)
     result["notes"] = " ".join(notes)

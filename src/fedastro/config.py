@@ -33,7 +33,8 @@ WESAD_DEVICES = ("chest", "wrist")
 ARCHS = ("mlp", "cnn1d")
 OPTIMIZERS = ("adam", "sgd")
 CLASS_WEIGHTING = ("none", "balanced")
-ARMS = ("centralized", "local_only")  # Phase 3 adds "federated"
+ARMS = ("centralized", "local_only", "federated")
+FL_STRATEGIES = ("fedavg",)  # Phase 4 adds "fedprox"; Phase 6 adds buffered async
 REPRESENTATIONS = ("features", "sequence")
 DEVICES = ("cpu", "cuda")
 LOS_PROFILES = ("none", "rare", "short_occasional", "periodic", "long_blackout")
@@ -213,6 +214,45 @@ class TrainConfig:
 
 
 @dataclass(frozen=True)
+class FLConfig:
+    """Federated arm. Defaults: 30 rounds x 1 local epoch, so every client passes over
+    its data 30 times, matching the 30 epochs of the baseline arms."""
+
+    strategy: str = "fedavg"
+    rounds: int = 30
+    local_epochs: int = 1
+    # rounds-to-target thresholds on global holdout accuracy:
+    relative_target: float = 0.95  # fraction of the centralized arm's final accuracy
+    absolute_target: float = 0.0  # 0 disables the absolute threshold
+    timeout_s: float = 600.0  # per round, real seconds; a missing reply is an error
+
+    def validate(self) -> None:
+        if self.strategy not in FL_STRATEGIES:
+            raise ConfigError(f"fl.strategy must be one of {FL_STRATEGIES}")
+        if self.rounds < 1 or self.local_epochs < 1:
+            raise ConfigError("fl.rounds and fl.local_epochs must be >= 1")
+        if not 0 < self.relative_target <= 1:
+            raise ConfigError("fl.relative_target must be in (0, 1]")
+        if not 0 <= self.absolute_target <= 1:
+            raise ConfigError("fl.absolute_target must be in [0, 1]")
+        if self.timeout_s <= 0:
+            raise ConfigError("fl.timeout_s must be > 0")
+
+
+@dataclass(frozen=True)
+class ResourcesConfig:
+    """Per-client Ray resources for the simulation engine. Execution detail only: it
+    changes speed, not results, so it is excluded from the run id."""
+
+    client_num_cpus: float = 1.0
+    client_num_gpus: float = 0.0
+
+    def validate(self) -> None:
+        if self.client_num_cpus <= 0 or self.client_num_gpus < 0:
+            raise ConfigError("resources.client_num_cpus must be > 0, client_num_gpus >= 0")
+
+
+@dataclass(frozen=True)
 class ExperimentConfig:
     name: str
     seed: int
@@ -224,7 +264,9 @@ class ExperimentConfig:
     partition: PartitionConfig
     model: ModelConfig = field(default_factory=ModelConfig)
     train: TrainConfig = field(default_factory=TrainConfig)
-    arms: tuple[str, ...] = ("centralized", "local_only")
+    arms: tuple[str, ...] = ("centralized", "local_only", "federated")
+    fl: FLConfig = field(default_factory=FLConfig)
+    resources: ResourcesConfig = field(default_factory=ResourcesConfig)
     notes: str = ""
 
     def validate(self) -> None:
@@ -239,6 +281,10 @@ class ExperimentConfig:
         self.partition.validate()
         self.model.validate()
         self.train.validate()
+        self.fl.validate()
+        self.resources.validate()
+        if self.device == "cuda" and "federated" in self.arms and self.resources.client_num_gpus == 0:
+            raise ConfigError("device 'cuda' with the federated arm needs resources.client_num_gpus > 0")
         if any(a not in ARMS for a in self.arms) or len(set(self.arms)) != len(self.arms):
             raise ConfigError(f"arms must be distinct entries from {ARMS}")
         sequence_input = self.data.name == "wesad" and self.data.wesad.representation == "sequence"
@@ -256,7 +302,7 @@ class ExperimentConfig:
     # Execution details: where to write and which seeds to iterate. They do not change
     # what a single run computes, so they are excluded from the recorded experiment
     # definition and from the run id (they go into manifest.json instead).
-    EXECUTION_KEYS = ("seed", "seeds", "output_dir")
+    EXECUTION_KEYS = ("seed", "seeds", "output_dir", "resources")
 
     def to_dict(self) -> dict[str, Any]:
         return _to_plain(dataclasses.asdict(self))

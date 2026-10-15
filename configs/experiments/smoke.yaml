@@ -11,4 +11,5 @@ data:
     n_classes: 3
 train:
   epochs: 3
+arms: [centralized, local_only]  # fast; federated smoke is smoke_fl.yaml
 notes: "Scaffold smoke test."

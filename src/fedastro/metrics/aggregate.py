@@ -62,7 +62,51 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
                 for m in METRICS
             }
         summary["arms"]["local_only"] = lo
+    if arms["federated"]["rounds"]:
+        summary["arms"]["federated"] = _summarise_federated(results)
+    if {"centralized", "local_only", "federated"} <= set(summary["arms"]):
+        summary["h1"] = _h1_tally(results)
     return summary
+
+
+def _summarise_federated(results: list[dict[str, Any]]) -> dict[str, Any]:
+    feds = [r["arms"]["federated"] for r in results]
+    n_rounds = {len(f["rounds"]) for f in feds}
+    if len(n_rounds) != 1:
+        raise ValueError(f"federated runs have different round counts: {n_rounds}")
+    curve = []
+    for i in range(n_rounds.pop()):
+        curve.append({
+            "round": feds[0]["rounds"][i]["round"],
+            **{m: _mean_std([f["rounds"][i]["global"][m] for f in feds]) for m in METRICS},
+        })
+    out: dict[str, Any] = {
+        "final": {m: _mean_std([f["final"][m] for f in feds]) for m in METRICS},
+        "curve": curve,
+        "total_bytes": _mean_std([f["total_bytes"] for f in feds]),
+        "rounds_to_target": {},
+    }
+    for key in feds[0]["rounds_to_target"]:
+        reached = [f["rounds_to_target"][key]["round"] for f in feds]
+        out["rounds_to_target"][key] = {
+            "round": _mean_std([r for r in reached if r is not None]),
+            "n_reached": sum(r is not None for r in reached),
+            "n_runs": len(reached),
+        }
+    return out
+
+
+def _h1_tally(results: list[dict[str, Any]], metric: str = "accuracy") -> dict[str, Any]:
+    """Per seed: is federated > local_only silo mean, and <= centralized? Reported as
+    counts; a federated loss to local_only is a result, not a failure."""
+    beats_local = between = 0
+    for r in results:
+        a = r["arms"]
+        fed, lo, cen = a["federated"]["final"][metric], a["local_only"]["mean"][metric], a["centralized"]["final"][metric]
+        beats_local += fed > lo
+        between += lo < fed <= cen
+    return {"metric": metric, "n_seeds": len(results), "federated_beats_local_only_mean": beats_local,
+            "federated_between_local_only_and_centralized": between}
 
 
 def load_results(paths: list[Path]) -> list[dict[str, Any]]:
@@ -85,4 +129,14 @@ def format_summary(summary: dict[str, Any]) -> str:
         lines.append(f"{'local_only (silo mean)':<28}" + "".join(f"{fmt(lo['mean_across_silos'][m]):>20}" for m in METRICS))
         for silo, ms in lo["per_silo"].items():
             lines.append(f"{'  ' + silo:<28}" + "".join(f"{fmt(ms[m]):>20}" for m in METRICS))
+    if "federated" in arms:
+        fed = arms["federated"]
+        lines.append(f"{'federated (final round)':<28}" + "".join(f"{fmt(fed['final'][m]):>20}" for m in METRICS))
+        lines.append(f"federated total bytes: {fmt(fed['total_bytes'])}")
+        for key, v in fed["rounds_to_target"].items():
+            lines.append(f"rounds to target ({key}): {fmt(v['round'])}, reached in {v['n_reached']}/{v['n_runs']} runs")
+    if "h1" in summary:
+        h = summary["h1"]
+        lines.append(f"H1 ({h['metric']}): federated > local_only mean in {h['federated_beats_local_only_mean']}/{h['n_seeds']} seeds; "
+                     f"between local_only and centralized in {h['federated_between_local_only_and_centralized']}/{h['n_seeds']}")
     return "\n".join(lines)

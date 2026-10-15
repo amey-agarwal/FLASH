@@ -2,11 +2,183 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
-**Next: Phase 3 — Federated core (FedAvg)**, after review of Phase 2.
+**Next: Phase 4 — Non-IID robustness (FedProx, alpha sweep)**, after review of Phase 3.
+**GPU cluster:** run the shakedown now (end of Phase 3). The first substantive cluster batch
+is Phase 4. See "GPU cluster plan" under Phase 3.
 
 ---
 
-## Phase 2 — Model + non-FL baselines — COMPLETE, awaiting review (2026-10-15)
+## Phase 3 — Federated core (FedAvg) — COMPLETE, awaiting review (2026-10-15)
+
+**Not committed.** The user commits. Suggested message:
+`feat(fl): phase 3 federated core (FedAvg) on Flower 1.23 Message API`.
+
+### User decisions applied (2026-10-15)
+- The MLP on 50 features is the Phase 3 model.
+- **Federated standardisation:** each silo shares (count, sum, sum of squares) once.
+  This is used only to standardise inputs for training the shared model. The user
+  will cover it in the privacy section.
+
+### How the federation is simulated
+- **One process starts the run.** `fedastro run` calls
+  `flwr.simulation.run_simulation`, which runs a Flower ServerApp in a thread. It
+  hosts 5 virtual SuperNodes, one per silo, on the Ray backend.
+- **Each node is one silo.** Its Flower `partition-id` is the silo index, and its
+  client code reads only that silo's partition.
+  - Simulation shortcut: the ClientApp closure, and therefore every Ray actor, holds
+    all 5 silos' arrays in memory.
+  - Isolation is enforced by code, not by process boundaries.
+- **Only Flower messages cross between server and clients**, all through
+  `grid.send_and_receive`:
+  1. `query.stats`: each silo sends its count, sum and sum of squares.
+  2. `query.set_scaler`: the server returns the combined scaler, stored in node state.
+  3. Each round sends `train`. Clients run the shared `train_local()` for 1 local
+     epoch and return weights and example counts.
+  4. FedAvg aggregates in silo order and float64, which is deterministic.
+  5. The server scores the global model on the 3-subject holdout.
+  6. `evaluate` scores the global model on each silo's own data.
+- **The server holds the held-out test subjects** in its role as experimenter. No
+  client ever sees them.
+- **Links are synchronous and lossless.** Every silo participates every round, with
+  no latency, LOS or stragglers, and a failed reply raises. Phase 6 adds link time,
+  so `sim_wallclock_s` is null until then.
+- **Seeding:**
+  - Client training uses `derive_seed(seed, federated, silo, round)`.
+  - The initial model uses `derive_seed(seed, federated)`.
+  - Torch runs 1 thread per client.
+  - The result is byte-identical across executions.
+
+### Built
+- `fl/strategy.py`: `FedAvg`, an example-weighted mean. It is order-independent,
+  tested bitwise over all 120 orderings of 5 silos.
+- `fl/client.py`: `make_client_app()` with the stats, set_scaler, train and evaluate
+  handlers.
+  - Flower 1.23's Message API replaces the older NumPyClient
+    `get_parameters/fit/evaluate`.
+  - `train` and `evaluate` are the equivalents. Initial weights come from the server.
+- `fl/server.py`: `make_server_app()` with a custom `@app.main()` loop, and
+  `run_federated()`.
+- `metrics/comms.py`: `payload_bytes` and `rounds_to_target`.
+- The summary now has the federated final metrics, a per-round mean ± std curve,
+  rounds-to-target, total bytes, and an H1 per-seed tally.
+- New config sections `fl` and `resources`. `resources` is an execution detail
+  excluded from the run id.
+- `configs/experiments/smoke_fl.yaml`. `smoke.yaml` now runs only the two
+  baselines, to keep it fast.
+- Default `arms` is now all three.
+
+### Acceptance results
+**`wesad_by_subject`** uses the MLP, 5 seeds, holdout subjects 13, 16 and 17
+(n = 212), and 30 rounds x 1 local epoch.
+| arm | accuracy | balanced acc | macro-F1 | AUC |
+|---|---|---|---|---|
+| centralized | 0.868 ± 0.022 | 0.793 ± 0.025 | 0.803 ± 0.027 | 0.881 ± 0.008 |
+| **federated (FedAvg)** | **0.708 ± 0.074** | **0.677 ± 0.065** | **0.668 ± 0.070** | **0.807 ± 0.036** |
+| local_only (silo mean) | 0.654 ± 0.029 | 0.571 ± 0.018 | 0.551 ± 0.033 | 0.778 ± 0.011 |
+
+Per seed:
+| seed | centralized | federated | local_only mean | fed macro-F1 | local macro-F1 |
+|---|---|---|---|---|---|
+| 0 | 0.849 | 0.670 | 0.631 | 0.635 | 0.512 |
+| 1 | 0.863 | 0.722 | 0.642 | 0.688 | 0.546 |
+| 2 | 0.901 | 0.830 | 0.705 | 0.782 | 0.593 |
+| 3 | 0.849 | 0.679 | 0.640 | 0.621 | 0.531 |
+| 4 | 0.877 | **0.642** | **0.652** | 0.615 | 0.576 |
+
+Federated global holdout accuracy over rounds, mean over 5 seeds:
+| round | 1 | 5 | 10 | 15 | 20 | 25 | 30 |
+|---|---|---|---|---|---|---|---|
+| accuracy | 0.562 | 0.683 | 0.674 | 0.680 | 0.708 | 0.710 | 0.708 |
+| macro-F1 | 0.406 | 0.488 | 0.485 | 0.543 | 0.631 | 0.663 | 0.668 |
+
+- **H1 is testable from one command.** `fedastro sweep` writes all three arms into
+  each `result.json`.
+- **Federated lands between the bounds in 4/5 seeds** on accuracy.
+  - **Seed 4 is recorded as is:** federated 0.642 is below local-only 0.652 on
+    accuracy, but above it on macro-F1 (0.615 versus 0.576).
+  - On macro-F1 and balanced accuracy, federated beats the local-only mean in 5/5
+    seeds.
+- **Rounds to 95 % of centralized accuracy: not reached** in 0/5 runs within 30
+  rounds.
+- **Communication:**
+  - 21,772-byte payload (5,443 float32 parameters).
+  - 217,720 bytes per round (payload x 5 silos x 2).
+  - 6,539,600 bytes total, including 8,000 setup bytes.
+- **Timing:** 38 to 41 s per seed for all three arms, with the 30-round FL arm about
+  30 s of that. Under the 10 min budget for 5 silos x 20 rounds.
+- **Tests:** `pytest` 92 passed in 64 s, including two real Flower/Ray runs that are
+  byte-identical.
+
+### Observations (recorded, not tuned)
+- FedAvg accuracy plateaus around 0.71 from about round 20, while macro-F1 is still
+  rising at round 30. The gap to centralized is large even though the
+  `by_subject` labels are near-IID.
+- Likely contributors, for Phase 4 to examine rather than tune away:
+  - Inter-subject feature heterogeneity.
+  - Adam state is re-initialised every round on every client.
+  - Tiny silos (mars_transit has 70 windows, about 3 batches per round).
+- Phase 2 numbers shifted slightly (centralized 0.857 to 0.868) because
+  `train_local` now seeds the global torch RNG, which dropout uses. The Phase 3
+  table supersedes the Phase 2 by-subject table.
+
+### Decisions made (review these)
+1. **Custom ServerApp loop on the Flower Message API instead of
+   `flwr.serverapp.strategy.FedAvg.start()`.** Read from the installed source:
+   - Built-in FedAvg aggregates replies in arrival order, which is non-deterministic
+     in floating point.
+   - It has no hook for the stats exchange, per-silo holdout scoring, or byte
+     accounting.
+   - All traffic still goes through Flower messages and the Flower simulation
+     engine. Phase 4 FedProx and the Phase 6 buffered-async strategy go in
+     `fl/strategy.py`.
+2. **30 rounds x 1 local epoch**, compute-matched to the baselines' 30 epochs. The
+   acceptance check names 20 rounds, and 30 is a superset. Not tuned after seeing
+   results.
+3. **Optimizer state** (Adam moments) is not carried across rounds. This is the
+   standard FedAvg simulation, with a fresh optimizer per `train` call.
+4. **Per-silo metrics each round:**
+   - `update_on_holdout`: the silo's local update, scored on the global test set.
+   - `global_on_local`: the global model on that silo's own training data, which is
+     optimistic.
+   - Phase 4 fairness should use `update_on_holdout`, or a new per-silo test split
+     if subjects allow.
+5. **Bytes count float32 tensor payload only**, with no protocol framing. The
+   one-time stats and scaler exchange is reported as `setup_bytes`, separately.
+6. **Schema change:** `rounds[].sim_wallclock_s` may be null. It stays null until
+   Phase 6 and is never filled with real time.
+   - Additive federated fields: `strategy`, `local_epochs`, `n_params`,
+     `payload_bytes`, `setup_bytes`, `total_bytes`, `rounds_to_target`, and the
+     per-silo sub-dicts.
+7. **Ray resources:** 1 CPU and 0 GPU per client by default, set via `resources.*`.
+   - A CUDA run of the federated arm requires `client_num_gpus > 0`.
+   - With 8 logical CPUs, Ray starts 8 actors and runs the 5 clients concurrently.
+
+### GPU cluster plan
+- **Now (end of Phase 3): shakedown run.** Its purpose is to prove the environment,
+  not to produce numbers.
+  - `uv.lock` resolves Linux x86_64 wheels for the same pins. torch 2.2.2 from PyPI on
+    Linux is the CUDA 12.1 build, which needs an NVIDIA driver >= 530.
+  - Steps, all on CPU:
+    1. `git clone` then `make install`.
+    2. `make fetch-wesad`.
+    3. `make test`.
+    4. `fedastro sweep configs/experiments/wesad_by_subject.yaml`.
+  - Compare against the laptop numbers above. Expect agreement within noise, not
+    byte identity, because a different platform and BLAS can change float results.
+  - Then one run with `--device cuda` and `resources.client_num_gpus: 0.2`. This
+    checks CUDA and Ray GPU placement only. The model is too small for a GPU to beat
+    CPU.
+- **First substantive cluster batch: Phase 4.** The alpha sweep x {FedAvg, FedProx}
+  x {Dirichlet, quantity control} x 5 seeds is the first work that is slow on the
+  laptop. Run each config as a separate CPU job.
+- **Where GPUs actually pay off: Phase 5.** Opacus per-sample gradients, the epsilon
+  sweep, and gradient-inversion sweeps.
+- **Publishable final runs** come after all required phases. Phase 9's `sweep.py`
+  adds resumability and per-run logs for that batch.
+
+---
+
+## Phase 2 — Model + non-FL baselines — COMPLETE (2026-10-15)
 
 **Not committed.** The user commits. Suggested message:
 `feat(baselines): phase 2 MLP/1D-CNN, centralized + local-only arms, fixed holdout, quantity control`.
@@ -114,7 +286,8 @@ Per-silo numbers are in each `runs/*-summary.json`.
    matching gradient steps.
 3. **Local-only "mean" is unweighted across silos.** Each silo is one stakeholder.
    Min, max and std across silos are also stored.
-4. **Federated standardisation for Phase 3 (recommended).** Clients share
+4. **Federated standardisation for Phase 3.** Approved by the user and implemented
+   in Phase 3. The original recommendation follows. Clients share
    (count, sum, sum of squares) once, which gives the pooled scaler exactly.
    - This leaks per-silo feature means and variances. Note that in the privacy
      discussion.

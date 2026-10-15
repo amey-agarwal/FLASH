@@ -1,0 +1,11 @@
+# Smoke test for the federated arm: SYNTHETIC data, all three arms, few rounds.
+name: smoke_fl
+seed: 0
+seeds: [0, 1]
+data:
+  name: synthetic
+train:
+  epochs: 3
+fl:
+  rounds: 3
+notes: "Federated smoke test."

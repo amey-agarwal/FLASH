@@ -56,6 +56,9 @@ def train_local(
     metrics are added to the history; it is for reporting only and never used to pick
     a checkpoint (the final weights are always the last epoch's)."""
     model.to(device)
+    # Seed the global RNG too (dropout draws from it), so a call is self-contained and
+    # reproducible regardless of what ran earlier in this process or Ray actor.
+    torch.manual_seed(seed)
     gen = torch.Generator().manual_seed(seed)
     loader = DataLoader(
         TensorDataset(torch.from_numpy(X), torch.from_numpy(y)),

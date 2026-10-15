@@ -89,7 +89,8 @@ _ROUND_KEYS = {
     "global": (dict,),
     "per_silo": (dict,),
     "bytes": (int,),
-    "sim_wallclock_s": _NUM,
+    # null until Phase 6 models link time; never filled with real wall-clock
+    "sim_wallclock_s": (*_NUM, type(None)),
     "participants": (list,),
 }
 

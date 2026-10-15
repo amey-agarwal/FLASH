@@ -82,7 +82,6 @@ def test_recorded_config_omits_unused_dataset_params(smoke_config):
     {"name": "x", "model": {"kernel_size": 4}},
     {"name": "x", "train": {"optimizer": "lbfgs"}},
     {"name": "x", "train": {"epochs": 0}},
-    {"name": "x", "arms": ["federated"]},  # not until Phase 3
     {"name": "x", "arms": ["centralized", "centralized"]},
 ])
 def test_invalid_model_train_arms_rejected(tmp_path, repo, bad):
@@ -95,3 +94,24 @@ def test_cnn_with_sequence_accepted(tmp_path, repo):
     exp = _write_tree(tmp_path, repo, {"name": "x", "model": {"arch": "cnn1d"},
                                        "data": {"name": "wesad", "wesad": {"representation": "sequence"}}})
     assert load_config(exp).model.arch == "cnn1d"
+
+
+def test_resources_excluded_from_run_identity(smoke_config):
+    from fedastro.config import ResourcesConfig
+    cfg = load_config(smoke_config)
+    gpu = dataclasses.replace(cfg, resources=ResourcesConfig(client_num_cpus=4, client_num_gpus=0.5))
+    assert cfg.config_hash() == gpu.config_hash()
+    assert "resources" not in cfg.experiment_dict()
+
+
+@pytest.mark.parametrize("bad", [
+    {"name": "x", "device": "cuda", "arms": ["federated"]},  # needs client_num_gpus > 0
+    {"name": "x", "fl": {"rounds": 0}},
+    {"name": "x", "fl": {"strategy": "scaffold"}},
+    {"name": "x", "fl": {"relative_target": 1.5}},
+    {"name": "x", "resources": {"client_num_cpus": 0}},
+])
+def test_invalid_fl_rejected(tmp_path, repo, bad):
+    exp = _write_tree(tmp_path, repo, bad)
+    with pytest.raises(ConfigError):
+        load_config(exp)
