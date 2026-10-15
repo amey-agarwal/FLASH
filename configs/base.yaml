@@ -1,0 +1,11 @@
+# Defaults for every experiment. Experiment files are deep-merged over this.
+# Unknown keys anywhere are rejected by the loader.
+seed: 0
+output_dir: runs
+device: cpu
+silos: five_agency          # topology file in configs/silos/
+data:
+  name: synthetic
+partition:
+  method: by_subject
+notes: ""

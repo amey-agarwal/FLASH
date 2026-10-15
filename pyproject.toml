@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fedastro"
+version = "0.0.1"
+description = "Cross-silo sparse federated learning simulation for autonomous astronaut healthcare (ASGSR 2026 poster)."
+readme = "CLAUDE.md"
+requires-python = ">=3.11,<3.12"
+# Direct dependencies are pinned exactly. Transitive pins live in uv.lock.
+# Version constraints, verified 2026-10-15 (see PROGRESS.md, Phase 0):
+#   - torch 2.2.2 is the last release with macOS x86_64 (Intel) wheels; it needs numpy<2.
+#   - opacus 1.5.4 imports nn.RMSNorm (torch>=2.4), so opacus is held at 1.5.2.
+#   - ray>=2.32 has no macOS x86_64 wheels; flwr 1.23.0 is pinned on every platform so
+#     the laptop and the cluster run the same Flower API (it resolves ray 2.31.0).
+dependencies = [
+    "flwr[simulation]==1.23.0",
+    "torch==2.2.2",
+    "opacus==1.5.2",
+    "numpy==1.26.4",
+    "pandas==3.0.6",
+    "scikit-learn==1.9.1",
+    "pyyaml==6.0.3",
+    "streamlit==1.60.0",
+    "pytest==9.1.1",
+]
+
+[project.scripts]
+fedastro = "fedastro.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fedastro"]
+
+[tool.uv]
+# Force a single resolution that installs on both the Intel-Mac dev laptop and
+# Linux x86_64 cluster nodes.
+required-environments = [
+    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

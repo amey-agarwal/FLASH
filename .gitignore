@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+build/
+dist/
+
+# Run artifacts and data (never committed)
+runs/
+data/raw/
+data/cache/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Ray
+/tmp/ray/

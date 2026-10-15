@@ -1,0 +1,34 @@
+# Five-silo simulated federation (CLAUDE.md section 4).
+# Silo names are SCENARIO LABELS for a simulation, not real deployments or data holders.
+#
+# data_share: relative weights used to allocate subjects to silos. These are a scenario
+#   design choice (large / medium / medium / small / very small), not measured values.
+# one_way_latency_s: default one-way signal delay. Consumed from Phase 6 onward.
+# los_profile: qualitative loss-of-signal behaviour; parameterised in Phase 6.
+#   Calibration point for Phase 6: the FLUID ISS deployment logged a ~7.5 min LOS pause.
+name: five_agency
+silos:
+  - name: nasa_earth
+    data_share: 0.40
+    one_way_latency_s: 0.0
+    los_profile: none
+  - name: esa_analog
+    data_share: 0.20
+    one_way_latency_s: 0.0
+    los_profile: rare
+  - name: iss_commercial
+    data_share: 0.20
+    one_way_latency_s: 0.25
+    los_profile: short_occasional
+  - name: lunar_habitat
+    data_share: 0.12
+    one_way_latency_s: 1.3            # Earth-Moon light time ~1.2-1.3 s
+    los_profile: periodic
+  - name: mars_transit
+    data_share: 0.08
+    one_way_latency_s: 751.0          # default = mean preset
+    los_profile: long_blackout
+    latency_presets_s:
+      near: 182.0                     # ~3 min 2 s at closest approach
+      mean: 751.0                     # derived: ~225e6 km mean distance / c; confirm source before poster use
+      far: 1337.0                     # ~22 min 17 s at maximum distance
