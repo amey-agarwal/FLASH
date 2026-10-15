@@ -1,0 +1,13 @@
+# As wesad_by_subject.yaml, but a 1D-CNN on 4 Hz block-mean sequences (10 x 240).
+name: wesad_by_subject_cnn
+seeds: [0, 1, 2, 3, 4]
+data:
+  name: wesad
+  wesad:
+    representation: sequence
+    sequence_hz: 4.0
+model:
+  arch: cnn1d
+partition:
+  method: by_subject
+  holdout_subjects: 3

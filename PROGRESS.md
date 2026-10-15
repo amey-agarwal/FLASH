@@ -2,11 +2,135 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
-**Next: Phase 2 — Model + non-FL baselines** (after review of Phase 1 decisions 5-6).
+**Next: Phase 3 — Federated core (FedAvg)**, after review of Phase 2.
 
 ---
 
-## Phase 1 — Data layer — COMPLETE, awaiting review (2026-10-15)
+## Phase 2 — Model + non-FL baselines — COMPLETE, awaiting review (2026-10-15)
+
+**Not committed.** The user commits. Suggested message:
+`feat(baselines): phase 2 MLP/1D-CNN, centralized + local-only arms, fixed holdout, quantity control`.
+
+### Phase 1 amendments (user decisions, 2026-10-15)
+- **Fixed test set.**
+  - `partition.holdout_seed` (default 0) draws the held-out subjects from its own
+    RNG stream, independent of the run seed.
+  - Every seed and arm of an experiment is evaluated on the same subjects. With the
+    default seed they are **13, 16 and 17**, giving 212 windows.
+  - This replaces Phase 1 decision 5. Phase 1 tables and run ids are superseded.
+- **Quantity-matched control.** `partition.method: dirichlet_quantity_control` with
+  the same `alpha`:
+  - Reproduces the Dirichlet split's subjects per silo and window counts per silo
+    exactly, for the same seed.
+  - Keeps windows uniformly at random, so each silo has its natural label mix.
+  - The Dirichlet RNG draws were reordered so both modes consume identical draws.
+  - Config: `configs/experiments/wesad_dirichlet_control.yaml`. Use it in Phase 4
+    wherever a Dirichlet result is reported.
+- **Default sensors:** chest and wrist. The user confirmed this is the default for
+  the crew scenario.
+
+### Built
+- `models/model.py`: `MLP` (hidden 64-32, 5,443 parameters on 50 features) and
+  `CNN1D` (Conv-GroupNorm-ReLU-MaxPool x2, global average pool, linear).
+  - No BatchNorm anywhere. Opacus `ModuleValidator` passes both models (tested).
+  - `cnn1d` requires `representation: sequence`, and `mlp` requires features. The
+    config validator enforces this.
+- `data/preprocess.py`: `Standardizer`, fit on training data only.
+  - Stored as sufficient statistics (count, sum, sum of squares), so per-silo
+    statistics combine exactly to the pooled fit.
+  - Phase 3 can use this for federated standardisation.
+- `training.py`: shared `train_local()`.
+  - Fixed epochs, seeded shuffling, last-epoch weights, no early stopping.
+  - The optional per-epoch holdout evaluation is for curves only and never selects
+    a checkpoint.
+  - Also `predict_proba()` and `derive_seed()`.
+- `metrics/classification.py`: accuracy, balanced accuracy, macro-F1, and macro
+  one-vs-rest AUC.
+- `baselines/centralized.py`: pooled silo data, one scaler and one model.
+- `baselines/local_only.py`: one scaler and model per silo, each evaluated on the
+  shared holdout. Reports mean, std, min and max across silos.
+- `metrics/aggregate.py`, `fedastro summarize <result.json...>`, and an automatic
+  `<output_dir>/<name>-<hash>-summary.json` after `fedastro sweep`. The std is the
+  sample std (ddof=1) across seeds.
+- New config sections `model`, `train` and `arms`, plus
+  `configs/experiments/wesad_by_subject_cnn.yaml`.
+
+### Acceptance results
+All runs use 5 seeds (0 to 4), the fixed holdout (subjects 13, 16, 17; n = 212), and
+training defaults fixed before any result was seen.
+
+**`wesad_by_subject`, MLP on 50 features.** 830 training windows. The full 5-seed
+sweep with both arms took **31.6 s**.
+| arm | accuracy | balanced acc | macro-F1 | AUC |
+|---|---|---|---|---|
+| centralized | 0.857 ± 0.016 | 0.782 ± 0.012 | 0.791 ± 0.012 | 0.879 ± 0.003 |
+| local_only (silo mean) | 0.656 ± 0.034 | 0.574 ± 0.017 | 0.554 ± 0.031 | 0.778 ± 0.011 |
+
+**`wesad_by_subject_cnn`, 1D-CNN on 10 x 240 sequences.** The full sweep took
+**106.6 s**. The sequence cache cold build took 114 s.
+| arm | accuracy | balanced acc | macro-F1 | AUC |
+|---|---|---|---|---|
+| centralized | 0.770 ± 0.072 | 0.698 ± 0.067 | 0.689 ± 0.073 | 0.854 ± 0.079 |
+| local_only (silo mean) | 0.521 ± 0.050 | 0.445 ± 0.029 | 0.413 ± 0.035 | 0.693 ± 0.031 |
+
+**`wesad_dirichlet` versus `wesad_dirichlet_control`, MLP, alpha 0.5.**
+| arm | dirichlet acc | control acc | dirichlet macro-F1 | control macro-F1 |
+|---|---|---|---|---|
+| centralized | 0.552 ± 0.167 | 0.754 ± 0.045 | 0.509 ± 0.131 | 0.691 ± 0.040 |
+| local_only (silo mean) | 0.478 ± 0.109 | 0.662 ± 0.038 | 0.362 ± 0.102 | 0.528 ± 0.045 |
+
+Per-silo numbers are in each `runs/*-summary.json`.
+
+- **centralized >= local_only on average across silos: PASS** in all four
+  configurations and on every metric.
+- **5-seed mean ± std reported: PASS.**
+- **One arm < 5 min on laptop CPU: PASS.** The slowest full sweep, CNN with 5 seeds
+  and 2 arms, took 107 s.
+- `pytest`: 80 passed. A WESAD run with training is byte-identical across two
+  executions.
+
+### Observations to carry forward (not tuned, just recorded)
+- The MLP on hand-crafted features beats the CNN on 4 Hz sequences on every metric.
+  This is expected, because the downsampling discards ECG, EMG and BVP morphology.
+  **Recommend the MLP as the primary model for Phase 3.** Keep the CNN as a secondary
+  configuration and for the Phase 5 per-channel time-series attack.
+- Under Dirichlet skew, **even the centralized arm drops** from 0.754 to 0.552
+  accuracy against the control. The pooled training label mix then differs from the
+  holdout's natural mix, a label prior shift.
+  - Phase 4 must not attribute the whole Dirichlet penalty to federation.
+  - The fair comparison is federated versus centralized and local-only within the
+    same partition, with the control alongside.
+- Per-silo local-only spread across seeds is large (std 0.06 to 0.26), because the
+  silos are tiny (1 to 5 subjects). Expect noisy per-silo fairness numbers in Phase 4.
+
+### Decisions made (review these)
+1. **Training defaults, fixed before seeing results:** Adam, lr 1e-3, weight decay
+   1e-4, 30 epochs, batch 32, dropout 0.2, unweighted cross-entropy, no early
+   stopping.
+   - `class_weighting: balanced` is available but off.
+   - These must not be retuned per arm.
+2. **Local-only uses the same epoch count for every silo**, so small silos take fewer
+   gradient steps. That is part of what "small silo" means. The alternative is
+   matching gradient steps.
+3. **Local-only "mean" is unweighted across silos.** Each silo is one stakeholder.
+   Min, max and std across silos are also stored.
+4. **Federated standardisation for Phase 3 (recommended).** Clients share
+   (count, sum, sum of squares) once, which gives the pooled scaler exactly.
+   - This leaks per-silo feature means and variances. Note that in the privacy
+     discussion.
+   - The alternative is per-client scalers, but then a single global model sees
+     inconsistently scaled inputs.
+5. **Additive schema fields:**
+   - `arms.centralized` gains `n_train` and `n_params`.
+   - `arms.local_only` gains `std_across_silos`, `min` and `max`.
+   - Each `per_silo` entry holds `final`, `history` and `n_train`.
+
+### Not done / deferred
+- Federated arm: Phase 3.
+
+---
+
+## Phase 1 — Data layer — COMPLETE (2026-10-15)
 
 **Not committed.** The user makes all commits and pushes; this was decided 2026-10-15.
 Suggested message: `feat(data): phase 1 WESAD loader, subject-disjoint partitioners, holdout`.
@@ -127,9 +251,11 @@ by the `dirichlet` method here. Report this honestly on the poster.
   work, and per-silo locally for FL.
 - `osdr.py` and `eicu.py` are Phase 9.
 
-### Open questions for the user
-- Decisions 5 and 6 should be settled before Phase 2/4 numbers are produced.
-- Do you want wrist-only as the default, for the wearable narrative?
+### Resolved by the user (2026-10-15)
+- Decision 5: the holdout is now **fixed** via `partition.holdout_seed`. See Phase 2
+  amendments.
+- Decision 6: option (a). A `dirichlet_quantity_control` method was added.
+- Default sensors stay chest and wrist.
 
 ---
 

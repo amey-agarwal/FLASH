@@ -27,8 +27,13 @@ class ConfigError(ValueError):
 
 
 DATASETS = ("synthetic", "wesad")  # Phase 9 adds "osd435", "eicu".
-PARTITION_METHODS = ("by_subject", "by_site", "dirichlet")
+PARTITION_METHODS = ("by_subject", "by_site", "dirichlet", "dirichlet_quantity_control")
+DIRICHLET_METHODS = ("dirichlet", "dirichlet_quantity_control")
 WESAD_DEVICES = ("chest", "wrist")
+ARCHS = ("mlp", "cnn1d")
+OPTIMIZERS = ("adam", "sgd")
+CLASS_WEIGHTING = ("none", "balanced")
+ARMS = ("centralized", "local_only")  # Phase 3 adds "federated"
 REPRESENTATIONS = ("features", "sequence")
 DEVICES = ("cpu", "cuda")
 LOS_PROFILES = ("none", "rare", "short_occasional", "periodic", "long_blackout")
@@ -139,18 +144,72 @@ class TopologyConfig:
 @dataclass(frozen=True)
 class PartitionConfig:
     method: str = "by_subject"
-    alpha: float = 0.0  # Dirichlet concentration; required (> 0) when method == "dirichlet"
+    # Dirichlet concentration; required (> 0) for the two dirichlet methods.
+    # "dirichlet_quantity_control" reproduces the per-silo subjects and window counts of
+    # "dirichlet" at the same alpha and seed, but subsamples uniformly (natural labels).
+    alpha: float = 0.0
     holdout_subjects: int = 3  # subjects reserved for the global test set; no silo trains on them
+    # The test set is drawn from this seed, NOT the run seed, so every run and arm of an
+    # experiment family is evaluated on the same held-out subjects.
+    holdout_seed: int = 0
 
     def validate(self) -> None:
         if self.method not in PARTITION_METHODS:
             raise ConfigError(f"partition.method must be one of {PARTITION_METHODS}")
-        if self.method == "dirichlet" and self.alpha <= 0:
-            raise ConfigError("partition.alpha must be > 0 for method 'dirichlet'")
-        if self.method != "dirichlet" and self.alpha != 0:
-            raise ConfigError("partition.alpha is only meaningful for method 'dirichlet'")
+        if self.method in DIRICHLET_METHODS and self.alpha <= 0:
+            raise ConfigError(f"partition.alpha must be > 0 for method {self.method!r}")
+        if self.method not in DIRICHLET_METHODS and self.alpha != 0:
+            raise ConfigError("partition.alpha is only meaningful for the dirichlet methods")
         if self.holdout_subjects < 1:
             raise ConfigError("partition.holdout_subjects must be >= 1")
+        if self.holdout_seed < 0:
+            raise ConfigError("partition.holdout_seed must be >= 0")
+
+
+@dataclass(frozen=True)
+class ModelConfig:
+    """Small by design (CLAUDE.md rule 6). Normalisation is GroupNorm, never BatchNorm,
+    so models are Opacus-compatible without modification (Phase 5)."""
+
+    arch: str = "mlp"
+    hidden: tuple[int, ...] = (64, 32)  # mlp only
+    cnn_channels: tuple[int, ...] = (16, 32)  # cnn1d only
+    kernel_size: int = 5  # cnn1d only
+    dropout: float = 0.2
+
+    def validate(self) -> None:
+        if self.arch not in ARCHS:
+            raise ConfigError(f"model.arch must be one of {ARCHS}")
+        if not 1 <= len(self.hidden) <= 3 or any(h < 1 for h in self.hidden):
+            raise ConfigError("model.hidden must list 1-3 positive layer widths")
+        if not 1 <= len(self.cnn_channels) <= 3 or any(c < 1 for c in self.cnn_channels):
+            raise ConfigError("model.cnn_channels must list 1-3 positive channel counts")
+        if self.kernel_size < 1 or self.kernel_size % 2 == 0:
+            raise ConfigError("model.kernel_size must be a positive odd integer")
+        if not 0 <= self.dropout < 1:
+            raise ConfigError("model.dropout must be in [0, 1)")
+
+
+@dataclass(frozen=True)
+class TrainConfig:
+    """Local training settings, shared verbatim by every arm (and later FL clients)."""
+
+    epochs: int = 30
+    batch_size: int = 32
+    lr: float = 1e-3
+    weight_decay: float = 1e-4
+    optimizer: str = "adam"
+    class_weighting: str = "none"
+
+    def validate(self) -> None:
+        if self.epochs < 1 or self.batch_size < 1:
+            raise ConfigError("train.epochs and train.batch_size must be >= 1")
+        if self.lr <= 0 or self.weight_decay < 0:
+            raise ConfigError("train.lr must be > 0 and train.weight_decay >= 0")
+        if self.optimizer not in OPTIMIZERS:
+            raise ConfigError(f"train.optimizer must be one of {OPTIMIZERS}")
+        if self.class_weighting not in CLASS_WEIGHTING:
+            raise ConfigError(f"train.class_weighting must be one of {CLASS_WEIGHTING}")
 
 
 @dataclass(frozen=True)
@@ -163,6 +222,9 @@ class ExperimentConfig:
     data: DataConfig
     topology: TopologyConfig
     partition: PartitionConfig
+    model: ModelConfig = field(default_factory=ModelConfig)
+    train: TrainConfig = field(default_factory=TrainConfig)
+    arms: tuple[str, ...] = ("centralized", "local_only")
     notes: str = ""
 
     def validate(self) -> None:
@@ -175,6 +237,15 @@ class ExperimentConfig:
         self.data.validate()
         self.topology.validate()
         self.partition.validate()
+        self.model.validate()
+        self.train.validate()
+        if any(a not in ARMS for a in self.arms) or len(set(self.arms)) != len(self.arms):
+            raise ConfigError(f"arms must be distinct entries from {ARMS}")
+        sequence_input = self.data.name == "wesad" and self.data.wesad.representation == "sequence"
+        if self.model.arch == "cnn1d" and not sequence_input:
+            raise ConfigError("model.arch 'cnn1d' needs data.wesad.representation 'sequence'")
+        if self.model.arch == "mlp" and sequence_input:
+            raise ConfigError("model.arch 'mlp' needs feature input, not 'sequence'")
         n_silos = len(self.topology.silos)
         if self.data.is_synthetic:
             needed = n_silos + self.partition.holdout_subjects

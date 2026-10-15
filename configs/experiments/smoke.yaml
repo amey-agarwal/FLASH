@@ -1,4 +1,4 @@
-# Phase 0 smoke test: SYNTHETIC data end to end. Results are tagged SYNTHETIC.
+# Smoke test: SYNTHETIC data end to end. Results are tagged SYNTHETIC.
 name: smoke
 seed: 0
 seeds: [0, 1, 2, 3, 4]
@@ -9,4 +9,6 @@ data:
     windows_per_subject: 30
     n_features: 8
     n_classes: 3
+train:
+  epochs: 3
 notes: "Scaffold smoke test."

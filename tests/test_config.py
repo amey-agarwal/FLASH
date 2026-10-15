@@ -72,3 +72,26 @@ def test_hash_ignores_execution_keys(smoke_config):
 def test_recorded_config_omits_unused_dataset_params(smoke_config):
     d = load_config(smoke_config).experiment_dict()
     assert "synthetic" in d["data"] and "wesad" not in d["data"]
+
+
+@pytest.mark.parametrize("bad", [
+    {"name": "x", "model": {"arch": "cnn1d"}},  # synthetic features cannot feed a CNN
+    {"name": "x", "data": {"name": "wesad", "wesad": {"representation": "sequence"}}},  # mlp + sequence
+    {"name": "x", "model": {"arch": "transformer"}},
+    {"name": "x", "model": {"hidden": [64, 64, 64, 64]}},
+    {"name": "x", "model": {"kernel_size": 4}},
+    {"name": "x", "train": {"optimizer": "lbfgs"}},
+    {"name": "x", "train": {"epochs": 0}},
+    {"name": "x", "arms": ["federated"]},  # not until Phase 3
+    {"name": "x", "arms": ["centralized", "centralized"]},
+])
+def test_invalid_model_train_arms_rejected(tmp_path, repo, bad):
+    exp = _write_tree(tmp_path, repo, bad)
+    with pytest.raises(ConfigError):
+        load_config(exp)
+
+
+def test_cnn_with_sequence_accepted(tmp_path, repo):
+    exp = _write_tree(tmp_path, repo, {"name": "x", "model": {"arch": "cnn1d"},
+                                       "data": {"name": "wesad", "wesad": {"representation": "sequence"}}})
+    assert load_config(exp).model.arch == "cnn1d"

@@ -9,6 +9,13 @@ Order of operations, enforced by ``make_federation``:
    - ``dirichlet``: ``by_subject``, then per-silo class-skew subsampling with
      proportions drawn from Dirichlet(alpha). This keeps subjects disjoint at the cost
      of dropping windows; dropped counts are reported per silo.
+   - ``dirichlet_quantity_control``: identical subjects per silo and identical window
+     counts per silo as ``dirichlet`` (same alpha, same rng), but windows are kept
+     uniformly at random, so each silo retains its natural label mix. Comparing the
+     two isolates the effect of label skew from the effect of losing data.
+
+The held-out set is drawn from its own fixed seed (``holdout_seed``), so it is the same
+for every run seed of an experiment.
 
 Invariant for every method: no subject appears in two silos or in a silo and the
 held-out set.
@@ -21,6 +28,9 @@ from dataclasses import dataclass
 import numpy as np
 
 from fedastro.data.base import DatasetBundle
+
+# Separates the holdout RNG stream from run-seed streams even when the integers coincide.
+_HOLDOUT_STREAM = 0x484F4C44
 
 
 @dataclass(frozen=True)
@@ -72,37 +82,56 @@ def dirichlet(
     silo_shares: dict[str, float],
     alpha: float,
     rng: np.random.Generator,
+    quantity_control: bool = False,
 ) -> dict[str, SiloSplit]:
     """Subject-disjoint silos with Dirichlet(alpha) label skew imposed by subsampling.
 
     For each silo, draw target class proportions p ~ Dir(alpha * 1). Keep the largest
     subset of that silo's windows whose class proportions match p (rounded down), chosen
     uniformly at random within each class. Small alpha -> near single-class silos.
+
+    With ``quantity_control=True`` the same number of windows is kept per silo, but
+    chosen uniformly at random regardless of class. RNG draws are ordered so that the
+    subject assignment, the p draws and therefore the per-silo counts are identical in
+    both modes for the same input rng state.
     """
     if alpha <= 0:
         raise ValueError("alpha must be > 0")
     n_classes = len(bundle.class_names)
+    parts = by_subject(bundle, silo_shares, rng)
+    props = {name: rng.dirichlet(np.full(n_classes, alpha)) for name in parts}
     out: dict[str, SiloSplit] = {}
-    for name, part in by_subject(bundle, silo_shares, rng).items():
-        p = rng.dirichlet(np.full(n_classes, alpha))
-        counts = np.bincount(part.y, minlength=n_classes)
-        present = p > 0
-        scale = np.min(counts[present] / p[present])
-        keep_n = np.floor(scale * p + 1e-9).astype(int)
-        keep_idx = []
-        for k in range(n_classes):
-            idx = np.flatnonzero(part.y == k)
-            keep_idx.append(rng.choice(idx, size=min(keep_n[k], len(idx)), replace=False))
-        keep = np.sort(np.concatenate(keep_idx))
-        if len(keep) == 0:  # pathological draw: keep the silo's majority class
-            k = int(np.argmax(counts))
-            keep = np.flatnonzero(part.y == k)
+    for name, part in parts.items():
+        p = props[name]
+        keep_n = _dirichlet_keep_counts(np.bincount(part.y, minlength=n_classes), p)
+        if quantity_control:
+            keep = np.sort(rng.choice(len(part), size=int(keep_n.sum()), replace=False))
+        else:
+            keep = np.sort(np.concatenate([
+                rng.choice(np.flatnonzero(part.y == k), size=keep_n[k], replace=False)
+                for k in range(n_classes)
+            ]))
         out[name] = SiloSplit(
             data=part.subset(keep),
             n_dropped=len(part) - len(keep),
-            target_proportions=tuple(round(float(x), 6) for x in p),
+            target_proportions=None if quantity_control else tuple(round(float(x), 6) for x in p),
         )
     return out
+
+
+def _dirichlet_keep_counts(counts: np.ndarray, p: np.ndarray) -> np.ndarray:
+    """Per-class counts of the largest subset of ``counts`` with proportions ~= p.
+
+    Pathological draws that would keep nothing keep the silo's whole majority class.
+    """
+    present = p > 0
+    scale = np.min(counts[present] / p[present])
+    keep_n = np.minimum(np.floor(scale * p + 1e-9).astype(int), counts)
+    if keep_n.sum() == 0:
+        keep_n = np.zeros_like(counts)
+        k = int(np.argmax(counts))
+        keep_n[k] = counts[k]
+    return keep_n
 
 
 def make_federation(
@@ -112,14 +141,19 @@ def make_federation(
     holdout_subjects: int,
     rng: np.random.Generator,
     alpha: float = 0.0,
+    holdout_seed: int = 0,
 ) -> Federation:
-    pool, holdout = holdout_split(bundle, holdout_subjects, rng)
+    """Hold out test subjects (fixed ``holdout_seed``), then partition the rest (``rng``)."""
+    holdout_rng = np.random.default_rng([holdout_seed, _HOLDOUT_STREAM])
+    pool, holdout = holdout_split(bundle, holdout_subjects, holdout_rng)
     if method == "by_subject":
         silos = {k: SiloSplit(v) for k, v in by_subject(pool, silo_shares, rng).items()}
     elif method == "by_site":
         silos = {k: SiloSplit(v) for k, v in by_site(pool, silo_shares, rng).items()}
     elif method == "dirichlet":
         silos = dirichlet(pool, silo_shares, alpha, rng)
+    elif method == "dirichlet_quantity_control":
+        silos = dirichlet(pool, silo_shares, alpha, rng, quantity_control=True)
     else:
         raise ValueError(f"unknown partition method {method!r}")
     fed = Federation(holdout=holdout, silos=silos)

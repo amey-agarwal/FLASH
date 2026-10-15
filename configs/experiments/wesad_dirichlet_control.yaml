@@ -1,0 +1,12 @@
+# Quantity-matched control for wesad_dirichlet.yaml: same alpha, same seeds, so each
+# silo has the same subjects and the same number of windows, but windows are kept
+# uniformly at random (natural label mix). Difference vs wesad_dirichlet = label skew
+# effect with data quantity held fixed.
+name: wesad_dirichlet_control
+seeds: [0, 1, 2, 3, 4]
+data:
+  name: wesad
+partition:
+  method: dirichlet_quantity_control
+  alpha: 0.5
+  holdout_subjects: 3

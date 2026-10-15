@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from fedastro.config import ConfigError, load_config
+from fedastro.manifest import dumps
+from fedastro.metrics.aggregate import format_summary, load_results, summarise
 from fedastro.pipeline import build_federation, format_distribution_table, run_and_write
 
 
@@ -31,14 +34,30 @@ def _parser() -> argparse.ArgumentParser:
     common(sweep)
     sweep.add_argument("--seeds", type=int, nargs="+", help="override seeds list")
 
+    summ = sub.add_parser("summarize", help="mean ± std across seeds from result.json files")
+    summ.add_argument("results", nargs="+", help="result.json paths (one experiment, several seeds)")
+    summ.add_argument("--out", help="also write the summary JSON here")
+
     inspect = sub.add_parser("inspect", help="print the per-silo class distribution; writes nothing")
     common(inspect)
     inspect.add_argument("--seed", type=int, help="override seed (default from config)")
     return p
 
 
+def _summarize(paths: list[Path], out: Path | None) -> None:
+    summary = summarise(load_results(paths))
+    print(format_summary(summary))
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(dumps(summary))
+        print(out)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "summarize":
+        _summarize([Path(p) for p in args.results], Path(args.out) if args.out else None)
+        return 0
     try:
         cfg = load_config(args.config)
         overrides = {"output_dir": args.output_dir, "device": args.device}
@@ -63,9 +82,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     seeds = [cfg.seed] if args.command == "run" else list(cfg.seeds)
+    paths = []
     for seed in seeds:
         run_dir = run_and_write(cfg, seed)
-        print(run_dir / "result.json")
+        paths.append(run_dir / "result.json")
+        print(paths[-1])
+    if args.command == "sweep":
+        out = Path(cfg.output_dir) / f"{cfg.name}-{cfg.config_hash()[:10]}-summary.json"
+        _summarize(paths, out)
     return 0
 
 

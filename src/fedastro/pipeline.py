@@ -1,8 +1,7 @@
 """One experiment run: config + seed -> result dict.
 
-Phase 1 runs the data path only: load, hold out test subjects, partition into silos,
-record. Training arms are added in Phases 2-3; until then their sections are present
-but empty, as the schema requires.
+Load, hold out test subjects, partition into silos, then train the configured arms.
+Arms not run stay present in the result with empty/null values, as the schema requires.
 """
 
 from __future__ import annotations
@@ -37,7 +36,7 @@ def build_federation(cfg: ExperimentConfig, seed: int) -> tuple[DatasetBundle, F
     shares = {s.name: s.data_share for s in cfg.topology.silos}
     fed = make_federation(
         bundle, shares, cfg.partition.method, cfg.partition.holdout_subjects, rng,
-        alpha=cfg.partition.alpha,
+        alpha=cfg.partition.alpha, holdout_seed=cfg.partition.holdout_seed,
     )
     return bundle, fed
 
@@ -65,6 +64,18 @@ def describe_federation(fed: Federation) -> tuple[list[dict[str, Any]], dict[str
     return silos, holdout
 
 
+def run_arms(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str, Any]) -> None:
+    from fedastro.baselines.centralized import run_centralized
+    from fedastro.baselines.common import resolve_device
+    from fedastro.baselines.local_only import run_local_only
+
+    device = resolve_device(cfg.device)
+    if "centralized" in cfg.arms:
+        result["arms"]["centralized"] = run_centralized(fed, cfg, seed, device)
+    if "local_only" in cfg.arms:
+        result["arms"]["local_only"] = run_local_only(fed, cfg, seed, device)
+
+
 def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
     bundle, fed = build_federation(cfg, seed)
     silos, holdout = describe_federation(fed)
@@ -82,10 +93,11 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
         silos=silos,
         holdout=holdout,
     )
+    run_arms(cfg, fed, seed, result)
     notes = []
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
-    notes.append("Data path only; training arms not implemented yet.")
+    notes.append(f"Arms run: {', '.join(cfg.arms)}. Federated arm not implemented yet (Phase 3).")
     if cfg.notes:
         notes.append(cfg.notes)
     result["notes"] = " ".join(notes)

@@ -95,3 +95,44 @@ def test_by_site_keeps_sites_whole():
     parts = by_site(bundle, SHARES, np.random.default_rng(0))
     site_sets = [set(p.site_id.tolist()) for p in parts.values()]
     assert sum(len(s) for s in site_sets) == len(set().union(*site_sets)) == 10
+
+
+def test_holdout_fixed_across_run_seeds_and_set_by_holdout_seed():
+    bundle = load_synthetic(SyntheticParams(n_subjects=24), 0)
+    held = [
+        fed.holdout.subjects
+        for fed in (make_federation(bundle, SHARES, "by_subject", 3, np.random.default_rng(s))
+                    for s in range(5))
+    ]
+    assert all(h == held[0] for h in held)
+    other = make_federation(bundle, SHARES, "by_subject", 3, np.random.default_rng(0), holdout_seed=7)
+    assert other.holdout.subjects != held[0]
+
+
+def test_quantity_control_matches_dirichlet_subjects_and_counts():
+    bundle = load_synthetic(SyntheticParams(n_subjects=30, windows_per_subject=40), 0)
+    for seed in range(5):
+        skew = make_federation(bundle, SHARES, "dirichlet", 3, np.random.default_rng(seed), alpha=0.3)
+        ctrl = make_federation(bundle, SHARES, "dirichlet_quantity_control", 3,
+                               np.random.default_rng(seed), alpha=0.3)
+        assert skew.holdout.subjects == ctrl.holdout.subjects
+        for name in SHARES:
+            assert skew.silos[name].data.subjects == ctrl.silos[name].data.subjects
+            assert len(skew.silos[name].data) == len(ctrl.silos[name].data)
+            assert skew.silos[name].n_dropped == ctrl.silos[name].n_dropped
+            assert ctrl.silos[name].target_proportions is None
+
+
+def test_quantity_control_is_less_skewed():
+    bundle = load_synthetic(SyntheticParams(n_subjects=40, windows_per_subject=60), 0)
+
+    def mean_max_share(method):
+        vals = []
+        for seed in range(10):
+            fed = make_federation(bundle, SHARES, method, 3, np.random.default_rng(seed), alpha=0.2)
+            for split in fed.silos.values():
+                c = np.bincount(split.data.y, minlength=3)
+                vals.append(c.max() / c.sum())
+        return np.mean(vals)
+
+    assert mean_max_share("dirichlet") > mean_max_share("dirichlet_quantity_control") + 0.2
