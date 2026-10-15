@@ -20,7 +20,7 @@ def test_smoke_run_produces_valid_synthetic_result(tmp_path, smoke_config, monke
     assert result["notes"].startswith("PROVENANCE: SYNTHETIC")
     assert result["seed"] == 0
     assert [s["name"] for s in result["silos"]][-1] == "mars_transit"
-    assert sum(s["n_train"] for s in result["silos"]) == 20 * 30
+    assert sum(s["n_train"] for s in result["silos"]) + result["holdout"]["n_test"] == 20 * 30
     assert (path.parent / "manifest.json").is_file()
 
 
@@ -51,3 +51,11 @@ def test_bad_config_exits_2(tmp_path, capsys):
     bad = tmp_path / "nope.yaml"
     assert main(["run", str(bad)]) == 2
     assert "config error" in capsys.readouterr().err
+
+
+def test_inspect_prints_table_and_writes_nothing(tmp_path, smoke_config, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert main(["inspect", str(smoke_config)]) == 0
+    out = capsys.readouterr().out
+    assert "HOLDOUT (test)" in out and "mars_transit" in out and "kind=SYNTHETIC" in out
+    assert not (tmp_path / "runs").exists()

@@ -1,5 +1,5 @@
 # CI-less task runner. Requires uv (https://docs.astral.sh/uv/).
-.PHONY: install test smoke repro-check clean
+.PHONY: install test smoke repro-check clean fetch-wesad
 
 install:
 	uv sync --frozen
@@ -18,3 +18,6 @@ repro-check:
 
 clean:
 	rm -rf runs/_repro_a runs/_repro_b .pytest_cache
+
+fetch-wesad:
+	uv run --frozen python scripts/fetch_data.py wesad --accept-license

@@ -47,7 +47,13 @@ def test_nested_unknown_key_rejected(tmp_path, repo):
     {"name": "x", "seed": "zero"},
     {"name": "x", "data": {"name": "imaginary"}},
     {"name": "has space"},
-    {"name": "x", "data": {"synthetic": {"n_subjects": 2}}},  # fewer subjects than silos
+    {"name": "x", "data": {"synthetic": {"n_subjects": 7}}},  # < silos + holdout
+    {"name": "x", "partition": {"method": "dirichlet"}},  # alpha missing
+    {"name": "x", "partition": {"method": "by_subject", "alpha": 0.5}},  # alpha unused
+    {"name": "x", "partition": {"holdout_subjects": 0}},
+    {"name": "x", "data": {"wesad": {"devices": ["ankle"]}}},
+    {"name": "x", "data": {"wesad": {"representation": "spectrogram"}}},
+    {"name": "x", "data": {"wesad": {"sequence_hz": 8.0}}},
 ])
 def test_invalid_values_rejected(tmp_path, repo, bad):
     exp = _write_tree(tmp_path, repo, bad)
@@ -61,3 +67,8 @@ def test_hash_ignores_execution_keys(smoke_config):
     assert cfg.config_hash() == other.config_hash()
     changed = dataclasses.replace(cfg, device="cuda")
     assert cfg.config_hash() != changed.config_hash()
+
+
+def test_recorded_config_omits_unused_dataset_params(smoke_config):
+    d = load_config(smoke_config).experiment_dict()
+    assert "synthetic" in d["data"] and "wesad" not in d["data"]

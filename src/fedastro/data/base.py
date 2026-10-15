@@ -22,9 +22,10 @@ class Provenance:
 
     dataset: str
     version: str
-    checksum: str
+    checksum: str  # identity of the raw source (archive hash, or array hash if generated)
     source: str
     kind: str
+    processed_checksum: str = ""  # hash of the arrays actually used, after preprocessing
 
     def __post_init__(self) -> None:
         if self.kind not in (REAL, SYNTHETIC):
@@ -41,6 +42,8 @@ class DatasetBundle:
     X: float32 array, shape (n_samples, n_features) or (n_samples, n_channels, length).
     y: int64 class labels, shape (n_samples,).
     subject_id: int64 subject identifiers, shape (n_samples,).
+    site_id: optional int64 site identifiers, shape (n_samples,). None if the dataset
+        has no notion of site (e.g. WESAD, a single-lab study).
     """
 
     X: np.ndarray
@@ -48,11 +51,14 @@ class DatasetBundle:
     subject_id: np.ndarray
     class_names: tuple[str, ...]
     provenance: Provenance
+    site_id: np.ndarray | None = None
 
     def __post_init__(self) -> None:
         n = len(self.y)
         if len(self.X) != n or len(self.subject_id) != n:
             raise ValueError("X, y and subject_id must have the same length")
+        if self.site_id is not None and len(self.site_id) != n:
+            raise ValueError("site_id must have the same length as y")
         if n and (self.y.min() < 0 or self.y.max() >= len(self.class_names)):
             raise ValueError("labels must lie in [0, len(class_names))")
 
@@ -66,7 +72,12 @@ class DatasetBundle:
             subject_id=self.subject_id[mask_or_idx],
             class_names=self.class_names,
             provenance=self.provenance,
+            site_id=None if self.site_id is None else self.site_id[mask_or_idx],
         )
+
+    @property
+    def subjects(self) -> list[int]:
+        return sorted(int(s) for s in np.unique(self.subject_id))
 
     def label_counts(self) -> dict[str, int]:
         counts = np.bincount(self.y, minlength=len(self.class_names))

@@ -1,0 +1,10 @@
+# WESAD, subject-disjoint silos with Dirichlet(alpha) label skew imposed by subsampling.
+# Phase 4 sweeps alpha; 0.5 is the Phase 1 demonstration value.
+name: wesad_dirichlet
+seeds: [0, 1, 2, 3, 4]
+data:
+  name: wesad
+partition:
+  method: dirichlet
+  alpha: 0.5
+  holdout_subjects: 3

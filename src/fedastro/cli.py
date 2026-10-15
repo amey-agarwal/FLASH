@@ -9,7 +9,7 @@ import argparse
 import sys
 
 from fedastro.config import ConfigError, load_config
-from fedastro.pipeline import run_and_write
+from fedastro.pipeline import build_federation, format_distribution_table, run_and_write
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -30,6 +30,10 @@ def _parser() -> argparse.ArgumentParser:
     sweep = sub.add_parser("sweep", help="run one experiment for several seeds, sequentially")
     common(sweep)
     sweep.add_argument("--seeds", type=int, nargs="+", help="override seeds list")
+
+    inspect = sub.add_parser("inspect", help="print the per-silo class distribution; writes nothing")
+    common(inspect)
+    inspect.add_argument("--seed", type=int, help="override seed (default from config)")
     return p
 
 
@@ -41,7 +45,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.synthetic and cfg.data.name != "synthetic":
             import dataclasses
             overrides["data"] = dataclasses.replace(cfg.data, name="synthetic")
-        if args.command == "run":
+        if args.command in ("run", "inspect"):
             overrides["seed"] = args.seed
         else:
             overrides["seeds"] = tuple(args.seeds) if args.seeds else None
@@ -49,6 +53,14 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as e:
         print(f"config error: {e}", file=sys.stderr)
         return 2
+
+    if args.command == "inspect":
+        bundle, fed = build_federation(cfg, cfg.seed)
+        p = bundle.provenance
+        print(f"dataset={p.dataset} kind={p.kind} version={p.version}")
+        print(f"partition={cfg.partition.method} alpha={cfg.partition.alpha} seed={cfg.seed}")
+        print(format_distribution_table(fed, bundle.class_names))
+        return 0
 
     seeds = [cfg.seed] if args.command == "run" else list(cfg.seeds)
     for seed in seeds:

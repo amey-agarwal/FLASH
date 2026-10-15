@@ -1,0 +1,9 @@
+# WESAD, whole subjects per silo. Every WESAD subject followed the same protocol, so
+# this split is non-IID in X (inter-subject physiology) but near-IID in labels.
+name: wesad_by_subject
+seeds: [0, 1, 2, 3, 4]
+data:
+  name: wesad
+partition:
+  method: by_subject
+  holdout_subjects: 3

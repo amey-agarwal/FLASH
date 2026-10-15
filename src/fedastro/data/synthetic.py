@@ -28,12 +28,15 @@ def load_synthetic(params: SyntheticParams, seed: int) -> DatasetBundle:
     X = np.concatenate(X_parts).astype(np.float32)
     y = np.concatenate(y_parts).astype(np.int64)
     subject_id = np.concatenate(s_parts).astype(np.int64)
+    site_id = subject_id % params.n_sites if params.n_sites > 0 else None
+    checksum = array_checksum(X, y, subject_id)
     provenance = Provenance(
         dataset="SYNTHETIC",
         version=GENERATOR_VERSION,
-        checksum=array_checksum(X, y, subject_id),
+        checksum=checksum,
         source="fedastro.data.synthetic (generated, not measured)",
         kind=SYNTHETIC,
+        processed_checksum=checksum,
     )
     return DatasetBundle(
         X=X,
@@ -41,4 +44,5 @@ def load_synthetic(params: SyntheticParams, seed: int) -> DatasetBundle:
         subject_id=subject_id,
         class_names=tuple(f"class_{i}" for i in range(params.n_classes)),
         provenance=provenance,
+        site_id=site_id,
     )

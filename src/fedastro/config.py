@@ -26,8 +26,10 @@ class ConfigError(ValueError):
     """Raised when a config file is missing, malformed, or fails validation."""
 
 
-DATASETS = ("synthetic",)  # Phase 1 adds "wesad"; Phase 9 adds "osd435", "eicu".
-PARTITION_METHODS = ("by_subject",)  # Phase 1 adds "by_site", "dirichlet".
+DATASETS = ("synthetic", "wesad")  # Phase 9 adds "osd435", "eicu".
+PARTITION_METHODS = ("by_subject", "by_site", "dirichlet")
+WESAD_DEVICES = ("chest", "wrist")
+REPRESENTATIONS = ("features", "sequence")
 DEVICES = ("cpu", "cuda")
 LOS_PROFILES = ("none", "rare", "short_occasional", "periodic", "long_blackout")
 
@@ -40,6 +42,7 @@ class SyntheticParams:
     n_classes: int = 3
     class_sep: float = 1.0
     subject_shift: float = 0.5
+    n_sites: int = 0  # 0 = no site ids; >0 assigns subject i to site i % n_sites
 
     def validate(self) -> None:
         for name in ("n_subjects", "windows_per_subject", "n_features", "n_classes"):
@@ -49,17 +52,47 @@ class SyntheticParams:
             raise ConfigError("data.synthetic.n_classes must be >= 2")
         if self.class_sep < 0 or self.subject_shift < 0:
             raise ConfigError("data.synthetic.class_sep and subject_shift must be >= 0")
+        if self.n_sites < 0:
+            raise ConfigError("data.synthetic.n_sites must be >= 0")
+
+
+@dataclass(frozen=True)
+class WesadParams:
+    """WESAD windowing and feature extraction. See PROGRESS.md Phase 1 for rationale."""
+
+    devices: tuple[str, ...] = ("chest", "wrist")
+    window_s: float = 60.0
+    stride_s: float = 30.0
+    representation: str = "features"  # "features": per-channel stats; "sequence": downsampled signals
+    sequence_hz: float = 4.0
+    subjects: tuple[int, ...] = ()  # empty = all 15 subjects
+
+    def validate(self) -> None:
+        if not self.devices or any(d not in WESAD_DEVICES for d in self.devices):
+            raise ConfigError(f"data.wesad.devices must be a non-empty subset of {WESAD_DEVICES}")
+        if len(set(self.devices)) != len(self.devices):
+            raise ConfigError("data.wesad.devices has duplicates")
+        if self.window_s <= 0 or self.stride_s <= 0:
+            raise ConfigError("data.wesad.window_s and stride_s must be > 0")
+        if self.representation not in REPRESENTATIONS:
+            raise ConfigError(f"data.wesad.representation must be one of {REPRESENTATIONS}")
+        if self.sequence_hz <= 0 or self.sequence_hz > 4.0:
+            raise ConfigError("data.wesad.sequence_hz must be in (0, 4] (wrist EDA/TEMP are 4 Hz)")
+        if (self.window_s * self.sequence_hz) % 1:
+            raise ConfigError("data.wesad.window_s * sequence_hz must be an integer")
 
 
 @dataclass(frozen=True)
 class DataConfig:
     name: str = "synthetic"
     synthetic: SyntheticParams = field(default_factory=SyntheticParams)
+    wesad: WesadParams = field(default_factory=WesadParams)
 
     def validate(self) -> None:
         if self.name not in DATASETS:
             raise ConfigError(f"data.name must be one of {DATASETS}, got {self.name!r}")
         self.synthetic.validate()
+        self.wesad.validate()
 
     @property
     def is_synthetic(self) -> bool:
@@ -106,10 +139,18 @@ class TopologyConfig:
 @dataclass(frozen=True)
 class PartitionConfig:
     method: str = "by_subject"
+    alpha: float = 0.0  # Dirichlet concentration; required (> 0) when method == "dirichlet"
+    holdout_subjects: int = 3  # subjects reserved for the global test set; no silo trains on them
 
     def validate(self) -> None:
         if self.method not in PARTITION_METHODS:
             raise ConfigError(f"partition.method must be one of {PARTITION_METHODS}")
+        if self.method == "dirichlet" and self.alpha <= 0:
+            raise ConfigError("partition.alpha must be > 0 for method 'dirichlet'")
+        if self.method != "dirichlet" and self.alpha != 0:
+            raise ConfigError("partition.alpha is only meaningful for method 'dirichlet'")
+        if self.holdout_subjects < 1:
+            raise ConfigError("partition.holdout_subjects must be >= 1")
 
 
 @dataclass(frozen=True)
@@ -134,8 +175,12 @@ class ExperimentConfig:
         self.data.validate()
         self.topology.validate()
         self.partition.validate()
-        if self.data.is_synthetic and self.data.synthetic.n_subjects < len(self.topology.silos):
-            raise ConfigError("synthetic n_subjects must be >= number of silos")
+        n_silos = len(self.topology.silos)
+        if self.data.is_synthetic:
+            needed = n_silos + self.partition.holdout_subjects
+            if self.data.synthetic.n_subjects < needed:
+                raise ConfigError(
+                    f"synthetic n_subjects must be >= silos + holdout_subjects ({needed})")
 
     # Execution details: where to write and which seeds to iterate. They do not change
     # what a single run computes, so they are excluded from the recorded experiment
@@ -146,9 +191,13 @@ class ExperimentConfig:
         return _to_plain(dataclasses.asdict(self))
 
     def experiment_dict(self) -> dict[str, Any]:
+        """Config minus execution keys and minus parameter blocks of unused datasets."""
         d = self.to_dict()
         for k in self.EXECUTION_KEYS:
             d.pop(k)
+        for other in DATASETS:
+            if other != self.data.name:
+                d["data"].pop(other, None)
         return d
 
     def config_hash(self) -> str:
