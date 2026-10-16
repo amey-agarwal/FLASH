@@ -7,8 +7,10 @@ Order of operations, enforced by ``make_federation``:
    - ``by_subject``: whole subjects, allocated in proportion to silo data shares.
    - ``by_site``: whole sites, allocated the same way (needs ``site_id``).
    - ``dirichlet``: ``by_subject``, then per-silo class-skew subsampling with
-     proportions drawn from Dirichlet(alpha). This keeps subjects disjoint at the cost
-     of dropping windows; dropped counts are reported per silo.
+     proportions q ~ Dirichlet(alpha * p), where p is the training pool's class
+     distribution (Hsu et al. 2019). alpha -> infinity recovers the natural mix p;
+     alpha -> 0 gives single-class silos. Subjects stay disjoint at the cost of
+     dropping windows; dropped counts are reported per silo.
    - ``dirichlet_quantity_control``: identical subjects per silo and identical window
      counts per silo as ``dirichlet`` (same alpha, same rng), but windows are kept
      uniformly at random, so each silo retains its natural label mix. Comparing the
@@ -86,9 +88,15 @@ def dirichlet(
 ) -> dict[str, SiloSplit]:
     """Subject-disjoint silos with Dirichlet(alpha) label skew imposed by subsampling.
 
-    For each silo, draw target class proportions p ~ Dir(alpha * 1). Keep the largest
-    subset of that silo's windows whose class proportions match p (rounded down), chosen
-    uniformly at random within each class. Small alpha -> near single-class silos.
+    For each silo, draw target class proportions q ~ Dir(alpha * p), with p the class
+    distribution of the whole training pool (Hsu et al. 2019, "Measuring the Effects of
+    Non-Identical Data Distribution"). Keep the largest subset of that silo's windows
+    whose class proportions match q (rounded down), chosen uniformly at random within
+    each class. Large alpha -> q ~ p (natural mix); small alpha -> near single-class.
+
+    (A symmetric Dir(alpha * 1) prior would instead pull every silo towards uniform
+    class proportions as alpha grows, i.e. a label-prior shift relative to the natural
+    mix even at "low skew". That was the Phase 4 first-pass bug; see PROGRESS.md.)
 
     With ``quantity_control=True`` the same number of windows is kept per silo, but
     chosen uniformly at random regardless of class. RNG draws are ordered so that the
@@ -98,8 +106,11 @@ def dirichlet(
     if alpha <= 0:
         raise ValueError("alpha must be > 0")
     n_classes = len(bundle.class_names)
+    prior = np.bincount(bundle.y, minlength=n_classes) / len(bundle)
+    if (prior == 0).any():
+        raise ValueError("every class must occur in the training pool for dirichlet partitioning")
     parts = by_subject(bundle, silo_shares, rng)
-    props = {name: rng.dirichlet(np.full(n_classes, alpha)) for name in parts}
+    props = {name: rng.dirichlet(alpha * prior) for name in parts}
     out: dict[str, SiloSplit] = {}
     for name, part in parts.items():
         p = props[name]

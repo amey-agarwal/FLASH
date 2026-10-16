@@ -188,6 +188,7 @@ def run_federated(fed: Federation, cfg: ExperimentConfig, seed: int, device: str
         "rounds": rounds,
         "final": dict(rounds[-1]["global"]),
         "strategy": cfg.fl.strategy,
+        "proximal_mu": cfg.fl.proximal_mu if cfg.fl.strategy == "fedprox" else None,
         "local_epochs": cfg.fl.local_epochs,
         "n_params": out["n_params"],
         "payload_bytes": out["payload_bytes"],

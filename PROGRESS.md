@@ -2,13 +2,151 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
-**Next: Phase 4 — Non-IID robustness (FedProx, alpha sweep)**, after review of Phase 3.
-**GPU cluster:** run the shakedown now (end of Phase 3). The first substantive cluster batch
-is Phase 4. See "GPU cluster plan" under Phase 3.
+**Next: Phase 5 — Privacy (Opacus DP + gradient inversion)**, after review of Phase 4.
+**GPU cluster:** the shakedown (Phase 3 plan) is still pending. Phase 4 ran fully on the laptop
+in about 75 min; on the cluster, run one grid variant per job with `fedastro grid ... --index i`.
 
 ---
 
-## Phase 3 — Federated core (FedAvg) — COMPLETE, awaiting review (2026-10-15)
+## Phase 4 — Non-IID robustness — COMPLETE, awaiting review (2026-10-15)
+
+**Not committed.** The user commits. Suggested message:
+`feat(fl): phase 4 FedProx, Dirichlet alpha sweep, silo fairness, grid sweeps`.
+
+### Built
+- **FedProx.** `fl.strategy: fedprox` with `fl.proximal_mu`, default 0.01, fixed
+  before any result was seen.
+  - The client-side term (mu/2)·||w − w_global||² lives in the shared
+    `train_local(proximal_mu=...)`. Server aggregation is FedAvg's.
+  - `proximal_mu` is recorded and hashed only when the strategy is fedprox, so FedAvg
+    run ids are unchanged.
+- **Silo fairness metric** in `metrics/fairness.py`.
+  - Definition: holdout per-class recall, re-weighted to each silo's training label
+    mix. Spread is max − min across silos.
+  - Applied to all three arms. Written to `result["fairness"]` and the summaries.
+  - Limitation: it captures label-mix heterogeneity only, not inter-subject feature
+    shift. Subject-disjoint per-silo test sets are impossible with 1 to 5 subjects
+    per silo.
+- **`evaluate()`** now also returns `recall_per_class`.
+- **Grid sweeps** in `fedastro/grid.py`, run with `fedastro grid <sweep.yaml>`:
+  - `--list`.
+  - `--index i ...`, one variant per cluster job.
+  - `--resume`, which skips runs that already have a result.
+  - `--report`, a cross-variant table plus `<sweep>-grid.json`.
+  - A failed run is logged and the sweep continues. The exit code is 1 with a list of
+    failures.
+  - `load_config(path, overrides)` takes dotted-key overrides, validated as strictly
+    as YAML.
+- **Sweep files:**
+  - `configs/sweeps/phase4_alpha.yaml`: alpha in {0.1, 0.3, 1, 3, 10} x
+    {dirichlet, quantity control} x {fedavg, fedprox} x 5 seeds = 100 runs.
+  - `phase4_by_subject.yaml`: the no-skew reference.
+  - `phase4_mu.yaml`: mu in {0.001, 0.01, 0.1, 1} at alpha = 0.3.
+- **`make grid SWEEP=...`** wraps the sweep in `caffeinate -i`.
+
+### Bug found and fixed during Phase 4: Dirichlet prior
+- **The first pass drew silo class proportions from a symmetric Dir(alpha·1).** As
+  alpha grows, that pulls every silo towards uniform 1/3 proportions, not WESAD's
+  natural 54/30/16 mix.
+- **This caused a label-prior shift against the holdout even at "low skew."**
+  Federated accuracy at alpha = 10 was 0.548 versus 0.681 for the quantity control,
+  which exposed it.
+- **Fix:** q ~ Dir(alpha·p), with p the training pool's class distribution, as in Hsu
+  et al. 2019. alpha → ∞ now recovers the natural mix. A regression test was added.
+- **Results archived and re-run.** All symmetric-prior results (143 run directories)
+  were moved out of `runs/` into the session scratchpad. Every number below comes from
+  the re-run.
+- **Superseded tables:** the Phase 1 Dirichlet class tables and the Phase 2
+  `wesad_dirichlet` and control tables used the old prior. Re-run those configs if
+  needed.
+
+### Acceptance results
+5 seeds per variant. Holdout subjects 13, 16, 17. MLP, 30 rounds x 1 local epoch.
+Accuracy and macro-F1 are mean ± std across seeds. "Spread" is the fairness spread,
+lower is fairer.
+
+**Federated performance versus heterogeneity, FedAvg** (alpha = ∞ is `p4subj-fedavg`):
+| alpha | fed acc (Dirichlet) | fed macro-F1 (Dirichlet) | fed acc (quantity control) | fed macro-F1 (control) | central acc (Dirichlet) | local acc (Dirichlet) | spread fed | spread local |
+|---|---|---|---|---|---|---|---|---|
+| ∞ (by_subject) | 0.708 ± 0.074 | 0.668 ± 0.070 | — | — | 0.868 ± 0.022 | 0.654 ± 0.029 | 0.002 | 0.300 |
+| 10 | 0.652 ± 0.096 | 0.524 ± 0.062 | 0.722 ± 0.077 | 0.633 ± 0.106 | 0.838 ± 0.047 | 0.644 ± 0.034 | 0.160 | 0.225 |
+| 3 | 0.628 ± 0.118 | 0.489 ± 0.126 | 0.696 ± 0.066 | 0.593 ± 0.104 | 0.750 ± 0.064 | 0.573 ± 0.057 | 0.471 | 0.335 |
+| 1 | 0.575 ± 0.055 | 0.384 ± 0.166 | 0.671 ± 0.046 | 0.576 ± 0.077 | 0.647 ± 0.104 | 0.476 ± 0.075 | 0.641 | 0.468 |
+| 0.3 | 0.571 ± 0.035 | 0.348 ± 0.106 | 0.685 ± 0.049 | 0.573 ± 0.063 | 0.688 ± 0.105 | 0.509 ± 0.077 | 0.657 | 0.176 |
+| 0.1 | 0.492 ± 0.103 | 0.218 ± 0.034 | 0.700 ± 0.077 | 0.547 ± 0.054 | 0.536 ± 0.156 | 0.414 ± 0.070 | 0.995 | 0.176 |
+
+- **Degradation with heterogeneity: PASS.**
+  - Federated macro-F1 falls strictly as alpha falls: 0.668, 0.524, 0.489, 0.384,
+    0.348, 0.218.
+  - Accuracy falls monotonically within noise. 0.3 and 1 are tied at 0.571 and 0.575.
+- **The quantity-matched control stays flat**, at accuracy 0.67 to 0.72 and macro-F1
+  0.55 to 0.63. The degradation is caused by label skew, not by the windows that
+  subsampling removes.
+- **Federated beats the local-only silo mean at every alpha**, by +0.008 to +0.099
+  accuracy.
+  - H1 holds in 3/5 to 5/5 seeds per variant.
+  - The smallest margin is at alpha = 10 (+0.008, 3/5 seeds).
+- **Centralized also degrades under skew**, from 0.868 at ∞ to 0.536 at alpha 0.1.
+  The pooled training mix itself shifts away from the holdout mix.
+- **Fairness:**
+  - The single global model serves silos evenly at no skew (spread 0.002), but very
+    unevenly at strong skew (0.995 at alpha 0.1). It collapses towards the dominant
+    pooled class.
+  - Local-only models are less even at mild skew. At strong skew they are more even,
+    because each silo's own model predicts that silo's own majority class.
+  - Federation trades per-silo fit for global accuracy. Report this honestly.
+
+**FedAvg versus FedProx (mu = 0.01) at matched rounds, seeds and partitions:**
+- Paired per-seed differences in final federated accuracy (FedProx − FedAvg), mean:
+  - alpha 0.1: +0.0000
+  - alpha 0.3: −0.0009
+  - alpha 1: +0.0000
+  - alpha 3: +0.0019
+  - alpha 10: −0.0019
+  - by_subject: −0.001
+- The largest single-seed difference is 0.009.
+
+**mu sensitivity at alpha = 0.3.** Every value is reported. The default 0.01 was not
+re-selected.
+| mu | fed acc | fed macro-F1 | paired Δacc vs FedAvg (mean [min, max]) | paired ΔF1 |
+|---|---|---|---|---|
+| 0.001 | 0.571 ± 0.035 | 0.348 ± 0.106 | +0.000 [+0.000, +0.000] | +0.000 |
+| 0.01 | 0.570 ± 0.036 | 0.347 ± 0.105 | −0.001 [−0.005, +0.000] | −0.001 |
+| 0.1 | 0.569 ± 0.036 | 0.347 ± 0.105 | −0.002 [−0.009, +0.000] | −0.001 |
+| 1.0 | 0.587 ± 0.031 | 0.375 ± 0.087 | +0.016 [+0.000, +0.061] | +0.027 |
+
+**Verdict:** with 1 local epoch per round, FedProx gives **no measurable benefit** over
+FedAvg for mu ≤ 0.1. At mu = 1 there is a small, inconsistent gain: 0 in some seeds,
++0.061 in one.
+- This matches the mechanism. FedProx limits client drift, and with 1 local epoch of
+  2 to 11 Adam steps the clients barely drift.
+- Re-test once `fl.local_epochs` > 1 is used on the GPU cluster, as the user plans.
+- Do not claim FedProx "fixes" non-IID here.
+
+### Run cost
+On the laptop CPU, 130 runs took about 75 min, roughly 27 s per run for all three
+arms. The first mu sweep attempt failed when **the laptop went to sleep at 18:18**:
+Ray stalled and the round hit its 600 s timeout. That failure led to the fault-tolerant
+grid and the `caffeinate` target.
+
+### Decisions made (review these)
+1. **mu = 0.01** was fixed a priori. The sensitivity sweep is reported in full.
+   Selecting mu from it would be tuning on the test set.
+2. **Alpha grid** {0.1, 0.3, 1, 3, 10} plus by_subject as ∞.
+3. **Fairness definition** is label-mix re-weighted holdout recall, with spread as
+   max − min. Its limitation is stated above.
+4. **Dirichlet prior** is centred on the pool distribution, Hsu et al. 2019. This is
+   a bug fix, not a choice.
+
+---
+
+## Phase 3 — Federated core (FedAvg) — COMPLETE, reviewed (2026-10-15)
+
+**User decisions after review (2026-10-15):**
+- 30 rounds x 1 local epoch is accepted for laptop development. It will be revisited
+  for the GPU-cluster training runs.
+- Adam state is reset every round, following standard FedAvg practice. Keep it that
+  way.
 
 **Not committed.** The user commits. Suggested message:
 `feat(fl): phase 3 federated core (FedAvg) on Flower 1.23 Message API`.

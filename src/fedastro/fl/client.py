@@ -25,6 +25,7 @@ from fedastro.baselines.common import ARM_IDS, init_model
 from fedastro.config import ExperimentConfig
 from fedastro.data.base import DatasetBundle
 from fedastro.data.preprocess import Standardizer, Stats
+from fedastro.fl.strategy import client_proximal_mu
 from fedastro.metrics.classification import evaluate
 from fedastro.training import derive_seed, predict_proba, train_local
 
@@ -91,6 +92,7 @@ def make_client_app(silos: list[DatasetBundle], cfg: ExperimentConfig, seed: int
             model, X, data.y, cfg.train, n_classes,
             seed=derive_seed(seed, ARM_IDS["federated"], idx, server_round),
             device=device, epochs=cfg.fl.local_epochs,
+            proximal_mu=client_proximal_mu(cfg.fl),
         )
         content = RecordDict({
             "arrays": ArrayRecord(get_weights(model)),

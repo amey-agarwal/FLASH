@@ -1,0 +1,13 @@
+# FedProx mu sensitivity at alpha = 0.3 (Dirichlet), 5 seeds. Every mu is reported.
+# mu = 0.01 was fixed a priori as the default and is NOT re-selected from these results
+# (choosing mu on the holdout would be tuning on the test set).
+# The FedAvg (mu = 0) reference is p4alpha variant "p4alpha-a0p3-dirichlet-fedavg":
+# same alpha, same seeds, therefore identical silos and holdout.
+name: p4mu
+base: ../experiments/wesad_dirichlet.yaml
+seeds: [0, 1, 2, 3, 4]
+fixed:
+  partition.alpha: 0.3
+  fl.strategy: fedprox
+axes:
+  fl.proximal_mu: [0.001, 0.01, 0.1, 1.0]

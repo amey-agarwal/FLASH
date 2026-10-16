@@ -34,7 +34,7 @@ ARCHS = ("mlp", "cnn1d")
 OPTIMIZERS = ("adam", "sgd")
 CLASS_WEIGHTING = ("none", "balanced")
 ARMS = ("centralized", "local_only", "federated")
-FL_STRATEGIES = ("fedavg",)  # Phase 4 adds "fedprox"; Phase 6 adds buffered async
+FL_STRATEGIES = ("fedavg", "fedprox")  # Phase 6 adds buffered async
 REPRESENTATIONS = ("features", "sequence")
 DEVICES = ("cpu", "cuda")
 LOS_PROFILES = ("none", "rare", "short_occasional", "periodic", "long_blackout")
@@ -221,6 +221,9 @@ class FLConfig:
     strategy: str = "fedavg"
     rounds: int = 30
     local_epochs: int = 1
+    # FedProx proximal coefficient; only used (and only recorded) when strategy is
+    # "fedprox". 0.01 was fixed a priori (Phase 4), not tuned on the holdout.
+    proximal_mu: float = 0.01
     # rounds-to-target thresholds on global holdout accuracy:
     relative_target: float = 0.95  # fraction of the centralized arm's final accuracy
     absolute_target: float = 0.0  # 0 disables the absolute threshold
@@ -231,6 +234,8 @@ class FLConfig:
             raise ConfigError(f"fl.strategy must be one of {FL_STRATEGIES}")
         if self.rounds < 1 or self.local_epochs < 1:
             raise ConfigError("fl.rounds and fl.local_epochs must be >= 1")
+        if self.proximal_mu <= 0:
+            raise ConfigError("fl.proximal_mu must be > 0 (use strategy fedavg for mu = 0)")
         if not 0 < self.relative_target <= 1:
             raise ConfigError("fl.relative_target must be in (0, 1]")
         if not 0 <= self.absolute_target <= 1:
@@ -315,6 +320,8 @@ class ExperimentConfig:
         for other in DATASETS:
             if other != self.data.name:
                 d["data"].pop(other, None)
+        if self.fl.strategy != "fedprox":
+            d["fl"].pop("proximal_mu")
         return d
 
     def config_hash(self) -> str:
@@ -367,10 +374,25 @@ def load_topology(name: str, config_root: Path) -> TopologyConfig:
     return _build(TopologyConfig, raw, "topology")
 
 
-def load_config(path: str | Path) -> ExperimentConfig:
+def dotted_to_nested(overrides: dict[str, Any]) -> dict[str, Any]:
+    """{"partition.alpha": 0.1} -> {"partition": {"alpha": 0.1}}"""
+    out: dict[str, Any] = {}
+    for key, value in overrides.items():
+        cur = out
+        *parents, leaf = key.split(".")
+        for part in parents:
+            cur = cur.setdefault(part, {})
+        cur[leaf] = value
+    return out
+
+
+def load_config(path: str | Path, overrides: dict[str, Any] | None = None) -> ExperimentConfig:
+    """Load an experiment; ``overrides`` (dotted keys) are applied last, before validation."""
     path = Path(path).resolve()
     root = find_config_root(path)
     merged = deep_merge(_read_yaml(root / "base.yaml"), _read_yaml(path))
+    if overrides:
+        merged = deep_merge(merged, dotted_to_nested(overrides))
     topo_name = merged.pop("silos", None)
     if not isinstance(topo_name, str):
         raise ConfigError("'silos' must name a topology file in configs/silos/")

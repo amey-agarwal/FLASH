@@ -99,6 +99,9 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
         holdout=holdout,
     )
     run_arms(cfg, fed, seed, result)
+    from fedastro.metrics.fairness import fairness_report
+
+    result["fairness"] = fairness_report(result, list(bundle.class_names))
     notes = []
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")

@@ -1,0 +1,6 @@
+# Phase 4 no-skew reference (alpha -> infinity): whole subjects, natural label mix.
+name: p4subj
+base: ../experiments/wesad_by_subject.yaml
+seeds: [0, 1, 2, 3, 4]
+axes:
+  fl.strategy: [fedavg, fedprox]

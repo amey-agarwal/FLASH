@@ -50,11 +50,16 @@ def train_local(
     device: str = "cpu",
     epochs: int | None = None,
     eval_fn: EvalFn | None = None,
+    proximal_mu: float = 0.0,
 ) -> list[dict]:
     """Train ``model`` in place for ``epochs`` (default ``cfg.epochs``) and return a
     per-epoch history. ``eval_fn``, if given, is called after each epoch and its
     metrics are added to the history; it is for reporting only and never used to pick
-    a checkpoint (the final weights are always the last epoch's)."""
+    a checkpoint (the final weights are always the last epoch's).
+
+    ``proximal_mu > 0`` adds the FedProx term (mu / 2) * ||w - w_start||^2 to every
+    batch loss, where w_start are the weights the model had on entry (the global
+    model, for an FL client). With mu = 0 this is exactly plain local training."""
     model.to(device)
     # Seed the global RNG too (dropout draws from it), so a call is self-contained and
     # reproducible regardless of what ran earlier in this process or Ray actor.
@@ -67,6 +72,7 @@ def train_local(
     weight = class_weights(y, n_classes, cfg.class_weighting)
     loss_fn = nn.CrossEntropyLoss(weight=None if weight is None else weight.to(device))
     opt = make_optimizer(model, cfg)
+    anchor = [p.detach().clone() for p in model.parameters()] if proximal_mu > 0 else None
     history = []
     for epoch in range(1, (epochs or cfg.epochs) + 1):
         model.train()
@@ -75,6 +81,9 @@ def train_local(
             xb, yb = xb.to(device), yb.to(device)
             opt.zero_grad()
             loss = loss_fn(model(xb), yb)
+            if anchor is not None:
+                prox = sum(((p - a) ** 2).sum() for p, a in zip(model.parameters(), anchor))
+                loss = loss + 0.5 * proximal_mu * prox
             loss.backward()
             opt.step()
             total += loss.item() * len(yb)

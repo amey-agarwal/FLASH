@@ -42,7 +42,27 @@ class FedAvg:
         return out
 
 
+class FedProx(FedAvg):
+    """Li et al. 2020. Server aggregation is identical to FedAvg; the difference is the
+    client-side proximal term (mu / 2) * ||w - w_global||^2, applied in
+    ``train_local`` via ``client_proximal_mu``."""
+
+    name = "fedprox"
+
+    def __init__(self, mu: float):
+        if mu <= 0:
+            raise ValueError("FedProx mu must be > 0")
+        self.mu = mu
+
+
 def build_strategy(cfg: FLConfig) -> FedAvg:
     if cfg.strategy == "fedavg":
         return FedAvg()
+    if cfg.strategy == "fedprox":
+        return FedProx(cfg.proximal_mu)
     raise ValueError(f"unknown strategy {cfg.strategy!r}")
+
+
+def client_proximal_mu(cfg: FLConfig) -> float:
+    """Proximal coefficient each client applies during local training (0 = none)."""
+    return cfg.proximal_mu if cfg.strategy == "fedprox" else 0.0

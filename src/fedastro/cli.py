@@ -38,6 +38,15 @@ def _parser() -> argparse.ArgumentParser:
     summ.add_argument("results", nargs="+", help="result.json paths (one experiment, several seeds)")
     summ.add_argument("--out", help="also write the summary JSON here")
 
+    grid = sub.add_parser("grid", help="run a grid sweep (variants x seeds) from a sweep YAML")
+    grid.add_argument("sweep", help="path to a sweep YAML (configs/sweeps/)")
+    grid.add_argument("--list", action="store_true", help="list variants and exit")
+    grid.add_argument("--index", type=int, nargs="+", help="run only these variant indices")
+    grid.add_argument("--resume", action="store_true", help="skip runs whose result.json exists")
+    grid.add_argument("--output-dir", help="override output_dir")
+    grid.add_argument("--report", action="store_true",
+                      help="collect existing per-variant summaries into one table; runs nothing")
+
     inspect = sub.add_parser("inspect", help="print the per-silo class distribution; writes nothing")
     common(inspect)
     inspect.add_argument("--seed", type=int, help="override seed (default from config)")
@@ -53,11 +62,67 @@ def _summarize(paths: list[Path], out: Path | None) -> None:
         print(out)
 
 
+def _grid(args: argparse.Namespace) -> int:
+    from fedastro.grid import load_grid
+    from fedastro.manifest import make_run_id
+
+    try:
+        sweep_name, variants = load_grid(args.sweep)
+    except ConfigError as e:
+        print(f"config error: {e}", file=sys.stderr)
+        return 2
+    if args.report:
+        from fedastro.metrics.aggregate import grid_report
+
+        out_dir = Path(args.output_dir or variants[0].config.output_dir)
+        rows, text = grid_report(variants, out_dir)
+        print(text)
+        out = out_dir / f"{sweep_name}-grid.json"
+        out.write_text(dumps({"sweep": sweep_name, "rows": rows}))
+        print(out)
+        return 0
+    if args.list:
+        for v in variants:
+            print(f"[{v.index}] {v.name}  {v.overrides}  seeds={list(v.config.seeds)}")
+        return 0
+    chosen = [v for v in variants if args.index is None or v.index in args.index]
+    if args.index and len(chosen) != len(set(args.index)):
+        print(f"unknown variant index in {args.index}; have 0..{len(variants) - 1}", file=sys.stderr)
+        return 2
+    failed = []
+    for v in chosen:
+        cfg = v.config.with_overrides(output_dir=args.output_dir)
+        paths = []
+        for seed in cfg.seeds:
+            path = Path(cfg.output_dir) / make_run_id(cfg, seed) / "result.json"
+            if not (args.resume and path.exists()):
+                try:
+                    path = run_and_write(cfg, seed) / "result.json"
+                except Exception as e:  # one failed run must not abort a long sweep
+                    failed.append(f"{v.name} seed {seed}: {type(e).__name__}: {e}")
+                    print(f"FAILED {failed[-1]}", file=sys.stderr)
+                    continue
+            paths.append(path)
+            print(path)
+        if len(paths) == len(cfg.seeds):
+            _summarize(paths, Path(cfg.output_dir) / f"{cfg.name}-{cfg.config_hash()[:10]}-summary.json")
+        else:
+            print(f"SKIPPED summary for {v.name}: {len(paths)}/{len(cfg.seeds)} seeds succeeded", file=sys.stderr)
+    if failed:
+        print(f"{len(failed)} run(s) failed; re-run with --resume to fill gaps:", file=sys.stderr)
+        for f in failed:
+            print(f"  {f}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "summarize":
         _summarize([Path(p) for p in args.results], Path(args.out) if args.out else None)
         return 0
+    if args.command == "grid":
+        return _grid(args)
     try:
         cfg = load_config(args.config)
         overrides = {"output_dir": args.output_dir, "device": args.device}

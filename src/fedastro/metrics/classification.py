@@ -4,7 +4,7 @@ macro-F1, balanced accuracy and macro one-vs-rest AUC are always reported alongs
 from __future__ import annotations
 
 import numpy as np
-from sklearn.metrics import balanced_accuracy_score, f1_score, roc_auc_score
+from sklearn.metrics import balanced_accuracy_score, f1_score, recall_score, roc_auc_score
 
 METRICS = ("accuracy", "balanced_accuracy", "macro_f1", "auc")
 
@@ -25,4 +25,8 @@ def evaluate(y_true: np.ndarray, proba: np.ndarray) -> dict[str, float | None]:
         "balanced_accuracy": float(balanced_accuracy_score(y_true, y_pred)),
         "macro_f1": float(f1_score(y_true, y_pred, labels=labels, average="macro", zero_division=0)),
         "auc": float(np.mean(aucs)) if aucs else None,
+        # per-class recall on y_true (0.0 for classes absent from y_true); used by the
+        # silo fairness metric (metrics/fairness.py)
+        "recall_per_class": [float(r) for r in recall_score(
+            y_true, y_pred, labels=labels, average=None, zero_division=0)],
     }

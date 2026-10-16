@@ -1,0 +1,10 @@
+# Phase 4 main sweep: label-skew strength x partition (skew vs quantity-matched control)
+# x strategy, 5 seeds. All values fixed before any Phase 4 result was seen.
+# 5 alphas x 2 methods x 2 strategies = 20 variants x 5 seeds = 100 runs (~1 h laptop CPU).
+name: p4alpha
+base: ../experiments/wesad_dirichlet.yaml
+seeds: [0, 1, 2, 3, 4]
+axes:
+  partition.alpha: [0.1, 0.3, 1.0, 3.0, 10.0]
+  partition.method: [dirichlet, dirichlet_quantity_control]
+  fl.strategy: [fedavg, fedprox]
