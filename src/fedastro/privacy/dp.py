@@ -71,16 +71,43 @@ class DPPlan:
         acc.history = [(self.noise_multiplier, self.sample_rate, epochs_done * self.steps_per_epoch)]
         return float(acc.get_epsilon(delta=self.delta))
 
-    def to_dict(self, epochs_done: int | None = None) -> dict[str, Any]:
+    def to_dict(self, records_per_subject: int | None = None, epochs_done: int | None = None) -> dict[str, Any]:
+        """``records_per_subject`` (the most windows any one subject has in this
+        training set) adds the implied subject-level bound; see ``subject_level``."""
         done = self.epochs if epochs_done is None else epochs_done
-        return {
+        eps = self.epsilon_after(done)
+        out = {
             "n_train": self.n_train,
             "delta": self.delta,
             "noise_multiplier": self.noise_multiplier,
             "sample_rate": self.sample_rate,
             "steps": done * self.steps_per_epoch,
-            "epsilon": self.epsilon_after(done),
+            "epsilon": eps,
         }
+        if records_per_subject is not None:
+            out["subject_level"] = subject_level(eps, self.delta, records_per_subject)
+        return out
+
+
+def subject_level(epsilon: float, delta: float, k: int) -> dict[str, Any]:
+    """Group-privacy bound for one subject who contributes ``k`` records: an
+    (epsilon, delta)-DP mechanism is (k*epsilon, k*e^((k-1)*epsilon)*delta)-DP for a
+    group of k records. This is a valid but loose upper bound, not a tight subject-level
+    accounting. ``vacuous`` means the bound's delta reaches 1, i.e. it guarantees nothing."""
+    log_delta = math.log(k) + (k - 1) * epsilon + math.log(delta)
+    return {
+        "records_per_subject": k,
+        "epsilon": k * epsilon,
+        "delta": math.exp(log_delta) if log_delta < 0 else 1.0,
+        "vacuous": log_delta >= 0,
+        "method": "group privacy (k*eps, k*exp((k-1)*eps)*delta); loose upper bound",
+    }
+
+
+def records_per_subject(subject_id) -> int:
+    import numpy as np
+
+    return int(np.bincount(np.unique(subject_id, return_inverse=True)[1]).max())
 
 
 @lru_cache(maxsize=256)
@@ -139,6 +166,11 @@ def privacy_section(cfg: PrivacyConfig, accounting: dict[str, Any]) -> dict[str,
             "standardisation statistics (count, sum, sum of squares) shared by each silo",
             "number of training records per silo (num-examples weights FedAvg)",
         ] if cfg.enabled else []),
+        "subject_level": ({
+            "epsilon_max": max(m["subject_level"]["epsilon"] for m in models),
+            "any_vacuous": any(m["subject_level"]["vacuous"] for m in models),
+            "note": "group-privacy upper bound per model; the guarantee is record-level",
+        } if models and all("subject_level" in m for m in models) else None),
         "accounting": accounting,
         "attack": {"mse": None},
     }

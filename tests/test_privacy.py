@@ -36,6 +36,18 @@ def test_delta_strictly_below_one_over_n_and_epsilon_within_budget():
     assert eps[0] == 0.0 and all(a < b for a, b in zip(eps, eps[1:]))
 
 
+def test_subject_level_group_privacy_bound():
+    from fedastro.privacy.dp import records_per_subject, subject_level
+
+    assert records_per_subject(np.array([4, 4, 9, 4, 9])) == 3
+    one = subject_level(1.0, 1e-4, 1)
+    assert one["epsilon"] == 1.0 and one["delta"] == pytest.approx(1e-4) and not one["vacuous"]
+    small = subject_level(0.5, 1e-4, 3)
+    assert small["epsilon"] == 1.5 and small["delta"] == pytest.approx(3 * np.exp(1.0) * 1e-4)
+    wesad = subject_level(1.0, 0.1 / 345, 70)  # a WESAD subject: ~70 windows
+    assert wesad["epsilon"] == 70.0 and wesad["vacuous"] and wesad["delta"] == 1.0
+
+
 def test_smaller_epsilon_needs_more_noise():
     sig = [plan_dp(dataclasses.replace(ON, target_epsilon=e), 345, 32, 30).noise_multiplier
            for e in (0.5, 1, 2, 3, 5, 10, 13)]
@@ -233,6 +245,11 @@ def test_dp_run_result_contract(dp_runs):
     assert a["silo"] == r["silos"][0]["name"] and a["mse"] is not None
     assert [(c["state"], c["batch_size"]) for c in a["cells"]] == [("init", 1), ("init", 4), ("final", 1), ("final", 4)]
     assert all(len(c["trials"]) == 2 and c["noise_multiplier"] > 0 for c in a["cells"])
+    assert all(set(c["chance"]) == {"mse", "rel_mse", "corr", "nn_identified"} for c in a["cells"])
+    assert all("chance" in t for c in a["cells"] for t in c["trials"])
+    sl = p["subject_level"]
+    assert sl["epsilon_max"] > p["epsilon"]
+    assert all("subject_level" in m for m in acc["federated"].values())
     # batches are drawn by seed, so both model states attack the same records
     assert a["cells"][0]["trials"][0]["indices"] == a["cells"][2]["trials"][0]["indices"]
 
@@ -245,3 +262,4 @@ def test_summary_reports_privacy(dp_runs):
     s = summarise(load_results(dp_runs[:1]))
     assert s["privacy"]["target_epsilon"] == 3.0
     assert set(s["privacy"]["attack"]["cells"]) == {"init-B1", "init-B4", "final-B1", "final-B4"}
+    assert all("chance" in c for c in s["privacy"]["attack"]["cells"].values())

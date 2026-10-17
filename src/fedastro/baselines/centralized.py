@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
 from fedastro.baselines.common import ARM_IDS, concat, dp_plan, holdout_evaluator, init_model
 from fedastro.config import ExperimentConfig
 from fedastro.data.partition import Federation
@@ -30,5 +32,8 @@ def run_centralized(fed: Federation, cfg: ExperimentConfig, seed: int, device: s
     final = {k: v for k, v in history[-1].items() if k not in ("epoch", "train_loss")}
     out = {"final": final, "history": history, "n_train": len(y), "n_params": count_parameters(model)}
     if dp is not None:
-        out["privacy"] = dp.to_dict()
+        from fedastro.privacy.dp import records_per_subject
+
+        subjects = np.concatenate([s.data.subject_id for s in fed.silos.values()])
+        out["privacy"] = dp.to_dict(records_per_subject(subjects))
     return out

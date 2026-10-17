@@ -33,7 +33,9 @@ def run_local_only(fed: Federation, cfg: ExperimentConfig, seed: int, device: st
         final = {k: v for k, v in history[-1].items() if k not in ("epoch", "train_loss")}
         per_silo[name] = {"final": final, "history": history, "n_train": len(data)}
         if dp is not None:
-            per_silo[name]["privacy"] = dp.to_dict()
+            from fedastro.privacy.dp import records_per_subject
+
+            per_silo[name]["privacy"] = dp.to_dict(records_per_subject(data.subject_id))
     return {"per_silo": per_silo, **summarise_silos(per_silo)}
 
 

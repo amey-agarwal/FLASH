@@ -33,6 +33,11 @@ Scores (reconstructions are matched to true records by the Hungarian algorithm):
   (feature vectors) or over time per channel (sequences), averaged.
 - ``nn_identified``: fraction of reconstructions whose nearest record in the silo's
   whole training set is the true record (re-identification of the window).
+
+Every cell also carries ``chance``: the same scores for random N(0, 1) guesses (the
+attack's starting point, i.e. an attacker that learned nothing), matched and scored
+identically. Matching alone lifts chance re-identification well above 1/N at larger
+batch sizes, so attack scores are only meaningful relative to it.
 """
 
 from __future__ import annotations
@@ -148,6 +153,17 @@ def score(recon: np.ndarray, true: np.ndarray, true_idx: np.ndarray, pool: np.nd
     }
 
 
+SCORES = ("mse", "rel_mse", "corr", "nn_identified")
+
+
+def chance_scores(silo_X: np.ndarray, idx: np.ndarray, draws: int, seed: int) -> dict[str, float]:
+    """Mean score of ``draws`` random N(0, 1) guesses for the batch ``silo_X[idx]``."""
+    rng = np.random.default_rng(seed)
+    shape = (len(idx), *silo_X.shape[1:])
+    runs = [score(rng.standard_normal(shape).astype(np.float32), silo_X[idx], idx, silo_X) for _ in range(draws)]
+    return {k: float(np.mean([r[k] for r in runs])) for k in SCORES}
+
+
 def _mean_std(vals: list[float]) -> dict[str, float | None]:
     return {"mean": float(np.mean(vals)), "std": float(np.std(vals, ddof=1)) if len(vals) > 1 else None}
 
@@ -193,11 +209,14 @@ def _run_attack(cfg: ExperimentConfig, seed: int, silo_X: np.ndarray, silo_y: np
                 target = released_gradient(model, X[idx], y[idx], dp, derive_seed(seed, ATTACK_ID, b, t, si, 1))
                 recon = invert(model, target, y[idx], tuple(X.shape[1:]), acfg,
                                None if dp is None else dp.max_grad_norm, derive_seed(seed, ATTACK_ID, b, t, si, 2))
-                trials.append({"indices": idx.tolist(), **score(recon.numpy(), silo_X[idx], idx, silo_X)})
+                chance = chance_scores(silo_X, idx, acfg.chance_draws, derive_seed(seed, ATTACK_ID, b, t, si, 3))
+                trials.append({"indices": idx.tolist(), **score(recon.numpy(), silo_X[idx], idx, silo_X),
+                               "chance": chance})
             cells.append({
                 "state": state, "batch_size": b,
                 "noise_multiplier": None if dp is None else dp.noise_multiplier,
-                **{k: _mean_std([tr[k] for tr in trials]) for k in ("mse", "rel_mse", "corr", "nn_identified")},
+                **{k: _mean_std([tr[k] for tr in trials]) for k in SCORES},
+                "chance": {k: float(np.mean([tr["chance"][k] for tr in trials])) for k in SCORES},
                 "trials": trials,
             })
     headline = next(c for c in cells if c["state"] == acfg.model_states[-1]
@@ -209,6 +228,7 @@ def _run_attack(cfg: ExperimentConfig, seed: int, silo_X: np.ndarray, silo_y: np
         "threat_model": THREAT_MODEL,
         "n_silo_records": len(X),
         "settings": {"iterations": acfg.iterations, "lr": acfg.lr, "prior_weight": acfg.prior_weight,
-                     "trials": acfg.trials, "loss": "cosine gradient distance"},
+                     "trials": acfg.trials, "chance_draws": acfg.chance_draws,
+                     "loss": "cosine gradient distance"},
         "cells": cells,
     }

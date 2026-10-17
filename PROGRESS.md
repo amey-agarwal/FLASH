@@ -2,15 +2,94 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
-**Phase 5 gate: waiting for the user's review of attack fairness** (CLAUDE.md requires
-it before figures). Phase 4 is also awaiting review. Next after that: Phase 6, deep-space
-comms.
+**Phase 5: attack fairness accepted by the user (2026-10-17). Awaiting commit.**
+Phase 4 is also awaiting commit. Next: Phase 6, deep-space comms (plan at the end of
+the Phase 5 section), when the user approves.
 **GPU cluster:** the shakedown (Phase 3 plan) is still pending; the user cannot run it yet.
 On the cluster, run one grid variant per job with `fedastro grid ... --index i`.
 
 ---
 
-## Phase 5 — Privacy — COMPLETE, awaiting attack-fairness review (2026-10-16)
+## Phase 5 — Privacy — COMPLETE, attack fairness accepted (2026-10-16/17)
+
+### User decisions applied (2026-10-17)
+- delta = 0.1/N_train is accepted.
+- Attack fairness is accepted as is.
+- **The federated DP utility collapse is reported as is.** No DP-specific retuning.
+- **Chance-level attack scores are now in the code.** They will be produced by the GPU
+  cluster runs. The local `p5eps` results predate them and are not re-run on the laptop.
+- The current focus is completing the code. Publishable runs happen on the cluster.
+
+### Added after the review (2026-10-17)
+- **Chance baseline per attack cell and per trial** (`privacy.attack.chance_draws`,
+  default 50). Random N(0, 1) guesses, which are the attack's own starting point, are
+  scored with the same matching. They appear in summaries and `grid --report`. Cost:
+  under 1 s per run. The new key enters the config hash, so cluster attack runs get
+  new run ids and cannot be confused with the local pre-chance `p5eps` runs.
+  - WESAD check (seed 0, no DP): chance re-identification is 0.013 / 0.005–0.008 / 0.06
+    at B = 1 / 4 / 32; the attack's is 1.0 / 0.42–0.5 / 0.13–0.18.
+- **Subject-level bound reported next to every record-level epsilon** (`subject_level`
+  per model, and `privacy.subject_level` per run). It uses group privacy, (k·eps,
+  k·e^((k−1)·eps)·delta), with k = the most windows any one subject has in that
+  training set. It is a valid but loose upper bound. `vacuous: true` means its delta
+  reaches 1. For WESAD (k ≈ 70) it is vacuous at every epsilon in the sweep.
+- Tests: 128 passed.
+
+### Per-window guarantee vs the alternatives
+| | Record-level (implemented) | Subject-level DP | Silo-level DP (DP-FedAvg) |
+|---|---|---|---|
+| Unit protected | one 60 s window | all of one crew member's data | a whole silo's data |
+| Question it answers | was this window used in training? | was this person in the training data? | did this agency take part at all? |
+| Mechanism | DP-SGD, per-window clipping (Opacus) | per-subject clipping: sample subjects, clip each subject's summed gradient, add noise | the server clips each silo's update and adds noise once per round |
+| Units available per silo | 70–346 windows | 1–5 subjects | 5 silos in total |
+| Expected utility here | already collapses for the federated arm | worse: noise must hide one person among 1–5 | not workable: needs hundreds or thousands of clients |
+| Support | Opacus, implemented | custom code; Opacus has no per-subject clipping | custom code; the server must be trusted to add noise |
+| Honest claim | strong per window; for a subject only via group privacy, which is vacuous at k ≈ 70 | the claim that matters medically | the claim that matters to an agency |
+
+Recommendation: keep record-level DP, which is what is implemented. On the poster,
+state the unit, and quote the reported group-privacy figure for subject-level
+protection. Name subject-level DP as future work that needs far more subjects per silo.
+
+### Who the simulated attacker is
+- **An honest-but-curious (semi-honest) aggregation server, or anyone who can read
+  the update on the link.** It follows the protocol exactly: it sends the real global
+  model, aggregates correctly, and does not tamper with or disrupt anything.
+- **Its goal is confidentiality.** It reconstructs a silo's private training records
+  (crew physiological windows) from an update it legitimately receives.
+- **What the attacker is not doing:**
+  - It is not hacking into a silo.
+  - It is not degrading or invalidating the service (no availability or integrity
+    attack).
+  - It is not poisoning or backdooring the model.
+  - It is not modifying the global model to make it leak more (a malicious server, as
+    in "Robbing the Fed").
+- **It targets the data, not the training.** Training proceeds normally; the leak is a
+  side effect of what an update reveals.
+
+### Making the attack more trustworthy to a reviewer
+Code-only items can be added before the cluster run; each is a configurable option.
+1. **Chance baselines in every result.** Done (above).
+2. **Unknown-label variant.** Infer labels (iDLG for B=1, bias-gradient counts for B>1)
+   instead of assuming them. This removes the "labels known" objection.
+3. **Attack the real multi-step FedAvg update.** Invert w_before − w_after by unrolling
+   the client's local steps on the dummy batch. This removes the "single step"
+   objection. It is the biggest change and the slowest attack.
+4. **Attack every silo, not only the largest.** Small silos have more DP noise but fewer
+   records to hide among.
+5. **Random restarts, keeping the restart with the lowest gradient-matching loss.**
+   Selection uses only what the attacker sees, never ground truth.
+6. **More trials on the cluster** (`privacy.attack.trials: 10`) and bootstrap
+   confidence intervals in the figures.
+7. **Freeze the attack settings before the cluster run**, as a pre-registration. Publish
+   the code, seeds, every trial and the record indices. Most of this is already
+   stored.
+8. **Complementary membership-inference test** (loss-threshold attack). It measures the
+   threat DP's epsilon is actually defined against.
+9. **Implementation sanity check.** Reproduce full recovery in the textbook setting
+   (B=1, untrained network). This exists as `test_attack_recovers_single_record_from_untrained_mlp`.
+
+Recommendation: 2, 4 and 5 are cheap and close the obvious objections; do them before
+the cluster run if wanted. Treat 3 and 8 as stretch.
 
 **Not committed.** The user commits. Suggested message:
 `feat(privacy): phase 5 DP-SGD (Opacus) and gradient-inversion attack, epsilon sweep`.
@@ -179,17 +258,39 @@ Remaining weaknesses a judge could raise:
 - Chance baselines live only in this log. Recommendation: add them to the attack
   output, and re-run the sweep before the figures.
 
-### Open questions for the user
-- **DP utility collapse in the federated arm.** Options, none applied:
-  - (a) Report as is.
-  - (b) A DP-aware training config fixed a priori (larger batch, fewer epochs, SGD
-    instead of reset Adam, tuned clip norm), run as a separate, labelled variant.
-  - (c) Server-side (central) DP on the aggregated update instead of local DP-SGD.
-    That is a different trust model.
+### Cluster run for Phase 5 (publishable numbers)
+- `fedastro grid configs/sweeps/phase5_eps.yaml --index i --output-dir <dir>`, i = 0..7,
+  one job per variant: 5 seeds, about 2–3 min per run on CPU.
+- Chance baselines are included automatically.
+- Use a fresh output dir. With the new config hash, old runs would not be resumed
+  anyway.
+- The DP runs are CPU-bound (small MLP, Opacus per-sample gradients). A GPU does not
+  speed them up; many CPU cores in parallel jobs do.
 
-  **Recommendation: (a) now, plus (b) as a labelled sensitivity run.**
-- **Should the chance baselines go into the attack output** (requires re-running the
-  sweep, ~1.5 h on the laptop)?
+### Open questions for the user
+- Which of the robustness items 2–9 to implement before the cluster run (recommended:
+  2, 4, 5).
+
+### Plan for Phase 6 (deep-space comms), not started
+1. **`fl/comms.py`: a per-silo link model in simulated time.**
+   - One-way delay from the silo config, with Mars `near`/`mean`/`far` presets.
+   - Jitter.
+   - A bandwidth cap, so payload bytes become transfer time.
+   - Loss-of-signal windows with configurable probability and duration, calibrated to
+     the ~7.5 min FLUID pause.
+   - Seeded and deterministic. It never sleeps (`--real-sleep` exists only for the
+     demo).
+2. **Fill `sim_wallclock_s` per round and `comms.los_events`.** Simulated time stays a
+   separate field from the real `real_elapsed_s` in the manifest.
+3. **Buffered-async strategy (FedBuff-style).** The server aggregates once K updates
+   arrive, with staleness-aware weighting. Late or dark silos contribute stale updates
+   instead of blocking.
+4. **Sync vs buffered-async under Mars-far with LOS.** Report time-to-target accuracy
+   in simulated wall-clock per preset (Earth, Moon, Mars-near, Mars-far).
+5. **A silo going dark mid-run does not crash the federation.** Covered by a test.
+6. **Implementation choice to confirm in Phase 6.** The event-driven schedule (who
+   arrives when) is computed in simulated time on the server. Flower still delivers
+   messages synchronously underneath, so results stay deterministic and fast.
 
 ---
 

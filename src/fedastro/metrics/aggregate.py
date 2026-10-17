@@ -96,11 +96,14 @@ def _summarise_privacy(results: list[dict[str, Any]]) -> dict[str, Any]:
             per_seed = [r["privacy"]["attack"]["cells"][i] for r in results]
             if any((p["state"], p["batch_size"]) != (c["state"], c["batch_size"]) for p in per_seed):
                 raise ValueError("attack cells differ across seeds")
-            cells[f"{c['state']}-B{c['batch_size']}"] = {
+            key = f"{c['state']}-B{c['batch_size']}"
+            cells[key] = {
                 "state": c["state"], "batch_size": c["batch_size"],
                 "noise_multiplier": _mean_std([p["noise_multiplier"] for p in per_seed]),
                 **{m: _mean_std([p[m]["mean"] for p in per_seed]) for m in ATTACK_METRICS},
             }
+            if all("chance" in p for p in per_seed):
+                cells[key]["chance"] = {m: _mean_std([p["chance"][m] for p in per_seed]) for m in ATTACK_METRICS}
         out["attack"] = {"silo": results[0]["privacy"]["attack"]["silo"], "cells": cells}
     return out
 
@@ -188,6 +191,10 @@ def format_summary(summary: dict[str, Any]) -> str:
             for key, c in pr["attack"]["cells"].items():
                 lines.append(f"  {key:<12} sigma {fmt(c['noise_multiplier']):>14}  rel_mse {fmt(c['rel_mse']):>14}  "
                              f"corr {fmt(c['corr']):>14}  nn_identified {fmt(c['nn_identified'])}")
+                if "chance" in c:
+                    ch = c["chance"]
+                    lines.append(f"  {'  chance':<12} {'':>20}  rel_mse {fmt(ch['rel_mse']):>14}  "
+                                 f"corr {fmt(ch['corr']):>14}  nn_identified {fmt(ch['nn_identified'])}")
     if "h1" in summary:
         h = summary["h1"]
         lines.append(f"H1 ({h['metric']}): federated > local_only mean in {h['federated_beats_local_only_mean']}/{h['n_seeds']} seeds; "
@@ -235,6 +242,7 @@ def grid_report(variants, out_dir: Path) -> tuple[list[dict[str, Any]], str]:
         if pr:
             eps = ms(pr["epsilon"]) if "epsilon" in pr else "inf"
             atk = "  ".join(f"{k} rel {ms(c['rel_mse'])} nn {ms(c['nn_identified'])}"
+                            + (f" (chance nn {ms(c['chance']['nn_identified'])})" if "chance" in c else "")
                             for k, c in pr.get("attack", {}).get("cells", {}).items())
             lines.append(f"{'':<46}  eps spent {eps}  {atk}")
         lines.append(

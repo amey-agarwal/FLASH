@@ -261,6 +261,9 @@ class AttackConfig:
     iterations: int = 1000
     lr: float = 0.1
     prior_weight: float = 0.01  # Gaussian prior on standardised inputs (weight * mean(x^2))
+    # Chance level per trial: score this many random N(0, 1) guesses (the attack's own
+    # starting point) exactly like a reconstruction. Attack scores are read against it.
+    chance_draws: int = 50
 
     def validate(self) -> None:
         if not self.model_states or any(s not in ATTACK_STATES for s in self.model_states):
@@ -269,8 +272,8 @@ class AttackConfig:
             raise ConfigError("privacy.attack.batch_sizes must list positive integers")
         if len(set(self.batch_sizes)) != len(self.batch_sizes) or len(set(self.model_states)) != len(self.model_states):
             raise ConfigError("privacy.attack.batch_sizes and model_states must not repeat")
-        if self.trials < 1 or self.iterations < 1:
-            raise ConfigError("privacy.attack.trials and iterations must be >= 1")
+        if self.trials < 1 or self.iterations < 1 or self.chance_draws < 1:
+            raise ConfigError("privacy.attack.trials, iterations and chance_draws must be >= 1")
         if self.lr <= 0 or self.prior_weight < 0:
             raise ConfigError("privacy.attack.lr must be > 0 and prior_weight >= 0")
 

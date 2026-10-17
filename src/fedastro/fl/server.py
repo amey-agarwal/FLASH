@@ -213,8 +213,11 @@ def run_federated(fed: Federation, cfg: ExperimentConfig, seed: int, device: str
     }
     if cfg.privacy.enabled:
         from fedastro.baselines.common import dp_plan
+        from fedastro.privacy.dp import records_per_subject
 
         total = cfg.fl.rounds * cfg.fl.local_epochs
-        result["privacy"] = {name: dp_plan(cfg, len(split.data), total).to_dict()
-                             for name, split in fed.silos.items()}
+        result["privacy"] = {
+            name: dp_plan(cfg, len(split.data), total).to_dict(records_per_subject(split.data.subject_id))
+            for name, split in fed.silos.items()
+        }
     return result
