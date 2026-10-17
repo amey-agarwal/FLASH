@@ -64,7 +64,9 @@ def describe_federation(fed: Federation) -> tuple[list[dict[str, Any]], dict[str
     return silos, holdout
 
 
-def run_arms(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str, Any]) -> None:
+def run_arms(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str, Any]) -> dict[str, Any]:
+    """Train the configured arms into ``result["arms"]``. Returns what the federated
+    arm captured (global weights, scaler) for the privacy attack, or {}."""
     from fedastro.baselines.centralized import run_centralized
     from fedastro.baselines.common import resolve_device
     from fedastro.baselines.local_only import run_local_only
@@ -78,7 +80,36 @@ def run_arms(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str
         from fedastro.fl.server import run_federated
 
         centralized_final = result["arms"]["centralized"]["final"] if "centralized" in cfg.arms else None
-        result["arms"]["federated"] = run_federated(fed, cfg, seed, device, centralized_final)
+        capture: dict[str, Any] = {}
+        result["arms"]["federated"] = run_federated(fed, cfg, seed, device, centralized_final, capture)
+        return capture
+    return {}
+
+
+def privacy_report(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str, Any],
+                   capture: dict[str, Any]) -> dict[str, Any]:
+    """Collect per-model DP accounting from the arms, then run the attack if configured."""
+    from fedastro.privacy.dp import privacy_section
+
+    arms = result["arms"]
+    accounting = {}
+    if "privacy" in arms["centralized"]:
+        accounting["centralized"] = arms["centralized"]["privacy"]
+    if arms["local_only"]["per_silo"] and cfg.privacy.enabled:
+        accounting["local_only"] = {k: v["privacy"] for k, v in arms["local_only"]["per_silo"].items()}
+    if "privacy" in arms["federated"]:
+        accounting["federated"] = arms["federated"]["privacy"]
+    section = privacy_section(cfg.privacy, accounting)
+    if cfg.privacy.attack.enabled:
+        from fedastro.baselines.common import init_model
+        from fedastro.privacy.attack import run_attack
+
+        name = cfg.privacy.attack.silo or cfg.topology.silos[0].name
+        data = fed.silos[name].data
+        model = init_model(cfg, data.X.shape[1:], len(data.class_names), seed=0)  # weights replaced
+        section["attack"] = {"silo": name, **run_attack(
+            cfg, seed, capture["scaler"].transform(data.X), data.y, capture["global_weights"], model)}
+    return section
 
 
 def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
@@ -98,7 +129,8 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
         silos=silos,
         holdout=holdout,
     )
-    run_arms(cfg, fed, seed, result)
+    capture = run_arms(cfg, fed, seed, result)
+    result["privacy"] = privacy_report(cfg, fed, seed, result, capture)
     from fedastro.metrics.fairness import fairness_report
 
     result["fairness"] = fairness_report(result, list(bundle.class_names))
@@ -108,6 +140,10 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
     notes.append(f"Arms run: {', '.join(cfg.arms)}.")
     if "federated" in cfg.arms:
         notes.append("Federated arm: synchronous lossless links; sim_wallclock_s null until Phase 6.")
+    if cfg.privacy.enabled:
+        notes.append(f"DP-SGD on every trained model: record-level (epsilon, delta) with target "
+                     f"epsilon {cfg.privacy.target_epsilon}; not subject-level, and the shared "
+                     f"standardisation statistics are not covered.")
     if cfg.notes:
         notes.append(cfg.notes)
     result["notes"] = " ".join(notes)

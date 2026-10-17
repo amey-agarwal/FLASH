@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fedastro.baselines.common import ARM_IDS, concat, holdout_evaluator, init_model
+from fedastro.baselines.common import ARM_IDS, concat, dp_plan, holdout_evaluator, init_model
 from fedastro.config import ExperimentConfig
 from fedastro.data.partition import Federation
 from fedastro.data.preprocess import Standardizer
@@ -22,9 +22,13 @@ def run_centralized(fed: Federation, cfg: ExperimentConfig, seed: int, device: s
     scaler = Standardizer.fit(X)
     arm_seed = derive_seed(seed, ARM_IDS["centralized"])
     model = init_model(cfg, X.shape[1:], n_classes, arm_seed)
+    dp = dp_plan(cfg, len(y), cfg.train.epochs)
     history = train_local(
         model, scaler.transform(X), y, cfg.train, n_classes, arm_seed, device,
-        eval_fn=holdout_evaluator(fed.holdout, scaler, device),
+        eval_fn=holdout_evaluator(fed.holdout, scaler, device), dp=dp,
     )
     final = {k: v for k, v in history[-1].items() if k not in ("epoch", "train_loss")}
-    return {"final": final, "history": history, "n_train": len(y), "n_params": count_parameters(model)}
+    out = {"final": final, "history": history, "n_train": len(y), "n_params": count_parameters(model)}
+    if dp is not None:
+        out["privacy"] = dp.to_dict()
+    return out

@@ -1,0 +1,15 @@
+# Phase 5 reference point: WESAD by-subject, NO differential privacy (epsilon = inf),
+# with the gradient-inversion attack against one client's single-step update.
+# configs/sweeps/phase5_eps.yaml runs this as its base variant and adds DP-SGD at each
+# target epsilon. Same seeds -> same silos, holdout and attacked batches across epsilon.
+name: wesad_privacy
+seeds: [0, 1, 2, 3, 4]
+data:
+  name: wesad
+partition:
+  method: by_subject
+  holdout_subjects: 3
+privacy:
+  enabled: false
+  attack:
+    enabled: true

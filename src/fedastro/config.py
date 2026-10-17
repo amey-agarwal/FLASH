@@ -38,6 +38,7 @@ FL_STRATEGIES = ("fedavg", "fedprox")  # Phase 6 adds buffered async
 REPRESENTATIONS = ("features", "sequence")
 DEVICES = ("cpu", "cuda")
 LOS_PROFILES = ("none", "rare", "short_occasional", "periodic", "long_blackout")
+ATTACK_STATES = ("init", "final")
 
 
 @dataclass(frozen=True)
@@ -245,6 +246,63 @@ class FLConfig:
 
 
 @dataclass(frozen=True)
+class AttackConfig:
+    """Gradient inversion against one client's single-step update (privacy/attack.py).
+
+    Threat model: an honest-but-curious server that knows the architecture, the global
+    weights it sent, the batch size, the clipping norm, and the batch's labels; it
+    observes one released gradient. See PROGRESS.md Phase 5 for why each is assumed."""
+
+    enabled: bool = False
+    silo: str = ""  # "" = first silo of the topology (largest share, so least DP noise)
+    model_states: tuple[str, ...] = ("init", "final")  # global model the update is computed at
+    batch_sizes: tuple[int, ...] = (1, 4, 32)
+    trials: int = 3  # batches attacked per (state, batch size); drawn by seed, never picked
+    iterations: int = 1000
+    lr: float = 0.1
+    prior_weight: float = 0.01  # Gaussian prior on standardised inputs (weight * mean(x^2))
+
+    def validate(self) -> None:
+        if not self.model_states or any(s not in ATTACK_STATES for s in self.model_states):
+            raise ConfigError(f"privacy.attack.model_states must be a non-empty subset of {ATTACK_STATES}")
+        if not self.batch_sizes or any(b < 1 for b in self.batch_sizes):
+            raise ConfigError("privacy.attack.batch_sizes must list positive integers")
+        if len(set(self.batch_sizes)) != len(self.batch_sizes) or len(set(self.model_states)) != len(self.model_states):
+            raise ConfigError("privacy.attack.batch_sizes and model_states must not repeat")
+        if self.trials < 1 or self.iterations < 1:
+            raise ConfigError("privacy.attack.trials and iterations must be >= 1")
+        if self.lr <= 0 or self.prior_weight < 0:
+            raise ConfigError("privacy.attack.lr must be > 0 and prior_weight >= 0")
+
+
+@dataclass(frozen=True)
+class PrivacyConfig:
+    """Record-level DP-SGD (Opacus) for every model trained in the run (privacy/dp.py).
+
+    Each trained model (the centralized model, each local-only model, each federated
+    client) gets its own (target_epsilon, delta) budget over its own training data,
+    with delta = delta_factor / N_train of that data. delta_factor < 1 keeps
+    delta < 1/N_train (CLAUDE.md section 2)."""
+
+    enabled: bool = False
+    target_epsilon: float = 0.0  # required (> 0) when enabled
+    delta_factor: float = 0.1
+    max_grad_norm: float = 1.0
+    attack: AttackConfig = field(default_factory=AttackConfig)
+
+    def validate(self) -> None:
+        if self.enabled and self.target_epsilon <= 0:
+            raise ConfigError("privacy.target_epsilon must be > 0 when privacy is enabled")
+        if not self.enabled and self.target_epsilon != 0:
+            raise ConfigError("privacy.target_epsilon is only meaningful when privacy.enabled is true")
+        if not 0 < self.delta_factor < 1:
+            raise ConfigError("privacy.delta_factor must be in (0, 1) so that delta < 1/N_train")
+        if self.max_grad_norm <= 0:
+            raise ConfigError("privacy.max_grad_norm must be > 0")
+        self.attack.validate()
+
+
+@dataclass(frozen=True)
 class ResourcesConfig:
     """Per-client Ray resources for the simulation engine. Execution detail only: it
     changes speed, not results, so it is excluded from the run id."""
@@ -271,6 +329,7 @@ class ExperimentConfig:
     train: TrainConfig = field(default_factory=TrainConfig)
     arms: tuple[str, ...] = ("centralized", "local_only", "federated")
     fl: FLConfig = field(default_factory=FLConfig)
+    privacy: PrivacyConfig = field(default_factory=PrivacyConfig)
     resources: ResourcesConfig = field(default_factory=ResourcesConfig)
     notes: str = ""
 
@@ -287,6 +346,7 @@ class ExperimentConfig:
         self.model.validate()
         self.train.validate()
         self.fl.validate()
+        self.privacy.validate()
         self.resources.validate()
         if self.device == "cuda" and "federated" in self.arms and self.resources.client_num_gpus == 0:
             raise ConfigError("device 'cuda' with the federated arm needs resources.client_num_gpus > 0")
@@ -297,6 +357,22 @@ class ExperimentConfig:
             raise ConfigError("model.arch 'cnn1d' needs data.wesad.representation 'sequence'")
         if self.model.arch == "mlp" and sequence_input:
             raise ConfigError("model.arch 'mlp' needs feature input, not 'sequence'")
+        if self.privacy.enabled:
+            if self.train.class_weighting != "none":
+                # balanced weights are a function of the whole dataset's label counts,
+                # so one record changes every sample's loss: DP-SGD's per-sample
+                # sensitivity bound would no longer hold.
+                raise ConfigError("privacy.enabled needs train.class_weighting 'none'")
+            if "federated" in self.arms and self.fl.strategy == "fedprox":
+                # Opacus builds the update from per-sample gradients only; the proximal
+                # term's gradient would be silently dropped.
+                raise ConfigError("privacy.enabled is not supported with fl.strategy 'fedprox'")
+        attack = self.privacy.attack
+        if attack.enabled:
+            if "federated" not in self.arms:
+                raise ConfigError("privacy.attack needs the federated arm (it attacks a client update)")
+            if attack.silo and attack.silo not in [s.name for s in self.topology.silos]:
+                raise ConfigError(f"privacy.attack.silo {attack.silo!r} is not a silo of the topology")
         n_silos = len(self.topology.silos)
         if self.data.is_synthetic:
             needed = n_silos + self.partition.holdout_subjects
@@ -322,6 +398,11 @@ class ExperimentConfig:
                 d["data"].pop(other, None)
         if self.fl.strategy != "fedprox":
             d["fl"].pop("proximal_mu")
+        # Absent when unused, so configs that predate Phase 5 keep their run ids.
+        if not self.privacy.enabled and not self.privacy.attack.enabled:
+            d.pop("privacy")
+        elif not self.privacy.attack.enabled:
+            d["privacy"].pop("attack")
         return d
 
     def config_hash(self) -> str:
@@ -443,6 +524,10 @@ def _coerce(tp: Any, value: Any, where: str) -> Any:
         if not isinstance(value, dict):
             raise ConfigError(f"{where}: expected a mapping")
         return {_coerce(kt, k, where): _coerce(vt, v, f"{where}.{k}") for k, v in value.items()}
+    if tp is bool:
+        if not isinstance(value, bool):
+            raise ConfigError(f"{where}: expected true/false, got {value!r}")
+        return value
     if tp is float:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ConfigError(f"{where}: expected a number, got {value!r}")

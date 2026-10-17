@@ -64,6 +64,10 @@ def _exchange(grid: Grid, nodes: list[int], message_type: str, content: RecordDi
     return sorted(replies, key=lambda r: int(r.content["metrics"]["silo_index"]))
 
 
+def _opt_float(rec, key: str) -> float | None:
+    return float(rec[key]) if key in rec else None
+
+
 def _metrics_from_record(rec) -> dict[str, float | None]:
     return {m: (float(rec[m]) if m in rec else None) for m in METRICS}
 
@@ -104,6 +108,8 @@ def make_server_app(fed: Federation, cfg: ExperimentConfig, seed: int, device: s
             ordered_nodes = [node_of[i] for i in range(len(silo_names))]
             model = init_model(cfg, input_shape, n_classes, derive_seed(seed, ARM_IDS["federated"]))
             weights = get_weights(model)
+            out["global_weights"] = {"init": weights}
+            out["scaler"] = scaler
             holdout_eval = holdout_evaluator(fed.holdout, scaler, device)
             payload = payload_bytes(weights)
             rounds = []
@@ -118,12 +124,14 @@ def make_server_app(fed: Federation, cfg: ExperimentConfig, seed: int, device: s
                         silo_index=idx, silo=silo_names[idx],
                         arrays=r.content["arrays"].to_numpy_ndarrays(),
                         num_examples=int(r.content["metrics"]["num-examples"]),
-                        train_loss=float(r.content["metrics"]["train_loss"]),
+                        train_loss=_opt_float(r.content["metrics"], "train_loss"),
                     )
                     updates.append(upd)
                     set_weights(model, upd.arrays)
                     per_silo[upd.silo] = {"n_train": upd.num_examples, "train_loss": upd.train_loss,
                                           "update_on_holdout": holdout_eval(model)}
+                    if "epsilon" in r.content["metrics"]:
+                        per_silo[upd.silo]["epsilon"] = float(r.content["metrics"]["epsilon"])
                 weights = strategy.aggregate(updates)
                 set_weights(model, weights)
                 global_metrics = holdout_eval(model)
@@ -142,6 +150,7 @@ def make_server_app(fed: Federation, cfg: ExperimentConfig, seed: int, device: s
                     "sim_wallclock_s": None,
                     "participants": [u.silo for u in sorted(updates, key=lambda u: u.silo_index)],
                 })
+            out["global_weights"]["final"] = weights
             out.update(rounds=rounds, payload_bytes=payload, setup_bytes=setup_bytes,
                        n_params=count_parameters(model))
         except BaseException as e:  # surfaced by run_federated; Flower would only log it
@@ -152,7 +161,11 @@ def make_server_app(fed: Federation, cfg: ExperimentConfig, seed: int, device: s
 
 
 def run_federated(fed: Federation, cfg: ExperimentConfig, seed: int, device: str,
-                  centralized_final: dict | None = None) -> dict[str, Any]:
+                  centralized_final: dict | None = None,
+                  capture: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Run the federated arm. If ``capture`` is a dict it receives the global weights
+    sent at round 1 (``global_weights["init"]``) and after the last round
+    (``["final"]``) plus the federated ``scaler``, for the privacy attack."""
     silos = [split.data for split in fed.silos.values()]
     out: dict[str, Any] = {}
     server_app = make_server_app(fed, cfg, seed, device, out)
@@ -175,6 +188,8 @@ def run_federated(fed: Federation, cfg: ExperimentConfig, seed: int, device: str
     if "rounds" not in out:
         raise RuntimeError("federated arm produced no result (ServerApp did not complete)")
 
+    if capture is not None:
+        capture.update(global_weights=out["global_weights"], scaler=out["scaler"])
     rounds = out["rounds"]
     targets = {}
     if centralized_final is not None and centralized_final.get("accuracy") is not None:
@@ -184,7 +199,7 @@ def run_federated(fed: Federation, cfg: ExperimentConfig, seed: int, device: str
         }
     if cfg.fl.absolute_target > 0:
         targets["absolute"] = rounds_to_target(rounds, cfg.fl.absolute_target)
-    return {
+    result = {
         "rounds": rounds,
         "final": dict(rounds[-1]["global"]),
         "strategy": cfg.fl.strategy,
@@ -196,3 +211,10 @@ def run_federated(fed: Federation, cfg: ExperimentConfig, seed: int, device: str
         "total_bytes": out["setup_bytes"] + sum(r["bytes"] for r in rounds),
         "rounds_to_target": targets,
     }
+    if cfg.privacy.enabled:
+        from fedastro.baselines.common import dp_plan
+
+        total = cfg.fl.rounds * cfg.fl.local_epochs
+        result["privacy"] = {name: dp_plan(cfg, len(split.data), total).to_dict()
+                             for name, split in fed.silos.items()}
+    return result

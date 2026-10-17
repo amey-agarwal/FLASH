@@ -1,0 +1,19 @@
+# Smoke test for Phase 5: SYNTHETIC data, DP-SGD on all three arms, tiny attack grid.
+name: smoke_dp
+seed: 0
+seeds: [0, 1]
+data:
+  name: synthetic
+train:
+  epochs: 3
+fl:
+  rounds: 3
+privacy:
+  enabled: true
+  target_epsilon: 3.0
+  attack:
+    enabled: true
+    batch_sizes: [1, 4]
+    trials: 2
+    iterations: 100
+notes: "DP + attack smoke test."

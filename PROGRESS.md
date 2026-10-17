@@ -2,9 +2,194 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
-**Next: Phase 5 — Privacy (Opacus DP + gradient inversion)**, after review of Phase 4.
-**GPU cluster:** the shakedown (Phase 3 plan) is still pending. Phase 4 ran fully on the laptop
-in about 75 min; on the cluster, run one grid variant per job with `fedastro grid ... --index i`.
+**Phase 5 gate: waiting for the user's review of attack fairness** (CLAUDE.md requires
+it before figures). Phase 4 is also awaiting review. Next after that: Phase 6, deep-space
+comms.
+**GPU cluster:** the shakedown (Phase 3 plan) is still pending; the user cannot run it yet.
+On the cluster, run one grid variant per job with `fedastro grid ... --index i`.
+
+---
+
+## Phase 5 — Privacy — COMPLETE, awaiting attack-fairness review (2026-10-16)
+
+**Not committed.** The user commits. Suggested message:
+`feat(privacy): phase 5 DP-SGD (Opacus) and gradient-inversion attack, epsilon sweep`.
+
+### Built
+- **`privacy/dp.py`**: record-level DP-SGD through Opacus 1.5.2, RDP accountant.
+  - Applied through the shared `train_local(dp=...)`, so all three arms run DP when
+    `privacy.enabled` is set. Each trained model has its own budget over its own data:
+    the centralized model, each local-only model, each federated client.
+  - **delta = 0.1 / N_train** per model (`privacy.delta_factor`, validated < 1), which
+    keeps delta strictly below 1/N_train (CLAUDE.md section 2).
+  - **Calibration:** `make_private_with_epsilon` is `get_noise_multiplier` +
+    `make_private`. They are split because a federated client trains once per round with
+    a fresh optimizer, while its budget must cover all rounds. Sigma is calibrated once
+    for rounds x local epochs x steps per epoch, and epsilon spent is the closed-form RDP
+    composition. A test checks equality with Opacus's `make_private_with_epsilon` +
+    `get_epsilon` (relative error < 1e-9).
+  - The per-silo epsilon spent is recorded every round
+    (`rounds[i].per_silo[silo].epsilon`). `result.privacy` holds the per-model
+    accounting plus `epsilon`/`delta` of the weakest model in the run.
+  - `result.privacy.not_covered` states the gaps: no subject-level guarantee; the
+    shared count/sum/sum-of-squares statistics; per-silo record counts (FedAvg weights).
+  - Models are already Opacus-valid (GroupNorm, no BatchNorm); `ModuleValidator` reports
+    no errors for the MLP or the CNN, so no `ModuleValidator.fix` is needed.
+- **`privacy/attack.py`**: gradient inversion against one client's single-step update.
+  - Cosine gradient matching (Geiping et al. 2020) with a weak Gaussian prior on
+    standardised inputs, Adam, 1000 iterations, step-decayed learning rate.
+  - The victim gradient is computed in training mode (dropout on, mask unknown to the
+    attacker). With DP it is exactly Opacus `DPOptimizer.pre_step()` output: clip,
+    noise, average.
+  - Grid: model state {init, final} x batch size {1, 4, 32} x 3 seeded batches. Every
+    trial is stored, with its record indices. Batches depend only on the seed, so
+    every epsilon variant attacks the same records.
+  - Scores: matched MSE, rel_mse (vs guessing the mean), correlation (per channel for
+    sequences), and nn_identified (the reconstruction's nearest silo record is the true
+    one).
+  - Attack target: the first silo (`nasa_earth`), the largest, so the least DP noise.
+- **Config:** `privacy:` block (`enabled`, `target_epsilon`, `delta_factor`,
+  `max_grad_norm`, `attack:`). Bools are now supported by the strict loader. When
+  unused the block is left out of the experiment hash, so every pre-Phase-5 run id is
+  unchanged (verified: Phase 4 `--report` still finds all summaries).
+- **Rejected combinations:** DP + FedProx (Opacus would silently drop the proximal
+  gradient); DP + balanced class weighting (it breaks the per-sample sensitivity bound).
+- **Grid:** `include_base: true` adds the base experiment unchanged as variant 0.
+  Summaries and `--report` now carry epsilon spent and per-cell attack scores.
+- **Configs:** `experiments/wesad_privacy.yaml` (no DP + attack), `experiments/smoke_dp.yaml`,
+  `sweeps/phase5_eps.yaml` (base = epsilon inf, plus epsilon in {0.5, 1, 2, 3, 5, 10, 13}).
+- **Tests:** `tests/test_privacy.py`, 22 tests. Full suite: **127 passed**.
+
+### Bugs found and fixed during Phase 5
+- **Denormal floats.** Matching a noise-dominated DP gradient drove the attack into
+  float32 denormals: 333 s instead of 0.16 s for one trial. Flush-to-zero is turned on
+  for the attack only and switched off afterwards.
+- **Thread-count leak.** The attack's `torch.set_num_threads(1)` persisted into the next
+  run in the same process and changed float reduction order, so two identical runs were
+  not byte-identical. The thread count is now restored. Regression test:
+  `test_dp_run_is_byte_identical`.
+
+### Acceptance results
+`p5eps` sweep: WESAD by_subject, MLP, 30 rounds x 1 local epoch, holdout subjects
+13/16/17, 5 seeds per variant, 40 runs, no failures. Values are mean ± std over seeds.
+
+**Attack: trained (`final`) global model, silo nasa_earth (~345 records).**
+Each seed's value is the mean of 3 trials.
+
+| epsilon | B=1 rel_mse | B=1 re-identified | B=4 rel_mse | B=4 re-identified | B=32 rel_mse | B=32 re-identified |
+|---|---|---|---|---|---|---|
+| inf (no DP) | **0.079 ± 0.042** | **0.93 ± 0.15** | 0.62 ± 0.09 | 0.45 ± 0.08 | 0.97 ± 0.07 | 0.15 ± 0.04 |
+| 13 | 2.04 ± 0.60 | 0 | 2.08 ± 0.30 | 0 | 3.42 ± 0.86 | 0.07 ± 0.02 |
+| 10 | 2.10 ± 0.68 | 0 | 2.22 ± 0.39 | 0 | 3.49 ± 0.86 | 0.05 ± 0.04 |
+| 5 | 2.39 ± 0.72 | 0 | 2.52 ± 0.39 | 0 | 3.90 ± 1.09 | 0.05 ± 0.01 |
+| 3 | 2.48 ± 0.81 | 0 | 2.75 ± 0.45 | 0 | 4.17 ± 1.19 | 0.06 ± 0.04 |
+| 2 | 2.58 ± 0.79 | 0 | 2.82 ± 0.48 | 0 | 4.42 ± 1.32 | 0.05 ± 0.01 |
+| 1 | 2.82 ± 0.80 | 0 | 3.00 ± 0.56 | 0 | 4.59 ± 1.30 | 0.05 ± 0.02 |
+| 0.5 | 2.92 ± 0.93 | 0 | 3.09 ± 0.66 | 0 | 4.63 ± 1.32 | 0.05 ± 0.02 |
+
+On the untrained (`init`) model without DP: B=1 rel_mse 0.23 ± 0.11, re-identified
+0.87 ± 0.18; B=32 0.70 ± 0.03 and 0.18 ± 0.04. Full grid: `runs/p5eps-grid.json`.
+
+**Chance levels**, measured separately (random N(0,1) guesses through the same matching
+and scoring, 200 draws x 5 seeds, scratchpad script, not in result files):
+- rel_mse ≈ 2.8 at B=1, ≈ 2.1 at B=4, ≈ 1.7 at B=32.
+- re-identified ≈ 0 at B=1, ≈ 0.007 at B=4, **≈ 0.04–0.05 at B=32.** Hungarian
+  matching inflates this well above 1/345.
+
+| Check | Result |
+|---|---|
+| Attack visibly succeeds at epsilon = inf, small batch | **Yes.** Trained model, B=1: rel_mse 0.079, window re-identified in 93% of trials. B=4: 45%. Even B=32 (the real training batch): 15%, about 3x chance. |
+| Reconstruction error rises monotonically as epsilon falls | **Yes, in the means**, for every batch size on the trained model (table above). **But** every DP setting already puts the attack at or below chance: re-identification is 0 at B=1 and B=4 and at chance at B=32. The differences between epsilon values sit inside the seed std and do not show meaningful protection differences. |
+| Utility-vs-epsilon curve over {0.5, 1, 2, 3, 5, 10, 13} | Produced (table below). |
+| Attack < 2 min on laptop CPU | **Yes.** ~60 s for the full 18-trial grid (59 s without DP, 64 s with DP), measured directly. |
+
+**Utility vs epsilon** (holdout accuracy; F1 = macro-F1). Majority-class accuracy on the
+holdout is 114/212 = **0.538**.
+
+| epsilon | federated acc | federated F1 | local_only acc (silo mean) | centralized acc |
+|---|---|---|---|---|
+| inf | 0.708 ± 0.074 | 0.668 ± 0.070 | 0.654 ± 0.029 | 0.868 ± 0.022 |
+| 13 | 0.579 ± 0.037 | 0.313 ± 0.070 | 0.613 ± 0.056 | 0.693 ± 0.022 |
+| 10 | 0.565 ± 0.028 | 0.288 ± 0.056 | 0.597 ± 0.049 | 0.694 ± 0.023 |
+| 5 | 0.546 ± 0.016 | 0.251 ± 0.034 | 0.570 ± 0.039 | 0.699 ± 0.027 |
+| 3 | 0.546 ± 0.016 | 0.251 ± 0.034 | 0.532 ± 0.032 | 0.681 ± 0.046 |
+| 2 | 0.548 ± 0.018 | 0.256 ± 0.040 | 0.505 ± 0.034 | 0.634 ± 0.022 |
+| 1 | 0.540 ± 0.017 | 0.274 ± 0.058 | 0.470 ± 0.051 | 0.575 ± 0.043 |
+| 0.5 | 0.514 ± 0.037 | 0.299 ± 0.051 | 0.426 ± 0.063 | 0.556 ± 0.040 |
+
+### Key findings (recorded, not tuned)
+- **Under DP the federated model collapses to the majority class.** At epsilon ≤ 10 it
+  predicts "baseline" for nearly every window (per-class recall [1.0, 0–0.12, 0.0]).
+  That is why epsilon 3 and 5 give identical numbers: same collapse, same holdout.
+  Centralized DP keeps 0.63–0.70 accuracy for epsilon ≥ 2.
+- **H1 under DP:** federated beats the local-only silo mean at epsilon ≤ 3 (4–5/5 seeds),
+  but only because local-only degrades faster. It loses at epsilon 5–13 (2/5 seeds).
+  Neither is a useful model at epsilon ≤ 3.
+- **Likely causes, not investigated or tuned:**
+  - Every silo adds its own noise for its own budget. Silos are small (70–346 records),
+    so sigma is 1.5–2.5 even at epsilon 5.
+  - Adam is reset every round and only 3–11 noisy steps run per round. Adam normalises
+    noise into full-size steps.
+  - Training hyperparameters were set for non-DP training (batch 32, lr 1e-3, clip 1.0,
+    30 epochs).
+- **Leakage without DP is real but batch-dependent.** It is near-total at B=1, partial
+  at B=4, and modest at B=32. The B=1 headline must always be shown next to B=32.
+
+### Run cost
+40 runs, 96 min of compute on the laptop CPU. That is 86–95 s per run without DP and
+98–178 s with DP; the attack accounts for ~60 s. The wall-clock span was longer
+(19:19–23:26), which suggests sleep or throttling despite `caffeinate -i`.
+
+### Decisions made (review these)
+1. **Unit of privacy: one record (a 60 s window), per trained model.** This is not
+   subject-level privacy. A subject contributes ~70 windows that overlap by 50%, so by
+   group privacy the subject-level epsilon is far larger. Say so on the poster.
+2. **delta = 0.1/N_train**, to satisfy CLAUDE.md section 2's strict delta < 1/N. Phase 5's
+   text says delta = 1/N_train, which is not strictly below 1/N.
+3. **RDP accountant**, not Opacus's default PRV. RDP is the standard, slightly
+   conservative choice. Opacus sometimes warns that "optimal order is the largest
+   alpha", which means the bound may be loose: the reported epsilon over-states the
+   spend, the safe direction.
+4. **DP is applied to all three arms** at the same target epsilon, so the three-way
+   comparison stays like-for-like.
+5. **Attack hyperparameters** (cosine loss, prior weight 0.01, 1000 iterations, lr 0.1)
+   were chosen on seed 0 without DP, by comparing cosine vs L2 matching and prior
+   weights {0, 0.001, 0.01}. They were picked to make the attacker strong; this was
+   never tuned against DP.
+6. **Labels are known to the attacker** (best case for the attacker). For B=1 they are
+   recoverable from the last-layer bias gradient anyway.
+7. **Sigma for the attacked step is recalibrated per batch size** for the same epsilon
+   and epochs, so B=1 is not judged against batch-32 noise.
+8. **Headline `privacy.attack.mse`** = trained model at the smallest batch, which is
+   the worst case for the client. The full grid is always stored next to it.
+9. **The attack is on a single-step (FedSGD-style) update**, not the multi-step FedAvg
+   update the federated arm really sends. This is stated in `threat_model`.
+
+### For the attack-fairness review (CLAUDE.md gate)
+CLAUDE.md lists three objections; each is handled as follows.
+- **"Batch size 1":** B=4 and B=32 are reported beside it, and B=32 is the real
+  training batch. Leakage at B=32 is modest (15% re-identified vs ~5% chance).
+- **"Untrained net":** the trained global model is attacked too, and leakage is not lower.
+- **"Cherry-picked sample":** batches are seeded draws, all trials are stored, and the
+  record indices are in the result.
+
+Remaining weaknesses a judge could raise:
+- The attack uses a single step, not a multi-step FedAvg update.
+- Labels are assumed known.
+- Chance baselines live only in this log. Recommendation: add them to the attack
+  output, and re-run the sweep before the figures.
+
+### Open questions for the user
+- **DP utility collapse in the federated arm.** Options, none applied:
+  - (a) Report as is.
+  - (b) A DP-aware training config fixed a priori (larger batch, fewer epochs, SGD
+    instead of reset Adam, tuned clip norm), run as a separate, labelled variant.
+  - (c) Server-side (central) DP on the aggregated update instead of local DP-SGD.
+    That is a different trust model.
+
+  **Recommendation: (a) now, plus (b) as a labelled sensitivity run.**
+- **Should the chance baselines go into the attack output** (requires re-running the
+  sweep, ~1.5 h on the laptop)?
 
 ---
 

@@ -21,7 +21,7 @@ from flwr.app import ArrayRecord, ConfigRecord, Context, Message, MetricRecord, 
 from flwr.clientapp import ClientApp
 from torch import nn
 
-from fedastro.baselines.common import ARM_IDS, init_model
+from fedastro.baselines.common import ARM_IDS, dp_plan, init_model
 from fedastro.config import ExperimentConfig
 from fedastro.data.base import DatasetBundle
 from fedastro.data.preprocess import Standardizer, Stats
@@ -88,17 +88,20 @@ def make_client_app(silos: list[DatasetBundle], cfg: ExperimentConfig, seed: int
         server_round = int(msg.content["config"]["server-round"])
         model = _model(data, msg.content["arrays"].to_numpy_ndarrays())
         X = _scaler(context).transform(data.X)
+        # The silo's budget covers every round; noise is calibrated for the total.
+        dp = dp_plan(cfg, len(data), cfg.fl.rounds * cfg.fl.local_epochs)
         history = train_local(
             model, X, data.y, cfg.train, n_classes,
             seed=derive_seed(seed, ARM_IDS["federated"], idx, server_round),
             device=device, epochs=cfg.fl.local_epochs,
-            proximal_mu=client_proximal_mu(cfg.fl),
+            proximal_mu=client_proximal_mu(cfg.fl), dp=dp,
         )
+        metrics = {"silo_index": idx, "num-examples": len(data), "train_loss": history[-1]["train_loss"]}
+        if dp is not None:
+            metrics["epsilon"] = dp.epsilon_after(server_round * cfg.fl.local_epochs)
         content = RecordDict({
             "arrays": ArrayRecord(get_weights(model)),
-            "metrics": MetricRecord({
-                "silo_index": idx, "num-examples": len(data), "train_loss": history[-1]["train_loss"],
-            }),
+            "metrics": metric_record(metrics),
         })
         return Message(content, reply_to=msg)
 

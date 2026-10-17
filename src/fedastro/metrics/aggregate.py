@@ -73,7 +73,36 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
                              for k in ("spread", "std", "min", "mean")}
     if fairness:
         summary["fairness"] = fairness
+    privacy = _summarise_privacy(results)
+    if privacy:
+        summary["privacy"] = privacy
     return summary
+
+
+ATTACK_METRICS = ("mse", "rel_mse", "corr", "nn_identified")
+
+
+def _summarise_privacy(results: list[dict[str, Any]]) -> dict[str, Any]:
+    """epsilon spent (weakest model in the run) and, per attack cell, the across-seed
+    mean +/- std of each seed's mean over trials."""
+    out: dict[str, Any] = {}
+    if all(r["privacy"]["enabled"] for r in results):
+        out["target_epsilon"] = results[0]["privacy"]["target_epsilon"]
+        out["epsilon"] = _mean_std([r["privacy"]["epsilon"] for r in results])
+        out["delta_max"] = max(r["privacy"]["delta"] for r in results)
+    if all("cells" in r["privacy"]["attack"] for r in results):
+        cells = {}
+        for i, c in enumerate(results[0]["privacy"]["attack"]["cells"]):
+            per_seed = [r["privacy"]["attack"]["cells"][i] for r in results]
+            if any((p["state"], p["batch_size"]) != (c["state"], c["batch_size"]) for p in per_seed):
+                raise ValueError("attack cells differ across seeds")
+            cells[f"{c['state']}-B{c['batch_size']}"] = {
+                "state": c["state"], "batch_size": c["batch_size"],
+                "noise_multiplier": _mean_std([p["noise_multiplier"] for p in per_seed]),
+                **{m: _mean_std([p[m]["mean"] for p in per_seed]) for m in ATTACK_METRICS},
+            }
+        out["attack"] = {"silo": results[0]["privacy"]["attack"]["silo"], "cells": cells}
+    return out
 
 
 def _summarise_federated(results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -146,6 +175,19 @@ def format_summary(summary: dict[str, Any]) -> str:
         lines.append("fairness (label-mix holdout accuracy across silos; spread = max - min, lower is fairer):")
         for arm, f in summary["fairness"].items():
             lines.append(f"  {arm:<14} spread {fmt(f['spread'])}   worst silo {fmt(f['min'])}   silo mean {fmt(f['mean'])}")
+    if "privacy" in summary:
+        pr = summary["privacy"]
+        if "epsilon" in pr:
+            lines.append(f"DP: target epsilon {pr['target_epsilon']}, spent {fmt(pr['epsilon'])} "
+                         f"(weakest model), max delta {pr['delta_max']:.2e}")
+        else:
+            lines.append("DP: off (epsilon = inf)")
+        if "attack" in pr:
+            lines.append(f"gradient inversion on silo {pr['attack']['silo']} (rel_mse < 1 = leakage; "
+                         f"nn_identified = window re-identified):")
+            for key, c in pr["attack"]["cells"].items():
+                lines.append(f"  {key:<12} sigma {fmt(c['noise_multiplier']):>14}  rel_mse {fmt(c['rel_mse']):>14}  "
+                             f"corr {fmt(c['corr']):>14}  nn_identified {fmt(c['nn_identified'])}")
     if "h1" in summary:
         h = summary["h1"]
         lines.append(f"H1 ({h['metric']}): federated > local_only mean in {h['federated_beats_local_only_mean']}/{h['n_seeds']} seeds; "
@@ -185,9 +227,16 @@ def grid_report(variants, out_dir: Path) -> tuple[list[dict[str, Any]], str]:
             "fairness_spread_federated": fair.get("federated", {}).get("spread"),
             "fairness_spread_local_only": fair.get("local_only", {}).get("spread"),
             "h1": h1,
+            "privacy": s.get("privacy"),
         }
         rows.append(row)
         h1_txt = f"{h1['federated_beats_local_only_mean']}/{h1['n_seeds']}" if h1 else "n/a"
+        pr = s.get("privacy") or {}
+        if pr:
+            eps = ms(pr["epsilon"]) if "epsilon" in pr else "inf"
+            atk = "  ".join(f"{k} rel {ms(c['rel_mse'])} nn {ms(c['nn_identified'])}"
+                            for k, c in pr.get("attack", {}).get("cells", {}).items())
+            lines.append(f"{'':<46}  eps spent {eps}  {atk}")
         lines.append(
             f"{v.name:<46}{ms(row['federated_accuracy']):>13}{ms(row['federated_macro_f1']):>13}"
             f"{ms(row['local_only_accuracy']):>13}{ms(row['centralized_accuracy']):>13}"

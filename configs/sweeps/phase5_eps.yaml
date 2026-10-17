@@ -1,0 +1,13 @@
+# Utility and attack vs epsilon (CLAUDE.md Phase 5). Variant 0 ("-base") is the base
+# experiment unchanged: no DP, epsilon = inf. Every other variant runs record-level
+# DP-SGD on every trained model at the listed target epsilon.
+# epsilon in 5-13 is utility-prioritised: a much weaker guarantee than the epsilon < 1
+# theoretical ideal. Report epsilon and delta explicitly; call no setting "private".
+name: p5eps
+base: ../experiments/wesad_privacy.yaml
+seeds: [0, 1, 2, 3, 4]
+include_base: true
+fixed:
+  privacy.enabled: true
+axes:
+  privacy.target_epsilon: [0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 13.0]

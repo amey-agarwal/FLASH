@@ -4,7 +4,7 @@ weights are combined, never in the optimisation code."""
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 import torch
@@ -12,6 +12,9 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from fedastro.config import TrainConfig
+
+if TYPE_CHECKING:
+    from fedastro.privacy.dp import DPPlan
 
 EvalFn = Callable[[nn.Module], dict]
 
@@ -51,6 +54,7 @@ def train_local(
     epochs: int | None = None,
     eval_fn: EvalFn | None = None,
     proximal_mu: float = 0.0,
+    dp: DPPlan | None = None,
 ) -> list[dict]:
     """Train ``model`` in place for ``epochs`` (default ``cfg.epochs``) and return a
     per-epoch history. ``eval_fn``, if given, is called after each epoch and its
@@ -59,7 +63,12 @@ def train_local(
 
     ``proximal_mu > 0`` adds the FedProx term (mu / 2) * ||w - w_start||^2 to every
     batch loss, where w_start are the weights the model had on entry (the global
-    model, for an FL client). With mu = 0 this is exactly plain local training."""
+    model, for an FL client). With mu = 0 this is exactly plain local training.
+
+    ``dp`` switches to DP-SGD (privacy/dp.py): Poisson-sampled batches, per-sample
+    clipping and Gaussian noise. The model is trained in place either way."""
+    if dp is not None and (proximal_mu > 0 or cfg.class_weighting != "none"):
+        raise ValueError("DP-SGD supports neither the proximal term nor class weighting")
     model.to(device)
     # Seed the global RNG too (dropout draws from it), so a call is self-contained and
     # reproducible regardless of what ran earlier in this process or Ray actor.
@@ -73,14 +82,32 @@ def train_local(
     loss_fn = nn.CrossEntropyLoss(weight=None if weight is None else weight.to(device))
     opt = make_optimizer(model, cfg)
     anchor = [p.detach().clone() for p in model.parameters()] if proximal_mu > 0 else None
+    net = model
+    if dp is not None:
+        from fedastro.privacy.dp import make_private
+
+        net, opt, loader = make_private(model, opt, loader, dp)
+    try:
+        return _epochs(net, model, loader, opt, loss_fn, anchor, proximal_mu,
+                       epochs or cfg.epochs, device, eval_fn)
+    finally:
+        if dp is not None:
+            net._close()  # remove Opacus hooks; ``model`` holds the trained weights
+
+
+def _epochs(net, model, loader, opt, loss_fn, anchor, proximal_mu, n_epochs, device, eval_fn):
     history = []
-    for epoch in range(1, (epochs or cfg.epochs) + 1):
-        model.train()
+    for epoch in range(1, n_epochs + 1):
+        net.train()
         total, n = 0.0, 0
         for xb, yb in loader:
+            if len(yb) == 0:
+                # Poisson sampling can draw an empty batch, with probability
+                # (1 - 1/steps_per_epoch)^N, about e^-batch_size (< 1e-13 here).
+                continue
             xb, yb = xb.to(device), yb.to(device)
             opt.zero_grad()
-            loss = loss_fn(model(xb), yb)
+            loss = loss_fn(net(xb), yb)
             if anchor is not None:
                 prox = sum(((p - a) ** 2).sum() for p, a in zip(model.parameters(), anchor))
                 loss = loss + 0.5 * proximal_mu * prox
@@ -88,7 +115,7 @@ def train_local(
             opt.step()
             total += loss.item() * len(yb)
             n += len(yb)
-        entry = {"epoch": epoch, "train_loss": total / n}
+        entry = {"epoch": epoch, "train_loss": total / n if n else None}
         if eval_fn is not None:
             entry.update(eval_fn(model))
         history.append(entry)

@@ -43,3 +43,11 @@ required-environments = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Opacus noise that does not apply here (see src/fedastro/privacy/dp.py). "Optimal order
+# is the largest alpha" means the RDP bound may be loose, i.e. the reported epsilon
+# over-states the spend: the conservative direction.
+filterwarnings = [
+    "ignore:.*non-full backward hook:UserWarning",
+    "ignore:.*[Ss]ecure RNG:UserWarning",
+    "ignore:Optimal order is the largest alpha:UserWarning",
+]

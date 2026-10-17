@@ -20,7 +20,7 @@ class ClientUpdate:
     silo: str
     arrays: list[np.ndarray]
     num_examples: int
-    train_loss: float
+    train_loss: float | None
 
 
 class FedAvg:

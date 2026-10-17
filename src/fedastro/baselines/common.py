@@ -38,5 +38,15 @@ def holdout_evaluator(holdout: DatasetBundle, scaler: Standardizer, device: str)
     return _eval
 
 
+def dp_plan(cfg: ExperimentConfig, n_train: int, epochs: int):
+    """DP-SGD plan for one trained model, or None when privacy is off. ``epochs`` is
+    the total the budget must cover (a federated client: rounds x local epochs)."""
+    if not cfg.privacy.enabled:
+        return None
+    from fedastro.privacy.dp import plan_dp
+
+    return plan_dp(cfg.privacy, n_train, cfg.train.batch_size, epochs)
+
+
 def concat(bundles: list[DatasetBundle]) -> tuple[np.ndarray, np.ndarray]:
     return (np.concatenate([b.X for b in bundles]), np.concatenate([b.y for b in bundles]))

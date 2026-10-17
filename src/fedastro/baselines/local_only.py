@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from fedastro.baselines.common import ARM_IDS, holdout_evaluator, init_model
+from fedastro.baselines.common import ARM_IDS, dp_plan, holdout_evaluator, init_model
 from fedastro.config import ExperimentConfig
 from fedastro.data.partition import Federation
 from fedastro.data.preprocess import Standardizer
@@ -25,12 +25,15 @@ def run_local_only(fed: Federation, cfg: ExperimentConfig, seed: int, device: st
         scaler = Standardizer.fit(data.X)
         silo_seed = derive_seed(seed, ARM_IDS["local_only"], idx)
         model = init_model(cfg, data.X.shape[1:], n_classes, silo_seed)
+        dp = dp_plan(cfg, len(data), cfg.train.epochs)
         history = train_local(
             model, scaler.transform(data.X), data.y, cfg.train, n_classes, silo_seed, device,
-            eval_fn=holdout_evaluator(fed.holdout, scaler, device),
+            eval_fn=holdout_evaluator(fed.holdout, scaler, device), dp=dp,
         )
         final = {k: v for k, v in history[-1].items() if k not in ("epoch", "train_loss")}
         per_silo[name] = {"final": final, "history": history, "n_train": len(data)}
+        if dp is not None:
+            per_silo[name]["privacy"] = dp.to_dict()
     return {"per_silo": per_silo, **summarise_silos(per_silo)}
 
 
