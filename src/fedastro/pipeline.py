@@ -104,11 +104,12 @@ def privacy_report(cfg: ExperimentConfig, fed: Federation, seed: int, result: di
         from fedastro.baselines.common import init_model
         from fedastro.privacy.attack import run_attack
 
-        name = cfg.privacy.attack.silo or cfg.topology.silos[0].name
-        data = fed.silos[name].data
-        model = init_model(cfg, data.X.shape[1:], len(data.class_names), seed=0)  # weights replaced
-        section["attack"] = {"silo": name, **run_attack(
-            cfg, seed, capture["scaler"].transform(data.X), data.y, capture["global_weights"], model)}
+        names = [x.name for x in cfg.topology.silos
+                 if not cfg.privacy.attack.silos or x.name in cfg.privacy.attack.silos]
+        first = fed.silos[names[0]].data
+        model = init_model(cfg, first.X.shape[1:], len(first.class_names), seed=0)  # weights replaced
+        silos = {n: (capture["scaler"].transform(fed.silos[n].data.X), fed.silos[n].data.y) for n in names}
+        section["attack"] = run_attack(cfg, seed, silos, capture["global_weights"], model)
     return section
 
 

@@ -39,6 +39,7 @@ REPRESENTATIONS = ("features", "sequence")
 DEVICES = ("cpu", "cuda")
 LOS_PROFILES = ("none", "rare", "short_occasional", "periodic", "long_blackout")
 ATTACK_STATES = ("init", "final")
+ATTACK_LABEL_MODES = ("known", "inferred")
 
 
 @dataclass(frozen=True)
@@ -250,11 +251,13 @@ class AttackConfig:
     """Gradient inversion against one client's single-step update (privacy/attack.py).
 
     Threat model: an honest-but-curious server that knows the architecture, the global
-    weights it sent, the batch size, the clipping norm, and the batch's labels; it
-    observes one released gradient. See PROGRESS.md Phase 5 for why each is assumed."""
+    weights it sent, the batch size and the clipping norm, and observes one released
+    gradient. Labels are either known or inferred from the gradient (``label_modes``).
+    See PROGRESS.md Phase 5 for why each is assumed."""
 
     enabled: bool = False
-    silo: str = ""  # "" = first silo of the topology (largest share, so least DP noise)
+    silos: tuple[str, ...] = ()  # silos to attack; empty = every silo of the topology
+    label_modes: tuple[str, ...] = ("known", "inferred")
     model_states: tuple[str, ...] = ("init", "final")  # global model the update is computed at
     batch_sizes: tuple[int, ...] = (1, 4, 32)
     trials: int = 3  # batches attacked per (state, batch size); drawn by seed, never picked
@@ -270,8 +273,12 @@ class AttackConfig:
             raise ConfigError(f"privacy.attack.model_states must be a non-empty subset of {ATTACK_STATES}")
         if not self.batch_sizes or any(b < 1 for b in self.batch_sizes):
             raise ConfigError("privacy.attack.batch_sizes must list positive integers")
-        if len(set(self.batch_sizes)) != len(self.batch_sizes) or len(set(self.model_states)) != len(self.model_states):
-            raise ConfigError("privacy.attack.batch_sizes and model_states must not repeat")
+        if not self.label_modes or any(m not in ATTACK_LABEL_MODES for m in self.label_modes):
+            raise ConfigError(f"privacy.attack.label_modes must be a non-empty subset of {ATTACK_LABEL_MODES}")
+        for name in ("batch_sizes", "model_states", "label_modes", "silos"):
+            vals = getattr(self, name)
+            if len(set(vals)) != len(vals):
+                raise ConfigError(f"privacy.attack.{name} must not repeat")
         if self.trials < 1 or self.iterations < 1 or self.chance_draws < 1:
             raise ConfigError("privacy.attack.trials, iterations and chance_draws must be >= 1")
         if self.lr <= 0 or self.prior_weight < 0:
@@ -374,8 +381,9 @@ class ExperimentConfig:
         if attack.enabled:
             if "federated" not in self.arms:
                 raise ConfigError("privacy.attack needs the federated arm (it attacks a client update)")
-            if attack.silo and attack.silo not in [s.name for s in self.topology.silos]:
-                raise ConfigError(f"privacy.attack.silo {attack.silo!r} is not a silo of the topology")
+            unknown = set(attack.silos) - {s.name for s in self.topology.silos}
+            if unknown:
+                raise ConfigError(f"privacy.attack.silos {sorted(unknown)} are not silos of the topology")
         n_silos = len(self.topology.silos)
         if self.data.is_synthetic:
             needed = n_silos + self.partition.holdout_subjects

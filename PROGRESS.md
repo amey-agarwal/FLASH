@@ -35,6 +35,71 @@ On the cluster, run one grid variant per job with `fedastro grid ... --index i`.
   reaches 1. For WESAD (k ≈ 70) it is vacuous at every epsilon in the sweep.
 - Tests: 128 passed.
 
+### Robustness items 2, 4 and 6 added (user request, 2026-10-17)
+- **Item 2, unknown labels.** `privacy.attack.label_modes`, default `[known, inferred]`.
+  - `inferred` recovers the batch's label counts from the released update's
+    last-layer bias gradient: n_c = B·(p̄_c − g_c), with p̄ estimated from the model's
+    mean prediction on random inputs (Geng et al. 2021 style), rounded by largest
+    remainder.
+  - Each trial's single released update is attacked under both modes, a paired
+    comparison. `label_accuracy` (multiset overlap) is reported per trial and cell.
+  - Under DP the attacker uses the same formula; it cannot undo clipping or noise.
+- **Item 4, every silo.** `privacy.attack.silos`, where empty = all silos (the default).
+  - Result layout changed: `privacy.attack.silos.<name>.cells[]`, each cell keyed by
+    (state, batch_size, labels).
+  - Headline `privacy.attack.mse` = last model state, smallest batch, known labels, on
+    the silo where the attack did best. That is the worst case for any client;
+    `headline` names it.
+  - Batch draws are seeded per (seed, silo, batch size, trial).
+- **Item 6, more trials and confidence intervals.**
+  - Summaries now give, per attack cell, a hierarchical percentile bootstrap 95% CI
+    (`ci95`, `chance_ci95`; resample seeds, then trials within a seed; 2000 draws;
+    fixed rng). This is next to mean ± std over seeds. `metrics/aggregate.bootstrap_ci`
+    is reusable for the Phase 8 figures.
+  - New sweep `configs/sweeps/phase5_eps_cluster.yaml` (`p5epsc`): the same 8 variants
+    with `privacy.attack.trials: 10`, i.e. 50 trials per cell across 5 seeds.
+  - New grid key `common:` applies overrides to every variant, the `include_base` one
+    included (`fixed:` does not touch the base).
+- **Attack batches are seeded by topology position** (seed, silo position, batch size,
+  trial). A silo's attacked records therefore do not depend on which other silos are
+  selected. Regression test: `test_attack_batches_do_not_depend_on_silo_selection`.
+- **WESAD check, seed 0.** Untrained global weights were used for both "states", so
+  this is a timing and sanity check, not a result. Values are means of 3 trials.
+
+  | | B=1 re-identified | B=4 re-identified | B=32 re-identified | B=32 chance |
+  |---|---|---|---|---|
+  | No DP, known labels (5 silos) | 0.67–1.0 | 0.25–0.67 | 0.19–0.24 | 0.04–0.11 |
+  | No DP, inferred labels | 0.67–1.0 | 0.08–0.67 | 0.17–0.24 | same |
+  | epsilon = 1, known labels | 0 (one silo 0.33, 1 of 3 trials) | 0 | 0.06–0.13 | 0.04–0.11 |
+
+  - **Without DP, label inference was 100% correct at every batch size and silo.** The
+    leakage with inferred labels matches known labels, so the "labels known"
+    assumption does not drive the no-DP result.
+  - Under DP, label recovery falls to 0–0.79, and re-identification is at or near
+    chance.
+  - The one 0.33 (mars_transit, B=1, epsilon = 1) is a single trial out of 3. It is
+    the kind of outlier the 10-trial cluster run and the CIs exist to resolve. It is
+    not an argument either way.
+- **Cost.**
+  - All 5 silos x 2 label modes x 18 cells take about 9 min per run without DP and
+    about 11 min with DP (133 s for one silo at epsilon = 1, measured as CPU time ≈
+    wall time).
+  - One silo with one label mode stays near 1 min, so the < 2 min acceptance check
+    still holds per attack.
+  - A first epsilon = 1 timing of 88 min was the laptop sleeping: the check ran without
+    `caffeinate`. Wall time was far above CPU time, and rerunning under `caffeinate`
+    reproduced the normal cost.
+  - **Cluster estimate** for `p5epsc` (10 trials): ~30–40 min of attack + ~1 min of
+    training per run, i.e. ~3 h per variant job of 5 seeds; 8 jobs in parallel.
+    - The attack is single-threaded per silo. Parallelising silos across processes is
+      a possible later speed-up, not done.
+    - To shorten it, lower `privacy.attack.trials` in `common:`.
+- **Superseded:** the local `p5eps` result files use the earlier single-silo,
+  known-labels layout without chance scores. Their numbers in the tables below remain
+  valid as recorded, but the new summary code no longer reads their attack section.
+  The cluster `p5epsc` run replaces them.
+- Tests: 135 passed.
+
 ### Per-window guarantee vs the alternatives
 | | Record-level (implemented) | Subject-level DP | Silo-level DP (DP-FedAvg) |
 |---|---|---|---|
@@ -259,8 +324,9 @@ Remaining weaknesses a judge could raise:
   output, and re-run the sweep before the figures.
 
 ### Cluster run for Phase 5 (publishable numbers)
-- `fedastro grid configs/sweeps/phase5_eps.yaml --index i --output-dir <dir>`, i = 0..7,
-  one job per variant: 5 seeds, about 2–3 min per run on CPU.
+- `fedastro grid configs/sweeps/phase5_eps_cluster.yaml --index i --output-dir <dir>`,
+  i = 0..7, one job per variant, 5 seeds each. Cost per run: see the timing below.
+- Then `fedastro grid configs/sweeps/phase5_eps_cluster.yaml --report --output-dir <dir>`.
 - Chance baselines are included automatically.
 - Use a fresh output dir. With the new config hash, old runs would not be resumed
   anyway.
@@ -268,8 +334,8 @@ Remaining weaknesses a judge could raise:
   speed them up; many CPU cores in parallel jobs do.
 
 ### Open questions for the user
-- Which of the robustness items 2–9 to implement before the cluster run (recommended:
-  2, 4, 5).
+- Robustness items 3 (multi-step FedAvg update), 5 (restarts), 7 (frozen settings,
+  ready now), 8 (membership inference): implement any before the cluster run?
 
 ### Plan for Phase 6 (deep-space comms), not started
 1. **`fl/comms.py`: a per-silo link model in simulated time.**

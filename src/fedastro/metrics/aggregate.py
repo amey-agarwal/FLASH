@@ -84,28 +84,52 @@ ATTACK_METRICS = ("mse", "rel_mse", "corr", "nn_identified")
 
 def _summarise_privacy(results: list[dict[str, Any]]) -> dict[str, Any]:
     """epsilon spent (weakest model in the run) and, per attack cell, the across-seed
-    mean +/- std of each seed's mean over trials."""
+    mean +/- std of each seed's trial mean, plus a hierarchical bootstrap 95% CI over
+    seeds and trials (``bootstrap_ci``) for the attack and its chance level."""
     out: dict[str, Any] = {}
     if all(r["privacy"]["enabled"] for r in results):
         out["target_epsilon"] = results[0]["privacy"]["target_epsilon"]
         out["epsilon"] = _mean_std([r["privacy"]["epsilon"] for r in results])
         out["delta_max"] = max(r["privacy"]["delta"] for r in results)
-    if all("cells" in r["privacy"]["attack"] for r in results):
+    if all("silos" in r["privacy"]["attack"] for r in results):
         cells = {}
-        for i, c in enumerate(results[0]["privacy"]["attack"]["cells"]):
-            per_seed = [r["privacy"]["attack"]["cells"][i] for r in results]
-            if any((p["state"], p["batch_size"]) != (c["state"], c["batch_size"]) for p in per_seed):
-                raise ValueError("attack cells differ across seeds")
-            key = f"{c['state']}-B{c['batch_size']}"
-            cells[key] = {
-                "state": c["state"], "batch_size": c["batch_size"],
-                "noise_multiplier": _mean_std([p["noise_multiplier"] for p in per_seed]),
-                **{m: _mean_std([p[m]["mean"] for p in per_seed]) for m in ATTACK_METRICS},
-            }
-            if all("chance" in p for p in per_seed):
-                cells[key]["chance"] = {m: _mean_std([p["chance"][m] for p in per_seed]) for m in ATTACK_METRICS}
-        out["attack"] = {"silo": results[0]["privacy"]["attack"]["silo"], "cells": cells}
+        for silo, entry in results[0]["privacy"]["attack"]["silos"].items():
+            for i, c in enumerate(entry["cells"]):
+                per_seed = [r["privacy"]["attack"]["silos"][silo]["cells"][i] for r in results]
+                ident = (c["state"], c["batch_size"], c["labels"])
+                if any((p["state"], p["batch_size"], p["labels"]) != ident for p in per_seed):
+                    raise ValueError("attack cells differ across seeds")
+                metrics = ATTACK_METRICS + (("label_accuracy",) if "label_accuracy" in c else ())
+                cell = {
+                    "silo": silo, "state": c["state"], "batch_size": c["batch_size"], "labels": c["labels"],
+                    "noise_multiplier": _mean_std([p["noise_multiplier"] for p in per_seed]),
+                    **{m: _mean_std([p[m]["mean"] for p in per_seed]) for m in metrics},
+                    "ci95": {m: bootstrap_ci([[t[m] for t in p["trials"]] for p in per_seed]) for m in metrics},
+                    "chance": {m: _mean_std([p["chance"][m] for p in per_seed]) for m in ATTACK_METRICS},
+                    "chance_ci95": {m: bootstrap_ci([[t["chance"][m] for t in p["trials"]] for p in per_seed])
+                                    for m in ATTACK_METRICS},
+                    "n_trials": sum(len(p["trials"]) for p in per_seed),
+                }
+                cells[f"{silo}/{c['state']}-B{c['batch_size']}-{c['labels']}"] = cell
+        out["attack"] = {"headline": results[0]["privacy"]["attack"]["headline"], "cells": cells}
     return out
+
+
+def bootstrap_ci(groups: list[list[float]], n_boot: int = 2000, level: float = 0.95,
+                 seed: int = 0) -> list[float] | None:
+    """Hierarchical percentile bootstrap of the mean: resample seeds (groups) with
+    replacement, then trials within each drawn seed. Deterministic (fixed rng seed).
+    With few seeds the interval is approximate; it is reported alongside mean +/- std."""
+    groups = [np.asarray(g, dtype=np.float64) for g in groups if len(g)]
+    if not groups:
+        return None
+    rng = np.random.default_rng(seed)
+    means = np.empty(n_boot)
+    for i in range(n_boot):
+        picked = rng.integers(0, len(groups), size=len(groups))
+        means[i] = np.mean(np.concatenate([g[rng.integers(0, len(g), size=len(g))] for g in (groups[j] for j in picked)]))
+    lo, hi = np.percentile(means, [100 * (1 - level) / 2, 100 * (1 + level) / 2])
+    return [float(lo), float(hi)]
 
 
 def _summarise_federated(results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -186,15 +210,16 @@ def format_summary(summary: dict[str, Any]) -> str:
         else:
             lines.append("DP: off (epsilon = inf)")
         if "attack" in pr:
-            lines.append(f"gradient inversion on silo {pr['attack']['silo']} (rel_mse < 1 = leakage; "
-                         f"nn_identified = window re-identified):")
+            def ci(v):
+                return f"[{v[0]:.3f}, {v[1]:.3f}]" if v else "n/a"
+
+            lines.append("gradient inversion (rel_mse < 1 = leakage; nn_id = window re-identified; "
+                         "[95% CI over seeds x trials]; chance = random guess):")
             for key, c in pr["attack"]["cells"].items():
-                lines.append(f"  {key:<12} sigma {fmt(c['noise_multiplier']):>14}  rel_mse {fmt(c['rel_mse']):>14}  "
-                             f"corr {fmt(c['corr']):>14}  nn_identified {fmt(c['nn_identified'])}")
-                if "chance" in c:
-                    ch = c["chance"]
-                    lines.append(f"  {'  chance':<12} {'':>20}  rel_mse {fmt(ch['rel_mse']):>14}  "
-                                 f"corr {fmt(ch['corr']):>14}  nn_identified {fmt(ch['nn_identified'])}")
+                la = f"  labels {fmt(c['label_accuracy'])}" if "label_accuracy" in c else ""
+                lines.append(f"  {key:<34} rel_mse {fmt(c['rel_mse'])} {ci(c['ci95']['rel_mse'])}  "
+                             f"nn_id {fmt(c['nn_identified'])} {ci(c['ci95']['nn_identified'])}  "
+                             f"chance nn_id {fmt(c['chance']['nn_identified'])}{la}")
     if "h1" in summary:
         h = summary["h1"]
         lines.append(f"H1 ({h['metric']}): federated > local_only mean in {h['federated_beats_local_only_mean']}/{h['n_seeds']} seeds; "
@@ -241,9 +266,13 @@ def grid_report(variants, out_dir: Path) -> tuple[list[dict[str, Any]], str]:
         pr = s.get("privacy") or {}
         if pr:
             eps = ms(pr["epsilon"]) if "epsilon" in pr else "inf"
-            atk = "  ".join(f"{k} rel {ms(c['rel_mse'])} nn {ms(c['nn_identified'])}"
-                            + (f" (chance nn {ms(c['chance']['nn_identified'])})" if "chance" in c else "")
-                            for k, c in pr.get("attack", {}).get("cells", {}).items())
+            hl = pr.get("attack", {}).get("headline")
+            atk = ""
+            if hl:
+                k = f"{hl['silo']}/{hl['state']}-B{hl['batch_size']}-{hl['labels']}"
+                c = pr["attack"]["cells"][k]
+                atk = (f"headline {k}: rel {ms(c['rel_mse'])} nn {ms(c['nn_identified'])} "
+                       f"(chance nn {ms(c['chance']['nn_identified'])})")
             lines.append(f"{'':<46}  eps spent {eps}  {atk}")
         lines.append(
             f"{v.name:<46}{ms(row['federated_accuracy']):>13}{ms(row['federated_macro_f1']):>13}"

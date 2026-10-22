@@ -10,6 +10,8 @@
       arms: [federated]
     include_base: true                           # optional: also run the base config as-is
                                                  # (variant 0, "<sweep>-base"; fixed not applied)
+    common:                                      # optional overrides for EVERY variant,
+      privacy.attack.trials: 10                  # the base variant included
 
 Each variant gets its own experiment name ``<sweep>-<axis values>`` and therefore its
 own run ids and per-variant summary. ``--index`` runs a single variant so a cluster can
@@ -48,7 +50,7 @@ def _slug(key: str, value: Any) -> str:
 def load_grid(path: str | Path) -> tuple[str, list[Variant]]:
     path = Path(path).resolve()
     spec = yaml.safe_load(path.read_text()) or {}
-    unknown = set(spec) - {"name", "base", "seeds", "axes", "fixed", "include_base"}
+    unknown = set(spec) - {"name", "base", "seeds", "axes", "fixed", "include_base", "common"}
     if unknown:
         raise ConfigError(f"{path}: unknown grid keys {sorted(unknown)}")
     for key in ("name", "base", "axes"):
@@ -59,13 +61,14 @@ def load_grid(path: str | Path) -> tuple[str, list[Variant]]:
         raise ConfigError(f"{path}: every axis must be a non-empty list")
     base = (path.parent / spec["base"]).resolve()
     seeds = {"seeds": spec["seeds"]} if "seeds" in spec else {}
+    common = spec.get("common") or {}
     variants = []
     if spec.get("include_base", False):
         name = f"{spec['name']}-base"
-        variants.append(Variant(0, name, {}, load_config(base, {"name": name, **seeds})))
+        variants.append(Variant(0, name, {}, load_config(base, {**common, "name": name, **seeds})))
     for combo in itertools.product(*axes.values()):
         overrides = dict(zip(axes, combo))
         name = "-".join([spec["name"], *(_slug(k, v) for k, v in overrides.items())])
-        cfg = load_config(base, {**(spec.get("fixed") or {}), **overrides, "name": name, **seeds})
+        cfg = load_config(base, {**common, **(spec.get("fixed") or {}), **overrides, "name": name, **seeds})
         variants.append(Variant(len(variants), name, overrides, cfg))
     return spec["name"], variants

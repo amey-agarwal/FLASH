@@ -119,7 +119,9 @@ SMOKE = REPO / "configs/experiments/smoke_fl.yaml"
     ({"privacy.enabled": True, "privacy.target_epsilon": 1.0, "fl.strategy": "fedprox"}, "fedprox"),
     ({"privacy.enabled": True, "privacy.target_epsilon": 1.0, "train.class_weighting": "balanced"}, "class_weighting"),
     ({"privacy.attack.enabled": True, "arms": ["centralized"]}, "needs the federated arm"),
-    ({"privacy.attack.enabled": True, "privacy.attack.silo": "pluto"}, "not a silo"),
+    ({"privacy.attack.enabled": True, "privacy.attack.silos": ["pluto"]}, "not silos of the topology"),
+    ({"privacy.attack.label_modes": ["guessed"]}, "label_modes"),
+    ({"privacy.attack.silos": ["nasa_earth", "nasa_earth"]}, "must not repeat"),
     ({"privacy.enabled": "yes"}, "expected true/false"),
 ])
 def test_privacy_config_validation(overrides, message):
@@ -242,16 +244,28 @@ def test_dp_run_result_contract(dp_runs):
         assert all(a < b for a, b in zip(eps, eps[1:]))
         assert eps[-1] == pytest.approx(acc["federated"][silo]["epsilon"])
     a = p["attack"]
-    assert a["silo"] == r["silos"][0]["name"] and a["mse"] is not None
-    assert [(c["state"], c["batch_size"]) for c in a["cells"]] == [("init", 1), ("init", 4), ("final", 1), ("final", 4)]
-    assert all(len(c["trials"]) == 2 and c["noise_multiplier"] > 0 for c in a["cells"])
-    assert all(set(c["chance"]) == {"mse", "rel_mse", "corr", "nn_identified"} for c in a["cells"])
-    assert all("chance" in t for c in a["cells"] for t in c["trials"])
+    assert set(a["silos"]) == {x["name"] for x in r["silos"]}  # every silo
+    assert a["headline"]["silo"] in a["silos"] and a["mse"] is not None
+    head = [c for c in a["silos"][a["headline"]["silo"]]["cells"]
+            if (c["state"], c["batch_size"], c["labels"]) == ("final", 1, "known")]
+    assert a["mse"] == head[0]["mse"]["mean"] == min(
+        c["mse"]["mean"] for e in a["silos"].values() for c in e["cells"]
+        if (c["state"], c["batch_size"], c["labels"]) == ("final", 1, "known"))
+    for name, entry in a["silos"].items():
+        cells = entry["cells"]
+        assert [(c["state"], c["batch_size"], c["labels"]) for c in cells] == [
+            (st, b, lm) for st in ("init", "final") for b in (1, 4) for lm in ("known", "inferred")]
+        for c in cells:
+            assert len(c["trials"]) == 2 and c["noise_multiplier"] > 0
+            assert set(c["chance"]) == {"mse", "rel_mse", "corr", "nn_identified"}
+            assert ("label_accuracy" in c) == (c["labels"] == "inferred")
+        # one released update per trial, attacked under both label modes on the same records
+        assert cells[0]["trials"][0]["indices"] == cells[1]["trials"][0]["indices"]
+        # batches depend on the seed only, so both model states attack the same records
+        assert cells[0]["trials"][0]["indices"] == cells[4]["trials"][0]["indices"]
     sl = p["subject_level"]
     assert sl["epsilon_max"] > p["epsilon"]
     assert all("subject_level" in m for m in acc["federated"].values())
-    # batches are drawn by seed, so both model states attack the same records
-    assert a["cells"][0]["trials"][0]["indices"] == a["cells"][2]["trials"][0]["indices"]
 
 
 def test_dp_run_is_byte_identical(dp_runs):
@@ -261,5 +275,72 @@ def test_dp_run_is_byte_identical(dp_runs):
 def test_summary_reports_privacy(dp_runs):
     s = summarise(load_results(dp_runs[:1]))
     assert s["privacy"]["target_epsilon"] == 3.0
-    assert set(s["privacy"]["attack"]["cells"]) == {"init-B1", "init-B4", "final-B1", "final-B4"}
-    assert all("chance" in c for c in s["privacy"]["attack"]["cells"].values())
+    cells = s["privacy"]["attack"]["cells"]
+    assert len(cells) == 5 * 8
+    c = cells["nasa_earth/final-B4-inferred"]
+    assert c["n_trials"] == 2 and "label_accuracy" in c["ci95"]
+    lo, hi = c["ci95"]["rel_mse"]
+    assert lo <= c["rel_mse"]["mean"] <= hi
+
+
+# --- robustness additions ----------------------------------------------------------
+
+def test_infer_labels_recovers_counts_without_dp():
+    from fedastro.privacy.attack import infer_labels, label_accuracy
+
+    torch.manual_seed(0)
+    m = MLP(10, (16,), 3, 0.0)
+    for n, seed in ((1, 0), (1, 1), (4, 2), (8, 3)):
+        X, y = _batch(n=n, seed=seed)
+        g = released_gradient(m, X, y, None, seed=0)
+        inferred = infer_labels(m, g, n, 3, (10,), seed=0)
+        assert len(inferred) == n
+        assert label_accuracy(inferred, y, 3) >= (1.0 if n == 1 else 0.75)
+
+
+def test_attack_batches_do_not_depend_on_silo_selection():
+    from fedastro.privacy.attack import run_attack
+
+    cfg = load_config(SMOKE, {"privacy.attack.enabled": True, "privacy.attack.batch_sizes": [2],
+                              "privacy.attack.trials": 1, "privacy.attack.iterations": 2,
+                              "privacy.attack.model_states": ["init"], "privacy.attack.chance_draws": 1,
+                              "privacy.attack.label_modes": ["known"]})
+    torch.manual_seed(0)
+    m = MLP(8, (8,), 3, 0.0)
+    w = [p.detach().numpy().copy() for p in m.state_dict().values()]
+    rng = np.random.default_rng(0)
+    data = {s.name: (rng.normal(size=(20, 8)).astype(np.float32), rng.integers(0, 3, 20))
+            for s in cfg.topology.silos}
+    last = cfg.topology.silos[-1].name
+    both = run_attack(cfg, 0, data, {"init": w}, m)
+    alone = run_attack(cfg, 0, {last: data[last]}, {"init": w}, m)
+    idx = lambda r: r["silos"][last]["cells"][0]["trials"][0]["indices"]
+    assert idx(both) == idx(alone)
+
+
+def test_label_accuracy_is_multiset_overlap():
+    from fedastro.privacy.attack import label_accuracy
+
+    assert label_accuracy(torch.tensor([0, 0, 1, 2]), torch.tensor([2, 1, 0, 0]), 3) == 1.0
+    assert label_accuracy(torch.tensor([0, 0, 0, 0]), torch.tensor([0, 1, 1, 2]), 3) == 0.25
+
+
+def test_bootstrap_ci_is_deterministic_and_brackets_the_mean():
+    from fedastro.metrics.aggregate import bootstrap_ci
+
+    groups = [[0.1, 0.2, 0.3], [0.2, 0.25], [0.15, 0.4, 0.3]]
+    a, b = bootstrap_ci(groups), bootstrap_ci(groups)
+    assert a == b
+    pooled = np.mean([v for g in groups for v in g])
+    assert a[0] <= pooled <= a[1]
+    assert bootstrap_ci([[0.5, 0.5], [0.5]]) == [0.5, 0.5]
+    assert bootstrap_ci([]) is None
+
+
+def test_grid_common_applies_to_base_variant_too():
+    from fedastro.grid import load_grid
+
+    _, variants = load_grid(REPO / "configs/sweeps/phase5_eps_cluster.yaml")
+    assert variants[0].name == "p5epsc-base" and not variants[0].config.privacy.enabled
+    assert all(v.config.privacy.attack.trials == 10 for v in variants)
+    assert all(v.config.privacy.enabled for v in variants[1:])

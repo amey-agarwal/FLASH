@@ -4,9 +4,12 @@ Threat model, stated explicitly because the attack's success depends on it:
 - An honest-but-curious server observes ONE released update from ONE silo: the
   gradient of one local step on one batch (a FedSGD-style update). Multi-step FedAvg
   updates are harder to invert; no result here is claimed for them.
-- The server knows the architecture and the global weights it sent, the batch size,
-  the clipping norm, and the batch's labels (labels are the attacker's best case;
-  for batch size 1 they are recoverable from the last-layer bias gradient anyway).
+- The server knows the architecture and the global weights it sent, the batch size
+  and the clipping norm. Labels are attacked two ways (``label_modes``): ``known``
+  (the attacker's best case) and ``inferred`` from the last-layer bias gradient
+  (``infer_labels``), with the label-recovery accuracy reported.
+- Every silo is attacked (``silos``; empty = all): small silos carry more DP noise
+  but have fewer records to hide among.
 - The client computes its step in training mode, so dropout is active and its mask
   is unknown to the attacker, as in real local training.
 - With DP on, the released gradient is exactly what DP-SGD releases for that step:
@@ -59,7 +62,8 @@ ATTACK_ID = 4  # derive_seed namespace; ARM_IDS uses 1-3
 THREAT_MODEL = {
     "observer": "honest-but-curious server",
     "observed": "one single-step gradient update from one silo",
-    "attacker_knows": ["architecture", "global weights", "batch size", "clipping norm", "batch labels"],
+    "attacker_knows": ["architecture", "global weights", "batch size", "clipping norm",
+                       "batch labels (label mode 'known' only; 'inferred' recovers them from the update)"],
     "client_mode": "training (dropout active, mask unknown to attacker)",
     "not_claimed": "inversion of multi-step FedAvg updates",
 }
@@ -168,11 +172,48 @@ def _mean_std(vals: list[float]) -> dict[str, float | None]:
     return {"mean": float(np.mean(vals)), "std": float(np.std(vals, ddof=1)) if len(vals) > 1 else None}
 
 
-def run_attack(cfg: ExperimentConfig, seed: int, silo_X: np.ndarray, silo_y: np.ndarray,
+def infer_labels(model: nn.Module, target: list[torch.Tensor], batch_size: int, n_classes: int,
+                 input_shape: tuple[int, ...], seed: int, n_probe: int = 256) -> torch.Tensor:
+    """Recover the batch's label counts from the released gradient, without knowing them.
+
+    For softmax cross-entropy with mean reduction, the last layer's bias gradient is
+    g_c = mean_i(p_ic - y_ic), so the count of class c is n_c = B * (mean_i p_ic - g_c).
+    The batch's mean prediction is unknown; it is estimated by the model's mean
+    prediction on random N(0, 1) inputs (standardised space), as in Geng et al. 2021.
+    Counts are rounded to integers summing to B by largest remainder. Under DP the
+    attacker cannot undo clipping or noise and uses the same formula anyway.
+    The returned labels are a multiset; order is irrelevant because dummies are free.
+    """
+    bias_grad = target[-1]
+    if bias_grad.shape != (n_classes,):
+        raise ValueError("label inference needs the final layer's bias as the last parameter")
+    gen = torch.Generator().manual_seed(seed)
+    model.eval()
+    with torch.no_grad():
+        p_bar = torch.softmax(model(torch.randn((n_probe, *input_shape), generator=gen)), dim=1).mean(0)
+    raw = (batch_size * (p_bar - bias_grad)).clamp(min=0).double().numpy()
+    if raw.sum() == 0:
+        raw = np.ones(n_classes)
+    raw = raw * batch_size / raw.sum()
+    counts = np.floor(raw).astype(int)
+    order = np.argsort(-(raw - counts), kind="stable")
+    counts[order[: batch_size - counts.sum()]] += 1
+    return torch.from_numpy(np.repeat(np.arange(n_classes), counts))
+
+
+def label_accuracy(inferred: torch.Tensor, true: torch.Tensor, n_classes: int) -> float:
+    """Fraction of the batch's labels recovered (multiset overlap / B)."""
+    a = np.bincount(inferred.numpy(), minlength=n_classes)
+    b = np.bincount(true.numpy(), minlength=n_classes)
+    return float(np.minimum(a, b).sum() / len(true))
+
+
+def run_attack(cfg: ExperimentConfig, seed: int, silos: dict[str, tuple[np.ndarray, np.ndarray]],
                global_weights: dict[str, list[np.ndarray]], model: nn.Module) -> dict[str, Any]:
-    """Attack every (model state, batch size) cell for ``cfg.privacy.attack.trials``
-    seeded batches. ``silo_X`` is already standardised with the federated scaler.
-    ``model`` is a freshly built instance of the run's architecture."""
+    """Attack every (silo, model state, batch size, label mode) cell for
+    ``cfg.privacy.attack.trials`` seeded batches. ``silos`` maps silo name (topology
+    order) to (X standardised with the federated scaler, y). ``model`` is a freshly
+    built instance of the run's architecture."""
     # Thread count changes float reduction order, so it is restored afterwards: a later
     # run in the same process must not depend on whether an attack ran before it.
     threads = torch.get_num_threads()
@@ -181,20 +222,45 @@ def run_attack(cfg: ExperimentConfig, seed: int, silo_X: np.ndarray, silo_y: np.
     # range, which is ~1000x slower on x86 CPUs. Flushing them to zero changes only
     # values below ~1e-38. torch has no getter; False is its default.
     torch.set_flush_denormal(True)
+    acfg = cfg.privacy.attack
     try:
-        return _run_attack(cfg, seed, silo_X, silo_y, global_weights, model)
+        # Seeded by the silo's topology position, so a silo's batches do not depend on
+        # which other silos are selected for attack.
+        order = [s.name for s in cfg.topology.silos]
+        out = {name: _attack_silo(cfg, seed, order.index(name), X, y, global_weights, model)
+               for name, (X, y) in silos.items()}
     finally:
         torch.set_flush_denormal(False)
         torch.set_num_threads(threads)
+    # Headline: the worst case for a client -- last model state, smallest batch, known
+    # labels, and the silo where the attack did best (lowest mse).
+    def head(name):
+        return next(c for c in out[name]["cells"] if c["state"] == acfg.model_states[-1]
+                    and c["batch_size"] == min(acfg.batch_sizes) and c["labels"] == acfg.label_modes[0])
+    worst = min(out, key=lambda n: head(n)["mse"]["mean"])
+    return {
+        "mse": head(worst)["mse"]["mean"],
+        "headline": {"silo": worst, "state": acfg.model_states[-1], "batch_size": min(acfg.batch_sizes),
+                     "labels": acfg.label_modes[0],
+                     "rule": "last model state, smallest batch, first label mode, silo with the "
+                             "lowest mse (worst case for a client)"},
+        "threat_model": THREAT_MODEL,
+        "settings": {"iterations": acfg.iterations, "lr": acfg.lr, "prior_weight": acfg.prior_weight,
+                     "trials": acfg.trials, "chance_draws": acfg.chance_draws,
+                     "label_modes": list(acfg.label_modes), "loss": "cosine gradient distance"},
+        "silos": out,
+    }
 
 
-def _run_attack(cfg: ExperimentConfig, seed: int, silo_X: np.ndarray, silo_y: np.ndarray,
-                global_weights: dict[str, list[np.ndarray]], model: nn.Module) -> dict[str, Any]:
+def _attack_silo(cfg: ExperimentConfig, seed: int, silo_idx: int, silo_X: np.ndarray, silo_y: np.ndarray,
+                 global_weights: dict[str, list[np.ndarray]], model: nn.Module) -> dict[str, Any]:
     from fedastro.fl.client import set_weights
 
     acfg = cfg.privacy.attack
     epochs = cfg.fl.rounds * cfg.fl.local_epochs
+    n_classes = list(model.parameters())[-1].shape[0]  # final layer bias
     X, y = torch.from_numpy(silo_X), torch.from_numpy(silo_y)
+    shape = tuple(X.shape[1:])
     cells = []
     for si, state in enumerate(acfg.model_states):
         set_weights(model, global_weights[state])
@@ -202,33 +268,32 @@ def _run_attack(cfg: ExperimentConfig, seed: int, silo_X: np.ndarray, silo_y: np
             if b > len(X):
                 raise ValueError(f"attack batch size {b} exceeds silo size {len(X)}")
             dp = plan_dp(cfg.privacy, len(X), b, epochs) if cfg.privacy.enabled else None
-            trials = []
+            clip = None if dp is None else dp.max_grad_norm
+            trials: dict[str, list[dict[str, Any]]] = {mode: [] for mode in acfg.label_modes}
             for t in range(acfg.trials):
-                rng = np.random.default_rng(derive_seed(seed, ATTACK_ID, b, t))
+                key = (seed, ATTACK_ID, silo_idx, b, t)
+                rng = np.random.default_rng(derive_seed(*key))
                 idx = np.sort(rng.choice(len(X), size=b, replace=False))
-                target = released_gradient(model, X[idx], y[idx], dp, derive_seed(seed, ATTACK_ID, b, t, si, 1))
-                recon = invert(model, target, y[idx], tuple(X.shape[1:]), acfg,
-                               None if dp is None else dp.max_grad_norm, derive_seed(seed, ATTACK_ID, b, t, si, 2))
-                chance = chance_scores(silo_X, idx, acfg.chance_draws, derive_seed(seed, ATTACK_ID, b, t, si, 3))
-                trials.append({"indices": idx.tolist(), **score(recon.numpy(), silo_X[idx], idx, silo_X),
-                               "chance": chance})
-            cells.append({
-                "state": state, "batch_size": b,
-                "noise_multiplier": None if dp is None else dp.noise_multiplier,
-                **{k: _mean_std([tr[k] for tr in trials]) for k in SCORES},
-                "chance": {k: float(np.mean([tr["chance"][k] for tr in trials])) for k in SCORES},
-                "trials": trials,
-            })
-    headline = next(c for c in cells if c["state"] == acfg.model_states[-1]
-                    and c["batch_size"] == min(acfg.batch_sizes))
-    return {
-        "mse": headline["mse"]["mean"],
-        "headline": {"state": headline["state"], "batch_size": headline["batch_size"],
-                     "rule": "last model state, smallest batch size (worst case for the client)"},
-        "threat_model": THREAT_MODEL,
-        "n_silo_records": len(X),
-        "settings": {"iterations": acfg.iterations, "lr": acfg.lr, "prior_weight": acfg.prior_weight,
-                     "trials": acfg.trials, "chance_draws": acfg.chance_draws,
-                     "loss": "cosine gradient distance"},
-        "cells": cells,
-    }
+                # One released update per trial, attacked under every label mode (paired).
+                target = released_gradient(model, X[idx], y[idx], dp, derive_seed(*key, si, 1))
+                chance = chance_scores(silo_X, idx, acfg.chance_draws, derive_seed(*key, si, 3))
+                for mode in acfg.label_modes:
+                    extra: dict[str, Any] = {}
+                    labels = y[idx]
+                    if mode == "inferred":
+                        labels = infer_labels(model, target, b, n_classes, shape, derive_seed(*key, si, 4))
+                        extra["label_accuracy"] = label_accuracy(labels, y[idx], n_classes)
+                    recon = invert(model, target, labels, shape, acfg, clip, derive_seed(*key, si, 2))
+                    trials[mode].append({"indices": idx.tolist(),
+                                         **score(recon.numpy(), silo_X[idx], idx, silo_X),
+                                         **extra, "chance": chance})
+            for mode, trs in trials.items():
+                metrics = SCORES + (("label_accuracy",) if mode == "inferred" else ())
+                cells.append({
+                    "state": state, "batch_size": b, "labels": mode,
+                    "noise_multiplier": None if dp is None else dp.noise_multiplier,
+                    **{k: _mean_std([tr[k] for tr in trs]) for k in metrics},
+                    "chance": {k: float(np.mean([tr["chance"][k] for tr in trs])) for k in SCORES},
+                    "trials": trs,
+                })
+    return {"n_records": len(X), "cells": cells}
