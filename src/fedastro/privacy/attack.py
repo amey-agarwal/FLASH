@@ -142,11 +142,30 @@ def _corr(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.mean(rs))
 
 
+def match(recon: np.ndarray, true: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Hungarian matching of reconstructions to true records by MSE: (rows, cols, cost)."""
+    n = len(true)
+    cost = ((recon.reshape(n, -1)[:, None, :] - true.reshape(n, -1)[None, :, :]) ** 2).mean(axis=2)
+    rows, cols = linear_sum_assignment(cost)
+    return rows, cols, cost
+
+
+def example(recon: np.ndarray, true: np.ndarray, true_idx: np.ndarray, digits: int = 5) -> dict[str, Any]:
+    """One reconstruction for display (Phase 8 before/after panel). Fixed rule, never
+    the best one: the batch's lowest-index record and the reconstruction matched to it."""
+    rows, cols, _ = match(recon, true)
+    j = int(np.argmin(true_idx))
+    i = int(rows[list(cols).index(j)])
+    return {"record_index": int(true_idx[j]),
+            "true": np.round(true[j].astype(np.float64), digits).tolist(),
+            "reconstruction": np.round(recon[i].astype(np.float64), digits).tolist(),
+            "rule": "lowest record index in the trial-0 batch; not selected by quality"}
+
+
 def score(recon: np.ndarray, true: np.ndarray, true_idx: np.ndarray, pool: np.ndarray) -> dict[str, float]:
     n = len(true)
     r2, t2, p2 = recon.reshape(n, -1), true.reshape(n, -1), pool.reshape(len(pool), -1)
-    cost = ((r2[:, None, :] - t2[None, :, :]) ** 2).mean(axis=2)
-    rows, cols = linear_sum_assignment(cost)
+    rows, cols, cost = match(recon, true)
     mse = float(cost[rows, cols].mean())
     nn_idx = ((r2[:, None, :] - p2[None, :, :]) ** 2).mean(axis=2).argmin(axis=1)
     return {
@@ -284,6 +303,8 @@ def _attack_silo(cfg: ExperimentConfig, seed: int, silo_idx: int, silo_X: np.nda
                         labels = infer_labels(model, target, b, n_classes, shape, derive_seed(*key, si, 4))
                         extra["label_accuracy"] = label_accuracy(labels, y[idx], n_classes)
                     recon = invert(model, target, labels, shape, acfg, clip, derive_seed(*key, si, 2))
+                    if t == 0:
+                        extra["example"] = example(recon.numpy(), silo_X[idx], idx)
                     trials[mode].append({"indices": idx.tolist(),
                                          **score(recon.numpy(), silo_X[idx], idx, silo_X),
                                          **extra, "chance": chance})
@@ -294,6 +315,7 @@ def _attack_silo(cfg: ExperimentConfig, seed: int, silo_idx: int, silo_X: np.nda
                     "noise_multiplier": None if dp is None else dp.noise_multiplier,
                     **{k: _mean_std([tr[k] for tr in trs]) for k in metrics},
                     "chance": {k: float(np.mean([tr["chance"][k] for tr in trs])) for k in SCORES},
+                    "example": trs[0].pop("example"),
                     "trials": trs,
                 })
     return {"n_records": len(X), "cells": cells}

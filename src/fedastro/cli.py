@@ -25,6 +25,9 @@ def _parser() -> argparse.ArgumentParser:
         sp.add_argument("--device", choices=("cpu", "cuda"), help="override device")
         sp.add_argument("--synthetic", action="store_true",
                         help="force the SYNTHETIC smoke-test dataset (results tagged SYNTHETIC)")
+        sp.add_argument("--real-sleep", type=float, nargs="?", const=1.0, metavar="SCALE",
+                        help="LIVE DEMO ONLY: actually sleep simulated link time x SCALE (default 1.0); "
+                             "results are unchanged, only slower")
 
     run = sub.add_parser("run", help="run one experiment for one seed")
     common(run)
@@ -125,7 +128,8 @@ def main(argv: list[str] | None = None) -> int:
         return _grid(args)
     try:
         cfg = load_config(args.config)
-        overrides = {"output_dir": args.output_dir, "device": args.device}
+        overrides = {"output_dir": args.output_dir, "device": args.device,
+                     "real_sleep_scale": getattr(args, "real_sleep", None)}
         if args.synthetic and cfg.data.name != "synthetic":
             import dataclasses
             overrides["data"] = dataclasses.replace(cfg.data, name="synthetic")

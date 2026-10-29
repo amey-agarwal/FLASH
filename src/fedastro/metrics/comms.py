@@ -20,9 +20,10 @@ def payload_bytes(arrays: list[np.ndarray]) -> int:
 def rounds_to_target(rounds: list[dict[str, Any]], threshold: float | None,
                      metric: str = "accuracy") -> dict[str, Any]:
     """First round whose global holdout ``metric`` reaches ``threshold``, with the
-    cumulative bytes spent up to and including that round. None if never reached."""
+    cumulative bytes spent up to and including that round and its simulated
+    wall-clock time. None if never reached."""
     out: dict[str, Any] = {"threshold": threshold, "metric": metric, "round": None,
-                           "cumulative_bytes": None}
+                           "cumulative_bytes": None, "sim_wallclock_s": None}
     if threshold is None:
         return out
     cumulative = 0
@@ -32,5 +33,6 @@ def rounds_to_target(rounds: list[dict[str, Any]], threshold: float | None,
         if value is not None and value >= threshold:
             out["round"] = r["round"]
             out["cumulative_bytes"] = cumulative
+            out["sim_wallclock_s"] = r.get("sim_wallclock_s")  # simulated seconds, None if comms off
             break
     return out

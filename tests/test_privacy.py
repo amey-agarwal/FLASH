@@ -259,6 +259,9 @@ def test_dp_run_result_contract(dp_runs):
             assert len(c["trials"]) == 2 and c["noise_multiplier"] > 0
             assert set(c["chance"]) == {"mse", "rel_mse", "corr", "nn_identified"}
             assert ("label_accuracy" in c) == (c["labels"] == "inferred")
+            ex = c["example"]
+            assert ex["record_index"] == min(c["trials"][0]["indices"])
+            assert len(ex["true"]) == len(ex["reconstruction"]) == 8  # synthetic n_features
         # one released update per trial, attacked under both label modes on the same records
         assert cells[0]["trials"][0]["indices"] == cells[1]["trials"][0]["indices"]
         # batches depend on the seed only, so both model states attack the same records

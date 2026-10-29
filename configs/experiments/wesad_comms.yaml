@@ -1,0 +1,23 @@
+# Phase 6: WESAD by-subject federation over simulated deep-space links.
+# Simulated time only (sim_wallclock_s); nothing sleeps. Link and outage parameters are
+# the CommsConfig defaults (src/fedastro/config.py), mostly scenario assumptions; the
+# 7.5 min outage length is calibrated to the FLUID ISS loss-of-signal event.
+# local_only is omitted: it has no communication, and its numbers are in Phases 3-4.
+name: wesad_comms
+seeds: [0, 1, 2, 3, 4]
+data:
+  name: wesad
+partition:
+  method: by_subject
+  holdout_subjects: 3
+arms: [centralized, federated]
+fl:
+  # Reachable time-to-target threshold, rule fixed before looking at Phase 6 accuracy:
+  # 0.95 x the Phase 3 by-subject FedAvg mean final holdout accuracy (0.708, PROGRESS.md),
+  # rounded to 3 decimals. Reported alongside the centralized-relative target (95% of the
+  # centralized arm, ~0.81), which no first-pass federated run reached.
+  absolute_target: 0.673
+comms:
+  enabled: true
+  preset: mars_far
+  los: true

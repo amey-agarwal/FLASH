@@ -134,25 +134,33 @@ def bootstrap_ci(groups: list[list[float]], n_boot: int = 2000, level: float = 0
 
 def _summarise_federated(results: list[dict[str, Any]]) -> dict[str, Any]:
     feds = [r["arms"]["federated"] for r in results]
-    n_rounds = {len(f["rounds"]) for f in feds}
-    if len(n_rounds) != 1:
+    n_rounds = [len(f["rounds"]) for f in feds]
+    if len(set(n_rounds)) != 1 and not any(f.get("stalled") for f in feds):
         raise ValueError(f"federated runs have different round counts: {n_rounds}")
+    timed = any(f.get("sim_wallclock_s_total") is not None for f in feds)
     curve = []
-    for i in range(n_rounds.pop()):
+    for i in range(min(n_rounds)):  # stalled runs end early; the curve covers rounds all seeds reached
         curve.append({
             "round": feds[0]["rounds"][i]["round"],
             **{m: _mean_std([f["rounds"][i]["global"][m] for f in feds]) for m in METRICS},
+            **({"sim_wallclock_s": _mean_std([f["rounds"][i]["sim_wallclock_s"] for f in feds])} if timed else {}),
         })
     out: dict[str, Any] = {
         "final": {m: _mean_std([f["final"][m] for f in feds]) for m in METRICS},
         "curve": curve,
         "total_bytes": _mean_std([f["total_bytes"] for f in feds]),
         "rounds_to_target": {},
+        "n_rounds": n_rounds,
+        "n_stalled": sum(bool(f.get("stalled")) for f in feds),
     }
+    if timed:
+        out["sim_wallclock_s_total"] = _mean_std([f["sim_wallclock_s_total"] for f in feds])
     for key in feds[0]["rounds_to_target"]:
         reached = [f["rounds_to_target"][key]["round"] for f in feds]
         out["rounds_to_target"][key] = {
             "round": _mean_std([r for r in reached if r is not None]),
+            "sim_wallclock_s": _mean_std([f["rounds_to_target"][key].get("sim_wallclock_s") for f in feds
+                                          if f["rounds_to_target"][key]["round"] is not None]),
             "n_reached": sum(r is not None for r in reached),
             "n_runs": len(reached),
         }
@@ -196,8 +204,13 @@ def format_summary(summary: dict[str, Any]) -> str:
         fed = arms["federated"]
         lines.append(f"{'federated (final round)':<28}" + "".join(f"{fmt(fed['final'][m]):>20}" for m in METRICS))
         lines.append(f"federated total bytes: {fmt(fed['total_bytes'])}")
+        if "sim_wallclock_s_total" in fed:
+            lines.append(f"federated simulated wall-clock total (s): {fmt(fed['sim_wallclock_s_total'])}"
+                         f"; stalled runs: {fed['n_stalled']}/{len(fed['n_rounds'])}")
         for key, v in fed["rounds_to_target"].items():
-            lines.append(f"rounds to target ({key}): {fmt(v['round'])}, reached in {v['n_reached']}/{v['n_runs']} runs")
+            sim_t = v.get("sim_wallclock_s")
+            sim_txt = f", simulated time {fmt(sim_t)} s" if sim_t and sim_t["mean"] is not None else ""
+            lines.append(f"rounds to target ({key}): {fmt(v['round'])}{sim_txt}, reached in {v['n_reached']}/{v['n_runs']} runs")
     if "fairness" in summary:
         lines.append("fairness (label-mix holdout accuracy across silos; spread = max - min, lower is fairer):")
         for arm, f in summary["fairness"].items():
@@ -260,9 +273,17 @@ def grid_report(variants, out_dir: Path) -> tuple[list[dict[str, Any]], str]:
             "fairness_spread_local_only": fair.get("local_only", {}).get("spread"),
             "h1": h1,
             "privacy": s.get("privacy"),
+            "sim_wallclock_s_total": arms.get("federated", {}).get("sim_wallclock_s_total"),
+            "time_to_target_sim_s": {k: v.get("sim_wallclock_s") for k, v in
+                                     arms.get("federated", {}).get("rounds_to_target", {}).items()},
         }
         rows.append(row)
         h1_txt = f"{h1['federated_beats_local_only_mean']}/{h1['n_seeds']}" if h1 else "n/a"
+        if row["sim_wallclock_s_total"]:
+            ttt = "  ".join(f"{k} {ms(v)} s" for k, v in row["time_to_target_sim_s"].items() if v)
+            fedr = arms["federated"]
+            lines.append(f"{'':<46}  simulated total {ms(row['sim_wallclock_s_total'])} s  "
+                         f"time-to-target {ttt or 'n/a'}  stalled {fedr['n_stalled']}/{len(fedr['n_rounds'])}")
         pr = s.get("privacy") or {}
         if pr:
             eps = ms(pr["epsilon"]) if "epsilon" in pr else "inf"

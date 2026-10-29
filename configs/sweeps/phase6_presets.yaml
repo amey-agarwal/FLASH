@@ -1,0 +1,9 @@
+# Time-to-target in SIMULATED wall-clock per link preset, sync FedAvg vs buffered-async
+# FedBuff (K = 3, staleness weight 1/sqrt(1 + tau), matched total client updates),
+# loss of signal on. Only the deep-space silo (mars_transit) moves between presets.
+name: p6pre
+base: ../experiments/wesad_comms.yaml
+seeds: [0, 1, 2, 3, 4]
+axes:
+  comms.preset: [earth, moon, mars_near, mars_far]
+  fl.strategy: [fedavg, fedbuff]

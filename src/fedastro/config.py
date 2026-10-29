@@ -34,10 +34,13 @@ ARCHS = ("mlp", "cnn1d")
 OPTIMIZERS = ("adam", "sgd")
 CLASS_WEIGHTING = ("none", "balanced")
 ARMS = ("centralized", "local_only", "federated")
-FL_STRATEGIES = ("fedavg", "fedprox")  # Phase 6 adds buffered async
+FL_STRATEGIES = ("fedavg", "fedprox", "fedbuff")
+SYNC_STRATEGIES = ("fedavg", "fedprox")
 REPRESENTATIONS = ("features", "sequence")
 DEVICES = ("cpu", "cuda")
 LOS_PROFILES = ("none", "rare", "short_occasional", "periodic", "long_blackout")
+LOS_KINDS = ("none", "poisson", "periodic")
+COMMS_PRESETS = ("earth", "moon", "mars_near", "mars_mean", "mars_far")
 ATTACK_STATES = ("init", "final")
 ATTACK_LABEL_MODES = ("known", "inferred")
 
@@ -230,8 +233,16 @@ class FLConfig:
     relative_target: float = 0.95  # fraction of the centralized arm's final accuracy
     absolute_target: float = 0.0  # 0 disables the absolute threshold
     timeout_s: float = 600.0  # per round, real seconds; a missing reply is an error
+    # FedBuff (buffered asynchronous, Nguyen et al. 2022); used only when strategy is
+    # "fedbuff". The server applies an update once ``buffer_k`` client updates have
+    # arrived. It runs rounds * n_silos / buffer_k aggregations, so the total number of
+    # client updates matches the synchronous run with the same ``rounds``.
+    buffer_k: int = 3
+    server_lr: float = 1.0
 
     def validate(self) -> None:
+        if self.buffer_k < 1 or self.server_lr <= 0:
+            raise ConfigError("fl.buffer_k must be >= 1 and fl.server_lr > 0")
         if self.strategy not in FL_STRATEGIES:
             raise ConfigError(f"fl.strategy must be one of {FL_STRATEGIES}")
         if self.rounds < 1 or self.local_epochs < 1:
@@ -313,6 +324,118 @@ class PrivacyConfig:
 
 
 @dataclass(frozen=True)
+class LOSProfile:
+    """Loss-of-signal process for one silo's link (fl/comms.py).
+
+    kind "poisson": outages start at exponential intervals (mean ``mean_interval_s``)
+    and last ``duration_s``. kind "periodic": an outage of ``duration_s`` every
+    ``period_s``, starting at ``phase_s``. kind "none": always up."""
+
+    kind: str = "none"
+    mean_interval_s: float = 0.0
+    period_s: float = 0.0
+    phase_s: float = 0.0
+    duration_s: float = 0.0
+
+    def validate(self, where: str) -> None:
+        if self.kind not in LOS_KINDS:
+            raise ConfigError(f"{where}.kind must be one of {LOS_KINDS}")
+        if self.kind == "poisson" and (self.mean_interval_s <= 0 or self.duration_s <= 0):
+            raise ConfigError(f"{where}: poisson needs mean_interval_s > 0 and duration_s > 0")
+        if self.kind == "periodic" and not (0 < self.duration_s < self.period_s and self.phase_s >= 0):
+            raise ConfigError(f"{where}: periodic needs 0 < duration_s < period_s and phase_s >= 0")
+
+
+def _default_los_profiles() -> dict[str, LOSProfile]:
+    # Scenario assumptions, not measurements, except where a source is named.
+    # 450 s = the ~7.5 min loss-of-signal pause logged by the FLUID ISS deployment
+    # (CLAUDE.md section 4), used as the calibration outage length.
+    return {
+        "none": LOSProfile(),
+        # terrestrial analog site: about one 7.5 min outage per day
+        "rare": LOSProfile(kind="poisson", mean_interval_s=86_400.0, duration_s=450.0),
+        # ISS: about one 7.5 min gap per ~92 min orbit (orbital period is standard; the
+        # one-gap-per-orbit rate is a scenario assumption)
+        "short_occasional": LOSProfile(kind="poisson", mean_interval_s=5_520.0, duration_s=450.0),
+        # lunar habitat relayed by an orbiter in a ~2 h orbit, out of view ~48 min per orbit
+        # (Apollo-era far-side LOS was roughly 45-48 min; confirm before poster use)
+        "periodic": LOSProfile(kind="periodic", period_s=7_200.0, phase_s=1_800.0, duration_s=2_880.0),
+        # Mars transit vehicle: multi-hour gaps in ground-station coverage, about 4 per day
+        # (scenario assumption; solar conjunction, ~2 weeks, is far longer than any run)
+        "long_blackout": LOSProfile(kind="poisson", mean_interval_s=21_600.0, duration_s=7_200.0),
+    }
+
+
+@dataclass(frozen=True)
+class DarkConfig:
+    """Force one silo's link down for ``duration_s`` (0 = for the rest of the run): the
+    "silo goes dark" test. Onset is either ``from_s`` (simulated seconds) or
+    ``from_round``: sync, when that round is sent; FedBuff, once (from_round - 1) x
+    n_silos client updates have been aggregated, the same share of the matched updates
+    (fl/server.py, _dark_onset_s). ``from_round`` makes "mid-run" mean mid-run for every
+    strategy; an absolute time can fall after a fast strategy has finished."""
+
+    silo: str = ""  # "" = no forced outage
+    from_s: float = 0.0
+    from_round: int = 0  # 0 = use from_s
+    duration_s: float = 0.0
+
+    def validate(self) -> None:
+        if self.from_s < 0 or self.duration_s < 0 or self.from_round < 0:
+            raise ConfigError("comms.dark.from_s, from_round and duration_s must be >= 0")
+        if self.from_round and self.from_s:
+            raise ConfigError("comms.dark: set from_s or from_round, not both")
+        if self.from_round and not self.silo:
+            raise ConfigError("comms.dark.from_round needs comms.dark.silo")
+
+
+@dataclass(frozen=True)
+class CommsConfig:
+    """Simulated deep-space links (fl/comms.py). Time is modelled, never slept
+    (except with the CLI's --real-sleep, for the live demo only)."""
+
+    enabled: bool = False
+    # Moves every silo that defines latency_presets_s (the deep-space silo) to Earth,
+    # Moon or a Mars distance. Other silos keep their own one_way_latency_s.
+    preset: str = "mars_mean"
+    los: bool = True  # False = links never drop (outages switched off)
+    los_profiles: dict[str, LOSProfile] = field(default_factory=_default_los_profiles)
+    jitter_s: float = 0.05  # std of |N(0, jitter_s)| added to each transfer (scenario assumption)
+    bandwidth_bps: float = 256_000.0  # per link, both directions (scenario assumption)
+    # Simulated local compute: seconds per training example per local epoch (scenario assumption)
+    compute_s_per_example: float = 0.01
+    # Synchronous strategies: 0 = wait for every silo; > 0 = a silo whose update has not
+    # arrived this many simulated seconds after the round started is dropped for that round.
+    sync_deadline_s: float = 0.0
+    dark: DarkConfig = field(default_factory=DarkConfig)
+    # Store-and-forward buffer at each sender (fl/comms.py), per link direction:
+    # supersede: a newer message handed to the link replaces an older one still waiting
+    #   in the buffer (an outdated model or update is worthless).
+    # ttl_s: message lifetime from hand-over; a message that would arrive later is dropped
+    #   (DTN bundle lifetime). 6 h exceeds the longest modelled outage (2 h) plus Mars-far
+    #   light time; scenario assumption. 0 = never expire.
+    # cache_bytes: buffer capacity; a message that must wait and does not fit is dropped
+    #   (drop-tail). 0 = unlimited (default, off).
+    supersede: bool = True
+    ttl_s: float = 21_600.0
+    cache_bytes: int = 0
+
+    def validate(self) -> None:
+        if self.preset not in COMMS_PRESETS:
+            raise ConfigError(f"comms.preset must be one of {COMMS_PRESETS}")
+        if self.jitter_s < 0 or self.bandwidth_bps <= 0 or self.compute_s_per_example < 0:
+            raise ConfigError("comms.jitter_s >= 0, bandwidth_bps > 0, compute_s_per_example >= 0 required")
+        if self.sync_deadline_s < 0 or self.ttl_s < 0 or self.cache_bytes < 0:
+            raise ConfigError("comms.sync_deadline_s, ttl_s and cache_bytes must be >= 0")
+        missing = set(LOS_PROFILES) - set(self.los_profiles)
+        if missing:
+            raise ConfigError(f"comms.los_profiles is missing {sorted(missing)}")
+        for name, prof in self.los_profiles.items():
+            prof.validate(f"comms.los_profiles.{name}")
+        self.dark.validate()
+
+
+@dataclass(frozen=True)
 class ResourcesConfig:
     """Per-client Ray resources for the simulation engine. Execution detail only: it
     changes speed, not results, so it is excluded from the run id."""
@@ -340,10 +463,16 @@ class ExperimentConfig:
     arms: tuple[str, ...] = ("centralized", "local_only", "federated")
     fl: FLConfig = field(default_factory=FLConfig)
     privacy: PrivacyConfig = field(default_factory=PrivacyConfig)
+    comms: CommsConfig = field(default_factory=CommsConfig)
     resources: ResourcesConfig = field(default_factory=ResourcesConfig)
     notes: str = ""
+    # Live demo only: sleep simulated link time x this factor (0 = never sleep).
+    # Execution detail, excluded from the run id.
+    real_sleep_scale: float = 0.0
 
     def validate(self) -> None:
+        if self.real_sleep_scale < 0:
+            raise ConfigError("real_sleep_scale must be >= 0")
         if not self.name or not all(c.isalnum() or c in "-_" for c in self.name):
             raise ConfigError("name must be non-empty and use only [A-Za-z0-9_-]")
         if self.seed < 0 or any(s < 0 for s in self.seeds):
@@ -357,7 +486,23 @@ class ExperimentConfig:
         self.train.validate()
         self.fl.validate()
         self.privacy.validate()
+        self.comms.validate()
         self.resources.validate()
+        if self.comms.dark.silo and self.comms.dark.silo not in [x.name for x in self.topology.silos]:
+            raise ConfigError(f"comms.dark.silo {self.comms.dark.silo!r} is not a silo of the topology")
+        if self.comms.dark.from_round > self.fl.rounds:
+            raise ConfigError("comms.dark.from_round must be <= fl.rounds")
+        if self.fl.strategy == "fedbuff":
+            if not self.comms.enabled:
+                raise ConfigError("fl.strategy 'fedbuff' needs comms.enabled (arrival order comes from the link model)")
+            if self.privacy.enabled:
+                # a fast silo trains more often than a slow one, so per-silo DP budgets
+                # cannot be fixed in advance from rounds x local epochs
+                raise ConfigError("privacy.enabled is not supported with fl.strategy 'fedbuff'")
+            if self.privacy.attack.enabled:
+                raise ConfigError("privacy.attack is only wired for synchronous strategies")
+            if self.fl.buffer_k > len(self.topology.silos):
+                raise ConfigError("fl.buffer_k must be <= the number of silos")
         if self.device == "cuda" and "federated" in self.arms and self.resources.client_num_gpus == 0:
             raise ConfigError("device 'cuda' with the federated arm needs resources.client_num_gpus > 0")
         if any(a not in ARMS for a in self.arms) or len(set(self.arms)) != len(self.arms):
@@ -394,7 +539,7 @@ class ExperimentConfig:
     # Execution details: where to write and which seeds to iterate. They do not change
     # what a single run computes, so they are excluded from the recorded experiment
     # definition and from the run id (they go into manifest.json instead).
-    EXECUTION_KEYS = ("seed", "seeds", "output_dir", "resources")
+    EXECUTION_KEYS = ("seed", "seeds", "output_dir", "resources", "real_sleep_scale")
 
     def to_dict(self) -> dict[str, Any]:
         return _to_plain(dataclasses.asdict(self))
@@ -409,6 +554,11 @@ class ExperimentConfig:
                 d["data"].pop(other, None)
         if self.fl.strategy != "fedprox":
             d["fl"].pop("proximal_mu")
+        if self.fl.strategy != "fedbuff":
+            d["fl"].pop("buffer_k")
+            d["fl"].pop("server_lr")
+        if not self.comms.enabled:
+            d.pop("comms")
         # Absent when unused, so configs that predate Phase 5 keep their run ids.
         if not self.privacy.enabled and not self.privacy.attack.enabled:
             d.pop("privacy")
@@ -485,6 +635,11 @@ def load_config(path: str | Path, overrides: dict[str, Any] | None = None) -> Ex
     merged = deep_merge(_read_yaml(root / "base.yaml"), _read_yaml(path))
     if overrides:
         merged = deep_merge(merged, dotted_to_nested(overrides))
+    comms = merged.get("comms")
+    if isinstance(comms, dict) and isinstance(comms.get("los_profiles"), dict):
+        # Partial overrides change only the named profiles/fields; the rest keep defaults.
+        defaults = {k: dataclasses.asdict(v) for k, v in _default_los_profiles().items()}
+        comms["los_profiles"] = deep_merge(defaults, comms["los_profiles"])
     topo_name = merged.pop("silos", None)
     if not isinstance(topo_name, str):
         raise ConfigError("'silos' must name a topology file in configs/silos/")

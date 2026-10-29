@@ -1,0 +1,14 @@
+# Smoke test for Phase 6: SYNTHETIC data, simulated deep-space links (Mars far, LOS on).
+name: smoke_comms
+seed: 0
+seeds: [0, 1]
+data:
+  name: synthetic
+train:
+  epochs: 3
+fl:
+  rounds: 4
+comms:
+  enabled: true
+  preset: mars_far
+notes: "Comms smoke test."

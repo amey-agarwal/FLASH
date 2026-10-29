@@ -131,6 +131,8 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
         holdout=holdout,
     )
     capture = run_arms(cfg, fed, seed, result)
+    if "comms" in capture:
+        result["comms"] = capture["comms"]
     result["privacy"] = privacy_report(cfg, fed, seed, result, capture)
     from fedastro.metrics.fairness import fairness_report
 
@@ -139,8 +141,14 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
     notes.append(f"Arms run: {', '.join(cfg.arms)}.")
-    if "federated" in cfg.arms:
-        notes.append("Federated arm: synchronous lossless links; sim_wallclock_s null until Phase 6.")
+    if "federated" in cfg.arms and not cfg.comms.enabled:
+        notes.append("Federated arm: synchronous lossless links; sim_wallclock_s is null (comms off).")
+    if "federated" in cfg.arms and cfg.comms.enabled:
+        notes.append(f"Federated arm: simulated links, preset {cfg.comms.preset}, loss of signal "
+                     f"{'on' if cfg.comms.los else 'off'}; sim_wallclock_s is SIMULATED time, not real time.")
+        stalled = result["arms"]["federated"].get("stalled")
+        if stalled:
+            notes.append(f"Federated arm STALLED at round {stalled['round']}: {stalled['reason']}.")
     if cfg.privacy.enabled:
         notes.append(f"DP-SGD on every trained model: record-level (epsilon, delta) with target "
                      f"epsilon {cfg.privacy.target_epsilon}; not subject-level, and the shared "

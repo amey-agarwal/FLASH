@@ -21,6 +21,7 @@ class ClientUpdate:
     arrays: list[np.ndarray]
     num_examples: int
     train_loss: float | None
+    epsilon: float | None = None
 
 
 class FedAvg:
@@ -55,11 +56,53 @@ class FedProx(FedAvg):
         self.mu = mu
 
 
+@dataclass(frozen=True)
+class BufferedUpdate:
+    update: ClientUpdate
+    start: list[np.ndarray]  # the global weights the client trained from
+    staleness: int  # server versions applied since the client was sent ``start``
+
+
+class FedBuff:
+    """Nguyen et al. 2022, buffered asynchronous aggregation. Each update contributes
+    its delta (trained - start) scaled by staleness weight 1/sqrt(1 + staleness) and
+    by its share of the buffer's examples; the server applies
+    w <- w + server_lr * sum_i (n_i / sum n) * s(tau_i) * delta_i.
+    The staleness factor is not renormalised, so stale buffers move the model less.
+    Deterministic: float64, buffer order (= simulated arrival order)."""
+
+    name = "fedbuff"
+
+    def __init__(self, server_lr: float):
+        if server_lr <= 0:
+            raise ValueError("server_lr must be > 0")
+        self.server_lr = server_lr
+
+    @staticmethod
+    def staleness_weight(staleness: int) -> float:
+        return 1.0 / float(np.sqrt(1.0 + staleness))
+
+    def aggregate(self, current: list[np.ndarray], buffer: list[BufferedUpdate]) -> list[np.ndarray]:
+        if not buffer:
+            raise ValueError("empty buffer")
+        total = sum(b.update.num_examples for b in buffer)
+        out = []
+        for j, ref in enumerate(current):
+            acc = ref.astype(np.float64)
+            for b in buffer:
+                w = self.server_lr * (b.update.num_examples / total) * self.staleness_weight(b.staleness)
+                acc = acc + w * (b.update.arrays[j].astype(np.float64) - b.start[j].astype(np.float64))
+            out.append(acc.astype(ref.dtype))
+        return out
+
+
 def build_strategy(cfg: FLConfig) -> FedAvg:
     if cfg.strategy == "fedavg":
         return FedAvg()
     if cfg.strategy == "fedprox":
         return FedProx(cfg.proximal_mu)
+    if cfg.strategy == "fedbuff":
+        raise ValueError("fedbuff is asynchronous; the server uses FedBuff directly")
     raise ValueError(f"unknown strategy {cfg.strategy!r}")
 
 

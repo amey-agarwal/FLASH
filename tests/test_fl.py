@@ -32,7 +32,8 @@ def test_fedavg_bitwise_independent_of_arrival_order():
 
 def test_rounds_to_target_and_payload():
     rounds = [{"round": i, "bytes": 100, "global": {"accuracy": a}} for i, a in enumerate([0.5, 0.7, 0.9], 1)]
-    assert rounds_to_target(rounds, 0.7) == {"threshold": 0.7, "metric": "accuracy", "round": 2, "cumulative_bytes": 200}
+    assert rounds_to_target(rounds, 0.7) == {"threshold": 0.7, "metric": "accuracy", "round": 2, "cumulative_bytes": 200,
+                                               "sim_wallclock_s": None}
     assert rounds_to_target(rounds, 0.95)["round"] is None
     assert payload_bytes([np.zeros(10, np.float32), np.zeros((2, 3), np.float32)]) == 64
 

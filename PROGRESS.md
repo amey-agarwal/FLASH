@@ -2,11 +2,289 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
-**Phase 5: attack fairness accepted by the user (2026-10-17). Awaiting commit.**
-Phase 4 is also awaiting commit. Next: Phase 6, deep-space comms (plan at the end of
-the Phase 5 section), when the user approves.
+**Phase 6 (deep-space comms): COMPLETE at the gate (2026-10-29). Sweeps re-run, all three acceptance checks met. Awaiting user review and commit.**
+Phases 4 and 5 are committed; Phase 6 is not. Long commands run under `caffeinate -i`.
 **GPU cluster:** the shakedown (Phase 3 plan) is still pending; the user cannot run it yet.
 On the cluster, run one grid variant per job with `fedastro grid ... --index i`.
+
+---
+
+## Phase 6 — Deep-space comms realism — COMPLETE at the gate (2026-10-22, updated 2026-10-26, sweeps re-run 2026-10-29)
+
+**Not committed.** The user commits. Suggested message:
+`feat(fl): phase 6 simulated deep-space links, FedBuff async aggregation, dark-silo handling`.
+
+### Built
+- **`fl/comms.py`: per-silo link model in SIMULATED seconds.**
+  - Transfer = wait for the link to be up + transmit (bytes × 8 / bandwidth, which must
+    fit in one up-window, else it restarts after the outage: store-and-forward, as in
+    delay-tolerant deep-space networking) + one-way light time + |N(0, jitter)|.
+  - Outages come from each silo's `los_profile`: poisson or periodic. They are
+    generated lazily from their own seeded RNG stream, so the outage schedule does
+    not depend on traffic.
+  - `comms.dark` forces a silo's link down from a time, for a duration or forever.
+  - Nothing sleeps. `fedastro run ... --real-sleep [SCALE]` (live demo only) sleeps
+    simulated time × SCALE; it is an execution key and never changes results.
+- **Presets** `earth | moon | mars_near | mars_mean | mars_far` move only silos that
+  define `latency_presets_s` (mars_transit): 0 / 1.3 / 182 / 751 / 1337 s. The
+  other silos keep their topology latency. The topology file is unchanged.
+- **Link parameters** (`CommsConfig`, defaults; scenario assumptions unless sourced):
+  - Bandwidth 256 kbps, jitter 0.05 s, compute 0.01 s per example per epoch.
+  - Outage profiles:
+
+    | Profile | Silo | Model | Basis |
+    |---|---|---|---|
+    | `rare` | esa_analog | poisson, 1 per day, 450 s | 450 s = FLUID ~7.5 min LOS, the calibration point |
+    | `short_occasional` | iss_commercial | poisson, 1 per 92 min, 450 s | ISS orbital period |
+    | `periodic` | lunar_habitat | 48 min of every 2 h | Apollo-era far-side LOS; confirm before poster |
+    | `long_blackout` | mars_transit | poisson, 1 per 6 h, 2 h | scenario |
+
+  - Partial YAML overrides of a profile keep the other defaults.
+- **Server, simulated time, both paths deterministic.**
+  - **Setup:** the stats and scaler exchanges are timed. The federation starts when
+    every reachable silo has the scaler (`comms.setup_sim_s`).
+  - **Sync (FedAvg/FedProx):** a round lasts until the last update arrives. With
+    `comms.sync_deadline_s` > 0, silos that miss it are dropped for that round.
+    Without a deadline, a silo that can never be reached **stalls** the federation:
+    the run stops cleanly with `arms.federated.stalled = {round, unreachable, reason}`
+    and the notes say so. Even a stall before round 1 is a result (final = the
+    untrained model), not a crash.
+  - **FedBuff (`fl.strategy: fedbuff`), Nguyen et al. 2022.** Updates are queued by
+    simulated arrival. Every `buffer_k` (default 3) updates, the server applies
+    w += server_lr · Σ (n_i/Σn) · (1/√(1+staleness_i)) · Δ_i, and each arriving silo
+    is immediately re-sent the current model.
+    - It runs ceil(rounds × n_silos / K) aggregations, which matches the total client
+      updates of the sync run.
+    - A silo that can never be reached simply stops contributing (`lost_dispatches`).
+- **Flower still carries every real training message.** Sync runs with comms on
+  learn exactly as with comms off: identical weights, only time is added. This is
+  tested.
+- **Result fields:**
+  - `rounds[i].sim_wallclock_s` (cumulative simulated time).
+  - `comms = {preset, los_events[], links, setup_sim_s, sim_end_s, ...}`.
+  - `rounds_to_target.*.sim_wallclock_s`.
+  - Federated `sim_wallclock_s_total`, `stalled`; FedBuff `dispatches`,
+    `target_aggregations`.
+  - Summaries and `grid --report` show simulated time-to-target and stall counts.
+  - Run ids of every comms-off config are unchanged: the `comms`, `buffer_k` and
+    `server_lr` keys are left out of the hash when unused.
+- **Grid:** explicit `variants:` lists for non-cartesian comparisons, and a
+  duplicate-name check.
+- **Configs:**
+  - `experiments/wesad_comms.yaml`: arms centralized + federated, so the target is 95%
+    of centralized accuracy. local_only has no communication.
+  - `experiments/smoke_comms.yaml`.
+  - `sweeps/phase6_presets.yaml` (`p6pre`): 4 presets × {fedavg, fedbuff} × 5 seeds,
+    LOS on.
+  - `sweeps/phase6_dark.yaml` (`p6dark`): Mars-far, LOS on, mars_transit dark forever
+    from round 16; {fedavg no deadline, fedavg 1 h deadline, fedbuff} × 5 seeds.
+- **Tests:** `tests/test_comms.py`, 26 tests (link model, outage independence, presets,
+  validation, FedBuff math, sync equivalence, dark-silo behaviour for all three
+  strategies, byte-identical comms run).
+
+### Decisions made (review these)
+1. **Store-and-forward on outage, never drop.** Real deep-space links queue (DTN).
+   Losses come only from permanent darkness or a sync deadline.
+2. **Late sync updates are discarded**, and the late silo is re-sent the next round's
+   model as if idle. A simplification: in reality it would still be uploading.
+3. **Bytes per sync round** = delivered downloads + participating uploads, × payload.
+   **Per FedBuff aggregation** = 2 × K × payload.
+4. **The per-silo "evaluate" exchange is diagnostic and not timed**, and only
+   participants are evaluated.
+5. **FedBuff is not combined with DP** (a fast silo trains more often, so per-silo
+   budgets cannot be fixed in advance) and is **not attacked** (the attack is wired for
+   synchronous updates). Both are rejected by config validation.
+6. **The sync deadline of 1 h in `p6dark` was fixed a priori:** above the ~45 min
+   Mars-far round trip, below one 2 h outage.
+7. **Setup waits for every reachable silo**, including Mars, so it costs the same for
+   sync and FedBuff.
+8. **The Mars `mean` preset** (751 s) = 225 × 10⁶ km ÷ c ≈ 750.5 s (12.5 min). 225 million km
+   is the widely quoted "average Earth–Mars distance" (secondary sources, e.g. Space.com,
+   Universe Today); no primary NASA/JPL page was found for it (2026-10-29 search). It may
+   not be a true time average of the separation. For the poster, compute it from a JPL
+   Horizons ephemeris or label it "commonly quoted average". The near/far presets
+   (182 s / 1337 s) match the CLAUDE.md figures (3 min 2 s, 22 min 17 s).
+
+### Acceptance results (re-run 2026-10-29; 55 runs, no failures, ~55 min laptop CPU incl. one pause)
+Run dirs: `runs/p6pre-*` and `runs/p6dark-*` with the current hashes; tables in
+`runs/p6pre-grid.json` and `runs/p6dark-grid.json`. The first-pass dirs (2026-10-22/23,
+other hashes) are still in `runs/` and are superseded.
+WESAD by_subject, MLP, 30 rounds × 1 local epoch, 5 seeds, loss of signal on.
+Simulated seconds are mean ± std over seeds. `fed acc` is final holdout accuracy.
+Target = `absolute_target` 0.673. The centralized-relative target (95% of 0.868 ≈ 0.82)
+is reached in 0/5 runs of every variant, as in the first pass.
+
+**`p6pre` is identical to the first pass**, in every simulated total and every accuracy.
+This is consistent with the buffer rules never firing here: **0 drops in all 40 runs**
+(no supersede, no expiry).
+
+| Variant | Simulated total (s) | Time to 0.673 (s) | fed acc | fed F1 | Updates per silo (150 total) |
+|---|---|---|---|---|---|
+| earth, FedAvg | 257 ± 200 | 155 ± 221 | 0.708 ± 0.074 | 0.668 ± 0.070 | all 5, every round |
+| earth, FedBuff | 108 ± 9 | 29 ± 32 | 0.738 ± 0.048 | 0.682 ± 0.051 | all 5; mars_transit most (46–56); iss only 6 in seed 1 |
+| moon, FedAvg | 257 ± 200 | 155 ± 221 | 0.708 ± 0.074 | 0.668 ± 0.070 | all 5, every round |
+| moon, FedBuff | 131 ± 14 | 33 ± 33 | 0.732 ± 0.068 | 0.681 ± 0.063 | all 5; mars_transit 25–32 |
+| mars_near, FedAvg | 23,284 ± 5,045 (6.5 h) | 8,059 ± 7,406 (2.2 h) | 0.708 ± 0.074 | 0.668 ± 0.070 | all 5, every round |
+| mars_near, FedBuff | 692 ± 0.3 (546 is setup) | 570 ± 20 | 0.745 ± 0.072 | 0.695 ± 0.066 | **mars_transit 0 in every seed** |
+| **mars_far, FedAvg** | **111,020 ± 7,788 (30.8 h)** | **44,627 ± 27,761 (12.4 h)** | 0.708 ± 0.074 | 0.668 ± 0.070 | all 5, every round |
+| **mars_far, FedBuff** | **4,850 ± 31 (4,681 is setup)** | **4,716 ± 42 (1.31 h)** | 0.728 ± 0.076 | 0.679 ± 0.072 | **mars_transit 0 in every seed; iss_commercial 0 in seeds 0–1** |
+
+- The target is reached in 5/5 runs of every `p6pre` variant.
+- Sync FedAvg reaches it at the same round under every preset (rounds 3, 17, 2, 19, 16
+  for seeds 0–4), because comms does not change learning. Only the time differs.
+- **The time-to-target spread is bimodal, not noise around a mean.** 0.673 sits close to
+  the FedAvg plateau (0.708), so seeds cross it either early (rounds 2–3) or late
+  (16–19). Report per-seed values or a time-to-accuracy curve over thresholds, not just
+  mean ± std (Phase 8).
+- Mars-far, sync vs FedBuff: **9.5× sooner to target, 23× sooner to finish** in
+  simulated time.
+
+Dark silo (`p6dark`: Mars far, LOS on, mars_transit dark forever from round 16):
+
+| Variant | Outcome |
+|---|---|
+| FedAvg, no deadline | **stalled 5/5, exactly at round 16** (rounds 1–15 done, onset 51,963–70,496 s). No crash. Simulated total 60,421 ± 7,536 s (16.8 h). Final (round-15) acc 0.680 ± 0.040, F1 0.543 ± 0.049. Target reached in 2/5 before the stall. 0 drops |
+| FedAvg, 1 h deadline | all 30 rounds, 103,388 ± 1,618 s (28.7 h). acc 0.708 ± 0.069, F1 0.668 ± 0.060. Target 5/5, 38,282 ± 24,287 s. **Mars was in 8–12 of the 15 rounds before onset**: outages made it miss rounds before it went dark. Rounds 16–30 each cost the full 1 h deadline |
+| FedBuff | **identical to the Mars-far FedBuff run in `p6pre`.** The onset resolved correctly (4,755–4,785 s, after aggregation 25), but mars_transit had already contributed 0 updates: its only dispatch, at setup, is recorded as lost. **This test is still uninformative for FedBuff,** now because latency had already excluded the dark silo, not because of timing |
+
+**Buffer drops (expiry check):** all drops in the 55 runs are mars_transit messages in the
+1 h-deadline dark runs. Per seed, 10 downlink models expired (plus 2 uplinks in seed 2),
+with 1–3 superseded downlinks and 0–2 superseded uplinks.
+- **Supersede** fired before onset, when Mars missed a round and the next model replaced
+  the one still waiting behind an outage.
+- **Expiry** fired only for messages handed to the dark link. A message whose arrival is
+  already known to be > 6 h away is marked expired at hand-over, so the next model does
+  not supersede it. The log records it at hand-over + 6 h, and drops dated after the end
+  of the run are not listed. That is why there are 10, not 15.
+- **Expiry never fired under the defaults without permanent darkness.** This confirms
+  the Oct 23 expectation.
+
+| Check | Result |
+|---|---|
+| Time-to-target in simulated wall-clock per preset | **Met** with the absolute target 0.673 (5/5 in every variant; table above). The centralized-relative target is never reached (Phase 3 H1 gap). Caveat: the target is derived from the Phase 3 FedAvg mean, so sync reaching it is expected; the measured quantity is time. |
+| Sync vs buffered-async under Mars-far with LOS | **Done.** FedBuff reaches the target 9.5× sooner, **because it leaves out the slow silos**: mars_transit contributes 0 updates in every seed, and iss_commercial 0 in 2/5 seeds. This is not a free speed-up. |
+| A silo going dark mid-run does not crash | **Met for all three strategies**, 15/15 runs, plus tests. Sync without a deadline stops cleanly at the onset round with `stalled` recorded. |
+
+### Findings and caveats (recorded, not tuned)
+- **FedBuff's speed comes from exclusion.** Under Mars-far, FedBuff completes its
+  matched number of updates (50 aggregations × 3) in ~170 s after setup. That is less
+  than one Mars round trip (~45 min), so Mars data can never enter the model. The same
+  holds under Mars-near (146 s of training vs a ~6 min round trip). Accuracy is similar
+  here only because by_subject labels are near-IID; under label skew this would be a
+  fairness problem for the far silo.
+- **Short FedBuff runs make participation depend on the outage schedule.** The whole run
+  after setup is shorter than one ISS outage (450 s). So whether iss_commercial
+  contributes at all depends on whether its link happens to be down at the start: 0 in
+  2/5 Mars-far seeds, 6 in one earth seed.
+- **A deadline without failure detection wastes time on a dead silo.** After onset,
+  every round of the 1 h-deadline run waits the full hour for mars_transit: rounds 16–30
+  are ~15 h of the 28.7 h run. A rule like "exclude after N consecutive misses" would
+  remove that cost. It is not implemented; noted for Phase 7 or the poster discussion.
+- **The compute model shapes participation.** At 0.01 s per example, the smallest
+  silo (mars_transit) is the fastest under the earth preset and contributes the most
+  updates.
+- **Setup dominates FedBuff's time.** The federation waits for the Mars scaler
+  exchange (~4,680 s) before training. An async system could start without Mars.
+- **Caveats of the dark-silo sweep:**
+  - mars_transit holds only 8% of the data, so losing it barely moves accuracy;
+    losing nasa_earth (40%) would be the harsh test.
+  - Darkness is permanent and single; rejoining is not tested.
+  - The no-deadline stall shows a failure mode, not an operating mode.
+  - The 1 h deadline was fixed a priori.
+  - Dark onset is now by round (16), which is mid-run for both sync and FedBuff. The
+    FedBuff case is still uninformative, because the dark silo is mars_transit, which
+    FedBuff never hears from under Mars-far. An informative FedBuff dark test would darken
+    a silo that contributes, e.g. nasa_earth (40% of the data). That needs a new variant
+    fixed a priori; awaiting the user.
+  - If a silo were dark from t = 0, its standardisation stats would still reach the
+    scaler, because the real Flower exchange is not gated.
+- **Caveats of FedBuff:**
+  - Fast silos dominate, and staleness weighting further down-weights slow ones.
+  - Updates are matched in total, not per silo.
+  - K = 3, the staleness function and server_lr = 1 are fixed and untuned.
+  - No DP and no attack.
+  - Its "rounds" are aggregations, so compare on simulated time.
+  - No retry when a silo goes silent.
+  - Server compute and busy clients are not modelled.
+- **Sync deadline trade-off:** discarding late updates bounds round time but
+  systematically under-represents the outage-prone silo and wastes its compute.
+  Applying them late would need staleness weighting (semi-async); waiting means
+  2 h+ rounds and a stall when a silo goes dark.
+
+### Store-and-forward buffer rules (user decision 2026-10-23, implemented)
+- **One sender buffer per link direction** (`comms.supersede`, `comms.ttl_s`,
+  `comms.cache_bytes`).
+- **Supersede (on):** a newer message replaces one still waiting in the buffer.
+- **Expiry (`ttl_s` = 6 h):** a message that would arrive more than 6 h after
+  hand-over is dropped (DTN bundle lifetime). 6 h exceeds the longest modelled outage
+  (2 h) plus Mars-far light time; it is a scenario assumption.
+- **Cache cap (off; `cache_bytes: 0`):** a message that must wait and does not fit is
+  dropped (drop-tail).
+- **Every drop is logged** in `comms.drops` (silo, direction, reason, handed/dropped
+  time), and the settings in `comms.buffer`.
+- **A dropped message counts as never arriving.** Sync with a deadline drops that silo
+  for the round; sync without one stalls (reason now names expiry/drops); FedBuff
+  records a lost dispatch.
+- **Why no cache-full rule alone:** with supersede, a buffer holds at most one ~22 KB
+  message per direction, so a realistic cap never fills. Expiry is the rule that
+  actually loses data in DTN.
+- **Scope:** runs with comms on only. Comms-off run ids and results are unchanged
+  (Phase 4 reports verified). Later phases only see additive `comms` fields.
+- **Tests:** supersede, no supersede once sent or when disabled, expiry (outage and pure
+  light time), cache cap, validation, and end-to-end with a TTL below the Mars-far light
+  time (every Mars message expires, the federation continues). 32 comms tests pass.
+- **Confirmed by the 2026-10-29 re-run:** under the defaults, expiry fires only for
+  messages sent to a permanently dark silo (see the acceptance results).
+
+### Dark onset by round and a reachable target (proposals 2 and 3, implemented 2026-10-26)
+- **`comms.dark.from_round`** (exclusive with `from_s`; needs `dark.silo`; <= `fl.rounds`).
+  - Sync: the silo goes dark when round `from_round` is sent.
+  - FedBuff: it goes dark once (from_round − 1) × n_silos client updates have been
+    aggregated, rounded down to whole aggregations of K, i.e. the same share of the
+    matched updates.
+  - **How the time is found.** The server runs a timing-only pilot of the same run,
+    without the outage (`_dark_onset_s`, `_TimingCtx`: no Flower traffic, no training).
+    Simulated time depends only on links, payload sizes and n_train, never on what is
+    learned, and nothing before the onset can depend on it. So the pilot's schedule up
+    to the onset is the real one. The window is then set on the link before any
+    simulated transfer, and messages in the buffer at onset are blocked correctly.
+  - If the pilot stops before the onset, the silo never goes dark (`from_s: null`).
+  - **Recorded:** `comms.dark = {silo, from_round, from_s (resolved), duration_s}`.
+- **`p6dark` now uses `comms.dark.from_round: 16`** (of 30, the midpoint, fixed a
+  priori). For FedBuff this is after 25 of 50 aggregations. The 12 h absolute onset is
+  gone.
+- **`wesad_comms.yaml`: `fl.absolute_target: 0.673`** = round(0.95 × 0.708, 3). 0.708 is
+  the Phase 3 by-subject FedAvg mean final accuracy. It sits alongside the
+  centralized-relative target.
+  - Caveat to state on the poster: sync FedAvg with comms on learns exactly as in
+    Phase 3 (tested). Its reaching this target is expected; the measured quantity is
+    the simulated time to get there.
+- **Run ids:** every comms-on config gets a new hash (the new `dark.from_round` key, and
+  `absolute_target` for the WESAD comms configs). Comms-off ids are unchanged.
+- Tests added: validation (3 cases), the link builder leaves the window to the server,
+  sync onset = start of round `from_round` with a schedule identical to the no-dark run
+  before it, FedBuff onset = time of aggregation (r−1)·n//K with an identical schedule
+  before it.
+- **Full suite: 173 passed, 0 failed** (pytest exit 0, JUnit counts; 2026-10-26, ~8.5 min on
+  the laptop). One earlier comms run hit a Ray startup hang (`query.stats: 0/5 replies`)
+  while a second pytest was being killed alongside it; the test passed on a clean re-run.
+
+### Still open
+- **Optional proposal 4:** let FedBuff start training before slow silos finish setup.
+  Today setup waits for Mars (~4,680 s of FedBuff's 4,850 s under Mars-far), and it
+  costs sync and FedBuff the same. **Not implemented; awaiting the user.**
+  - Recommendation (2026-10-29): don't implement. It would not change participation (Mars
+    contributes 0 either way under the matched budget), only shrink the headline time. It
+    would also mix a startup-protocol difference into the sync vs FedBuff comparison.
+    Instead, show setup (`comms.setup_sim_s`) and training as separate segments in the
+    Phase 8 figure.
+  - If wanted anyway: keep the global scaler (wait for Mars's stats; start the near silos
+    once they hold the scaler), as an opt-in key. It invalidates the 25 FedBuff comms runs.
+- **Optional:** an informative FedBuff dark-silo variant (darken a contributing silo, e.g.
+  nasa_earth, from round 16). 5 runs, a few minutes. Awaiting the user.
+- The Mars `mean` preset source: see decision 8.
+- Full suite last run 2026-10-26 (173 passed). No src/tests/configs changes since, so it
+  was not re-run for the gate.
 
 ---
 
@@ -333,9 +611,21 @@ Remaining weaknesses a judge could raise:
 - The DP runs are CPU-bound (small MLP, Opacus per-sample gradients). A GPU does not
   speed them up; many CPU cores in parallel jobs do.
 
-### Open questions for the user
-- Robustness items 3 (multi-step FedAvg update), 5 (restarts), 7 (frozen settings,
-  ready now), 8 (membership inference): implement any before the cluster run?
+### Deferred robustness items (user decision 2026-10-22: keep for later)
+- **3, attack the real multi-step FedAvg update.** No later phase depends on it.
+- **5, random restarts, keeping the best attacker-side loss.** No later phase depends
+  on it.
+- **7, freeze attack settings before the publishable cluster run (pre-registration).**
+  Not code. **It must be done before the Phase 5 cluster run**: record the frozen
+  `privacy.attack` block and the git sha here.
+- **8, membership-inference test.** No later phase depends on it. It could feed an
+  optional Phase 8 dashboard panel.
+- **Dependency found in the check, and done now:** the Phase 8 "attack before/after"
+  panel needs stored reconstructions, and results held only scores. Each attack cell
+  now stores one `example` (true record plus its matched reconstruction, rounded to 5
+  decimals). It is chosen by a fixed rule, the lowest record index in the trial-0
+  batch, never by quality. Cluster results will therefore feed Phase 8 without a
+  re-run.
 
 ### Plan for Phase 6 (deep-space comms), not started
 1. **`fl/comms.py`: a per-silo link model in simulated time.**

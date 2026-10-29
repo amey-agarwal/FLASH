@@ -1,0 +1,19 @@
+# A silo going dark mid-run: mars_transit loses its link for good halfway through the run,
+# Mars far, loss of signal on. from_round 16 of 30 (fixed a priori: the midpoint): sync
+# sends rounds 1-15 normally; FedBuff goes dark after (16 - 1) x 5 // 3 = 25 of its 50
+# aggregations. (The first pass used from_s 12 h, which fell after FedBuff had finished.)
+# Expected and reported, not tuned:
+#   - sync FedAvg without a deadline waits forever: the run stops (stalled) without crashing;
+#   - sync FedAvg with a 1 h deadline drops late or unreachable silos per round
+#     (1 h was fixed a priori: above the ~45 min Mars-far round trip, below a 2 h outage);
+#   - FedBuff keeps aggregating whatever arrives.
+name: p6dark
+base: ../experiments/wesad_comms.yaml
+seeds: [0, 1, 2, 3, 4]
+fixed:
+  comms.dark.silo: mars_transit
+  comms.dark.from_round: 16
+variants:
+  - {fl.strategy: fedavg}
+  - {fl.strategy: fedavg, comms.sync_deadline_s: 3600}
+  - {fl.strategy: fedbuff}
