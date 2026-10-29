@@ -86,6 +86,23 @@ def test_federated_run_is_byte_identical(fl_runs):
     assert fl_runs[0].read_bytes() == fl_runs[1].read_bytes()
 
 
+def test_federated_smoke_on_cuda():
+    """All three arms on a GPU: server and client models must live on the run's device.
+    Skipped where CUDA is absent (the laptop); run it on a cluster GPU node."""
+    import torch
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA not available")
+    from pathlib import Path
+
+    from fedastro.config import load_config
+    from fedastro.pipeline import run_experiment
+    cfg = load_config(Path(__file__).resolve().parents[1] / "configs/experiments/smoke_fl.yaml",
+                      {"device": "cuda", "resources.client_num_gpus": 0.2})
+    result = run_experiment(cfg, 0)
+    validate_result(result)
+    assert len(result["arms"]["federated"]["rounds"]) == cfg.fl.rounds
+
+
 def test_federated_scaler_matches_pooled_fit():
     """The setup exchange (sum of per-silo sufficient statistics) equals a pooled fit."""
     from fedastro.config import SyntheticParams

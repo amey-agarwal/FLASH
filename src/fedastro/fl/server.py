@@ -145,7 +145,7 @@ def make_server_app(fed: Federation, cfg: ExperimentConfig, seed: int, device: s
             setup_bytes += payload_bytes(scaler_arrays) * len(nodes)
 
             ordered_nodes = [node_of[i] for i in range(len(silo_names))]
-            model = init_model(cfg, input_shape, n_classes, derive_seed(seed, ARM_IDS["federated"]))
+            model = init_model(cfg, input_shape, n_classes, derive_seed(seed, ARM_IDS["federated"])).to(device)
             weights = get_weights(model)
             t0, dark_from_s = 0.0, None
             if sim.on:

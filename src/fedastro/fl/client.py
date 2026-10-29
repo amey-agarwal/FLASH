@@ -61,7 +61,7 @@ def make_client_app(silos: list[DatasetBundle], cfg: ExperimentConfig, seed: int
         return Standardizer(mean, std)
 
     def _model(data: DatasetBundle, arrays: list[np.ndarray]) -> nn.Module:
-        model = init_model(cfg, data.X.shape[1:], n_classes, seed=0)  # weights overwritten next
+        model = init_model(cfg, data.X.shape[1:], n_classes, seed=0).to(device)  # weights overwritten next
         set_weights(model, arrays)
         return model
 
