@@ -4,8 +4,56 @@ Handoff log between sessions. Newest phase first. Assume no memory of prior sess
 
 **Phase 6 (deep-space comms): COMPLETE at the gate (2026-10-29). Sweeps re-run, all three acceptance checks met. Awaiting user review and commit.**
 Phases 4 and 5 are committed; Phase 6 is not. Long commands run under `caffeinate -i`.
-**GPU cluster:** the shakedown (Phase 3 plan) is still pending; the user cannot run it yet.
-On the cluster, run one grid variant per job with `fedastro grid ... --index i`.
+**GPU cluster (PACE ICE):** shakedown DONE 2026-10-29, results identical to the laptop; CUDA
+check passed after a device bug fix. Next on the cluster: freeze the attack settings, then the
+Phase 5 `p5epsc` CPU sweep. On the cluster, run one grid variant per job with
+`fedastro grid ... --index i`.
+
+---
+
+## Cluster shakedown on PACE ICE (Georgia Tech) — DONE (2026-10-29)
+
+### Environment
+- **Home quota is 30 GB and was full.** Everything lives in scratch
+  `/storage/ice1/4/7/aagarwal710` (300 GB): repo at `$SCR/FLASH`, uv at `$SCR/uv/bin`,
+  `UV_CACHE_DIR` / `UV_PYTHON_INSTALL_DIR` under `$SCR/uv/`, set in `~/.bashrc`. Scratch is
+  purged after inactivity: copy results back to the laptop promptly.
+- Setup on the login node: `make install`, `make fetch-wesad`. Compute only in SLURM jobs.
+- **SLURM:** account `bios`, QOS `coc-ice`. Don't pass `-p`: jobs are routed automatically
+  (CPU → `coc-cpu`, `--gres=gpu:...` → `coc-gpu`). An explicit `-p coc-gpu` was refused.
+  Time limits: CPU 18 h, GPU 16 h.
+- **GPUs:** L40S and V100 work with torch 2.2.2+cu121. **Blackwell nodes (`ice-bw-gpu`, RTX PRO
+  6000 Blackwell, MIG) do not**: they need a newer CUDA build of torch than the Intel-Mac pin
+  allows. Request `--gres=gpu:l40s:1` (or use a V100). Not upgrading torch: the GPU only speeds
+  up execution and is not needed for any poster run.
+- An OnDemand interactive session (`sys/dash`) holds its GPU while idle: close it after use.
+
+### Results
+- **`make test`: 173 passed, 1 warning, 9 min 51 s** (CPU job 6665444, 8 cores). The warning
+  is sklearn's single-label notice from the deliberately degenerate input in
+  `tests/test_models.py:53`; production metrics pass the full label list. No fix needed.
+- **`fedastro sweep configs/experiments/wesad_by_subject.yaml`: identical to the laptop** to
+  every printed decimal, all arms, per silo, fairness and H1, same run id hash `ce31e25dda`
+  (byte identity was not expected across platforms; it held at 3 decimals). 13.5 min wall,
+  7.7 GB peak memory, 8 cores busy.
+- **CUDA check: bug found and fixed.** On a GPU the federated arm crashed: the server's global
+  model ([server.py:148](src/fedastro/fl/server.py#L148)) and the client's evaluation model
+  ([client.py:64](src/fedastro/fl/client.py#L64)) were never moved to the device; training was
+  fine because `train_local` moves its model. Fixed with `.to(device)` (commit `35e28d4`); CPU
+  results unchanged. New test `test_federated_smoke_on_cuda` (skipped without CUDA).
+  **After the fix, on a V100: smoke run completes with `"device": "cuda"`, the CUDA test
+  passes.** L40S also reported `2.2.2+cu121 True 12.1`.
+- **`scripts/run_report.py`** (commit `6b91ccc`): self-contained HTML report from run
+  artifacts: integrity checks (one config, distinct seeds, ≥ 5 seeds, same clean commit, REAL
+  data, same checksum, subject disjointness, manifests), three-arm tables and charts, per-silo,
+  per-seed, data, comms, provenance. Stdlib only. On the laptop copy of `ce31e25dda` the clean
+  commit check correctly fails (those runs were `-dirty`, 2026-10-15).
+
+### Next on the cluster
+1. Freeze the attack settings: record the `privacy.attack` block and the commit sha checked out
+   on the cluster here, before the run (Phase 5 deferred item 7).
+2. `p5epsc`: 8 variants × 5 seeds, CPU only, ~3 h per variant. Size the job to `coc-cpu`'s
+   cores per node (`sinfo -p coc-cpu -o "%c %m"`).
 
 ---
 
@@ -272,7 +320,7 @@ with 1–3 superseded downlinks and 0–2 superseded uplinks.
 ### Still open
 - **Optional proposal 4:** let FedBuff start training before slow silos finish setup.
   Today setup waits for Mars (~4,680 s of FedBuff's 4,850 s under Mars-far), and it
-  costs sync and FedBuff the same. **Not implemented; awaiting the user.**
+  costs sync and FedBuff the same. **User decision 2026-10-29: skip for now.**
   - Recommendation (2026-10-29): don't implement. It would not change participation (Mars
     contributes 0 either way under the matched budget), only shrink the headline time. It
     would also mix a startup-protocol difference into the sync vs FedBuff comparison.
