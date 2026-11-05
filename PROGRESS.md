@@ -2,12 +2,177 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
-**Phase 6 (deep-space comms): COMPLETE at the gate (2026-10-29). Sweeps re-run, all three acceptance checks met. Awaiting user review and commit.**
-Phases 4 and 5 are committed; Phase 6 is not. Long commands run under `caffeinate -i`.
-**GPU cluster (PACE ICE):** shakedown DONE 2026-10-29, results identical to the laptop; CUDA
-check passed after a device bug fix. Next on the cluster: freeze the attack settings, then the
-Phase 5 `p5epsc` CPU sweep. On the cluster, run one grid variant per job with
-`fedastro grid ... --index i`.
+**Phase 10 (reproducibility lock, CLAUDE2.md): AT THE GATE (2026-11-05). Tier A passes; Tier B
+is pending clean-commit cluster runs (job script ready). Not committed, not tagged: the user
+commits and tags.** The plan now follows CLAUDE2.md: Phases 10–18 replace CLAUDE.md Phases 7–9.
+Phases 0–6 are committed (Phase 6 in `b99ef93`). Long commands run under `caffeinate -i`.
+**GPU cluster (PACE ICE):** shakedown DONE 2026-10-29. **Clean-commit batch started
+2026-11-04 at `9bd7753`:** attack settings frozen, prep job passed; `p5epsc` and the poster
+configs are next (below).
+
+---
+
+## Phase 10 — Reproducibility lock — AT THE GATE (2026-11-05)
+
+**Not committed.** Suggested message:
+`test(golden): phase 10 reproducibility lock (run-id and smoke golden files, Tier B tooling, SLURM jobs)`.
+Then tag: `git tag -a v0.6-golden -m "Phase 10 reproducibility lock" && git push origin v0.6-golden`.
+
+### Session start
+- Golden Tier A did not exist yet, so the full existing suite was the clean-start check, run
+  before any edit to an existing file: **173 passed, 1 skipped (CUDA), exit 0** (laptop).
+
+### Built (no file under `src/` changed)
+- **`scripts/golden.py`**, the lock tool. Subcommands:
+  - `ids [--write]`: run ids of every experiment config and sweep variant.
+  - `smoke [--write]`: the smoke result, compared byte for byte.
+  - `pending`: writes the placeholder `metrics.json`.
+  - `run --item G1..G5`: re-runs the pinned subset through the normal CLI (`fedastro sweep` for
+    G1, `fedastro grid --index i` for G2–G5).
+  - `check --runs-dir`: compares final metrics with `metrics.json` at 1e-3.
+  - `freeze --runs-dir`: writes `metrics.json` from clean runs.
+- **`tests/golden/run_ids.json`**: 10 experiment configs and 53 sweep variants, 306 run ids, with
+  full 64-hex config hashes. G1 = `wesad_by_subject`, hash `ce31e25dda…` (the laptop-vs-cluster hash).
+- **`tests/golden/smoke_result.json`**: `fedastro run configs/experiments/smoke.yaml --seed 0` with
+  `SOURCE_DATE_EPOCH=0`, and `git_sha` masked as `GOLDEN-MASKED`.
+- **`tests/golden/metrics.json`: status `PENDING`.** It lists the 25 pinned run ids that need
+  clean-commit runs (below).
+- **`tests/test_golden.py`** (Tier A, 8 tests):
+  - run ids against the lock;
+  - G1 hash check;
+  - smoke byte identity;
+  - `metrics.json` covers exactly the pinned subset;
+  - the comparison and freeze rules: tolerance, changed or new fields, dirty, mixed-commit and
+    synthetic runs rejected, git_sha masking.
+- **`make golden`** (Tier B): `rm -rf runs/_golden`, then `golden.py run`, then `golden.py check`.
+  It uses `caffeinate -i` only where it exists, so the target also runs on Linux.
+- **`scripts/slurm/`**: account `bios`, QOS `coc-ice`, no `-p`, 1 node × 4 cores, 16 GB.
+  - `common.sh`: sources `~/.bashrc` safely (the PACE `/etc/bashrc` issue), refuses a dirty tree,
+    sets `OUT=runs/<prefix>-<sha>` and a per-job `RAY_TMPDIR`.
+  - `p5epsc.sbatch`: array 0–7, one variant per job, 8 h.
+  - `golden.sbatch`: array 0–4 = G1–G5, one item per job, 3 h.
+  - Submit from the repo root after `mkdir -p runs/slurm`.
+- **Frozen `privacy.attack` block and commit sha**: recorded 2026-11-04 in the clean-commit batch
+  section below (commit `9bd7753`, `trials: 10`, every silo, both label modes). This was Phase 5
+  deferred item 7; nothing new was needed.
+
+### Pinned Tier-B subset (decisions, review these)
+| ID | Config | Variant | Fields compared (per seed, 5 seeds) |
+|---|---|---|---|
+| G1 | `experiments/wesad_by_subject.yaml` | (experiment) | centralized `final`, local_only `mean`, federated `final` (accuracy, balanced accuracy, macro-F1, AUC) |
+| G2 | `sweeps/phase4_alpha.yaml` | `p4alpha-a0p1-dirichlet-fedavg` | the same |
+| G3 | `sweeps/phase4_mu.yaml` | `p4mu-mu1p0` | the same |
+| G4 | `sweeps/phase5_eps.yaml` | `p5eps-eps1p0` | the same + `privacy.epsilon`, `privacy.attack.mse` |
+| G5 | `sweeps/phase6_presets.yaml` | `p6pre-marsfar-fedbuff` | the same + `sim_wallclock_s_total`, per-silo `dispatches` |
+
+1. **G2 = α 0.1**, the strongest skew and the end point of the degradation curve.
+2. **G3 = μ 1**, the only μ with a measurable effect, so it is the most sensitive canary for
+   the FedProx path.
+3. **G4 = `p5eps` ε 1 (3 attack trials), not `p5epsc`.**
+   - It covers Opacus and the attack under DP, at ~1 h per Tier B run instead of ~3 h.
+   - Trade-off: the "attack succeeds at B=1, modest at B=32" half of G4 is a no-DP result, so it
+     is not in the pinned variant. Alternative: `p5eps-base`, which drops Opacus coverage.
+   - The local `p5eps` runs carry an older hash (`4a68779d84`, before `chance_draws`), so G4
+     needs new runs anyway (`ea373fd066`).
+4. **G5 = Mars-far FedBuff**: comms, the outage model and FedBuff in one variant.
+5. **Tolerance: absolute 1e-3 on every number**, including simulated seconds and dispatch counts
+   (counts are integers, so effectively exact). `None` must stay `None`, and the set of fields
+   must not change.
+6. **Freeze rules:** all 25 runs must come from **one clean commit** with REAL provenance.
+   Overwriting a frozen golden file needs `--force` and the user's approval recorded here.
+   Replacing the PENDING placeholder is the intended first freeze.
+7. **Smoke byte identity masks `git_sha`.** It is the one field that names the commit, so an
+   unmasked golden file would fail at every commit. The timestamp is fixed by
+   `SOURCE_DATE_EPOCH=0`. No paths or hostnames appear in `result.json`; they live in
+   `manifest.json`.
+8. **Additions allowed:** configs or variants added after the lock pass Tier A and are listed
+   as additions. Changed or deleted golden ones fail.
+
+### Acceptance results
+| Check | Result |
+|---|---|
+| Tier A passes | **Yes.** `make test` (laptop, 2026-11-05): **181 passed, 1 skipped (CUDA), 1 warning** (the known sklearn notice), 7 min 46 s. That is the 173 earlier tests plus the 8 new golden tests. The smoke byte check also holds when run after the whole suite in one process |
+| Tier B passing, or pending with job scripts ready | **Pending.** `metrics.json` is PENDING; `scripts/slurm/golden.sbatch` is ready. Verified: `check` exits 2 on PENDING; `freeze` refuses missing runs and the local `-dirty` runs (494e164-dirty for G1) and leaves `metrics.json` unchanged |
+| No file under `src/` changed | **Yes**: `git diff --stat -- src` and `git status -- src` are empty |
+| Tag `v0.6-golden` | **Not created**: the user commits and tags (commands above) |
+
+### Clean-commit runs needed for Tier B (the gate's stop)
+Only `-dirty` runs exist on the laptop. **Run `scripts/slurm/golden.sbatch` (5 jobs) on the
+tagged commit.** Freezing requires one commit, so G1–G3 from the running `9bd7753` batch cannot
+be combined with new G4/G5 runs. Run ids:
+- G1: `wesad_by_subject-seed{0..4}-ce31e25dda`
+- G2: `p4alpha-a0p1-dirichlet-fedavg-seed{0..4}-51351f4a1a`
+- G3: `p4mu-mu1p0-seed{0..4}-f22cc0ff09`
+- G4: `p5eps-eps1p0-seed{0..4}-ea373fd066`
+- G5: `p6pre-marsfar-fedbuff-seed{0..4}-0d31114ef8`
+
+Steps:
+1. Commit and tag.
+2. Let the `9bd7753` batch finish, or use a second clone. Pulling into `$SCR/FLASH` mid-batch
+   would give later jobs a different `git_sha`.
+3. `mkdir -p runs/slurm && sbatch scripts/slurm/golden.sbatch`.
+4. On the login node: `uv run --frozen python scripts/golden.py freeze --runs-dir runs/golden-<sha>`,
+   then `... check --runs-dir runs/golden-<sha>` (it must report `Tier B PASSED`).
+5. Commit `tests/golden/metrics.json` (it records its source sha).
+
+### Open questions and risks
+- **Cross-platform smoke identity is unverified.** The smoke golden file was written on the
+  Intel Mac. The cluster shakedown matched to 3 decimals, not byte for byte. If the first cluster
+  `make test` fails only `test_smoke_result_is_byte_identical_to_golden`, that is a platform
+  difference, not a regression. Options then: per-platform smoke golden files, or a 1e-3
+  comparison for the smoke file. This is the user's call; the file stays unchanged until then.
+- `metrics.json` will come from the cluster. A laptop `make golden` then compares across
+  platforms at 1e-3, which G1 met in the shakedown.
+- The ad-hoc `$SCR/jobs/p5epsc4.sbatch` currently in use runs two variants per task. The repo's
+  `scripts/slurm/p5epsc.sbatch` follows CLAUDE2.md (one variant per job). Both write the same
+  run ids.
+
+---
+
+## Clean-commit cluster batch on PACE ICE — IN PROGRESS (2026-11-04)
+
+Purpose: publishable numbers. Every earlier result in `runs/` was produced from a `-dirty`
+tree (360 result files across 7 commits), so none passes `run_report.py`'s clean-commit check.
+
+### Setup
+- Commit `9bd7753a8b3dc092e596b2fbeefd400eddab60c6`, tree verified clean in every job
+  (`common.sh` aborts on a dirty tree).
+- Output: `$SCR/results/clean-9bd7753/` (outside the repo). Job scripts: `$SCR/jobs/` (outside
+  the repo).
+- Requests are split into parts:
+  1. prep: 1 node × 4 cores, 16 GB, 2 h.
+  2. `p5epsc`: 4-task array, 1 node × 4 cores, 16 GB, 8 h each; task i runs variants i and i+4.
+  3. Poster configs: 1 node × 4 cores, 16 GB, 4 h. Runs `wesad_by_subject`, `wesad_by_subject_cnn`,
+     `phase4_by_subject`, `phase4_alpha`, `phase4_mu`. Phase 6 is left out (level two).
+- Fix needed on PACE: `/etc/bashrc` reads an unset variable, so sourcing `~/.bashrc` under
+  `set -u` killed the first prep job (6816077) in 7 s. `common.sh` now disables `-e`/`-u` while
+  sourcing and restores them afterwards.
+- Each job gets its own `RAY_TMPDIR`. Several Ray jobs running in parallel on one node had not
+  been tested before this batch.
+
+### Attack settings frozen (pre-registration, Phase 5 deferred item 7) — DONE
+Recorded 2026-11-04T23:35:39 UTC, before any `p5epsc` job was submitted. File:
+`$SCR/results/p5epsc_prereg.txt`.
+```
+commit 9bd7753a8b3dc092e596b2fbeefd400eddab60c6
+privacy.attack = {enabled: true, silos: [] (all), label_modes: [known, inferred],
+  model_states: [init, final], batch_sizes: [1, 4, 32], trials: 10, iterations: 1000,
+  lr: 0.1, prior_weight: 0.01, chance_draws: 50}
+```
+These settings must not change for the `p5epsc` results.
+
+### Prep job 6816173 — PASSED
+- `make test`: **173 passed, 1 skipped (the CUDA test, CPU node), 1 warning**, 12 min 33 s.
+- `make repro-check`: **BYTE-IDENTICAL**.
+- `fedastro inspect wesad_privacy.yaml --seed 0`: per-silo class table identical to the
+  laptop (345 / 137 / 138 / 142 / 68; holdout 212).
+- 13 min 14 s wall, 4 cores, peak memory 5.2 GB.
+
+### Still to do in this batch
+1. `p5epsc` (request 2), then `--report`.
+2. Poster configs (request 3), then `--report` per sweep and `run_report.py` on
+   `wesad_by_subject`; its clean-commit check must pass.
+3. Copy `$SCR/results/` back to the laptop (scratch is purged after inactivity).
 
 ---
 

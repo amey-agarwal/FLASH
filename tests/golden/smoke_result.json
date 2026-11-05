@@ -1,0 +1,641 @@
+{
+  "arms": {
+    "centralized": {
+      "final": {
+        "accuracy": 0.7777777777777778,
+        "auc": 0.9332087094720819,
+        "balanced_accuracy": 0.7706585896241069,
+        "macro_f1": 0.7675742745750114,
+        "recall_per_class": [
+          0.7241379310344828,
+          0.8378378378378378,
+          0.75
+        ]
+      },
+      "history": [
+        {
+          "accuracy": 0.6,
+          "auc": 0.8923337749352074,
+          "balanced_accuracy": 0.6144506575541059,
+          "epoch": 1,
+          "macro_f1": 0.5947907133724063,
+          "recall_per_class": [
+            0.8275862068965517,
+            0.43243243243243246,
+            0.5833333333333334
+          ],
+          "train_loss": 1.0660225008048263
+        },
+        {
+          "accuracy": 0.7777777777777778,
+          "auc": 0.9288675298673219,
+          "balanced_accuracy": 0.7805089572330952,
+          "epoch": 2,
+          "macro_f1": 0.7737298543750156,
+          "recall_per_class": [
+            0.7931034482758621,
+            0.7567567567567568,
+            0.7916666666666666
+          ],
+          "train_loss": 0.9487372678868911
+        },
+        {
+          "accuracy": 0.7777777777777778,
+          "auc": 0.9332087094720819,
+          "balanced_accuracy": 0.7706585896241069,
+          "epoch": 3,
+          "macro_f1": 0.7675742745750114,
+          "recall_per_class": [
+            0.7241379310344828,
+            0.8378378378378378,
+            0.75
+          ],
+          "train_loss": 0.8133894324302673
+        }
+      ],
+      "n_params": 2755,
+      "n_train": 510
+    },
+    "federated": {
+      "final": {},
+      "rounds": []
+    },
+    "local_only": {
+      "max": {
+        "accuracy": 0.6888888888888889,
+        "auc": 0.8628695950322602,
+        "balanced_accuracy": 0.7059516412964689,
+        "macro_f1": 0.689049561240885
+      },
+      "mean": {
+        "accuracy": 0.4955555555555556,
+        "auc": 0.7875702956096954,
+        "balanced_accuracy": 0.5028709744226986,
+        "macro_f1": 0.4515235887375522
+      },
+      "min": {
+        "accuracy": 0.28888888888888886,
+        "auc": 0.5476841984296095,
+        "balanced_accuracy": 0.2856088847468158,
+        "macro_f1": 0.2667169431875314
+      },
+      "per_silo": {
+        "esa_analog": {
+          "final": {
+            "accuracy": 0.5,
+            "auc": 0.8574895605477323,
+            "balanced_accuracy": 0.5299782541161852,
+            "macro_f1": 0.4535126546362502,
+            "recall_per_class": [
+              0.10344827586206896,
+              0.4864864864864865,
+              1.0
+            ]
+          },
+          "history": [
+            {
+              "accuracy": 0.28888888888888886,
+              "auc": 0.7650647622029759,
+              "balanced_accuracy": 0.3513513513513513,
+              "epoch": 1,
+              "macro_f1": 0.17704517704517705,
+              "recall_per_class": [
+                0.0,
+                0.05405405405405406,
+                1.0
+              ],
+              "train_loss": 1.0822803099950156
+            },
+            {
+              "accuracy": 0.4222222222222222,
+              "auc": 0.8311774747087578,
+              "balanced_accuracy": 0.46442994718856784,
+              "epoch": 2,
+              "macro_f1": 0.3669346526489384,
+              "recall_per_class": [
+                0.06896551724137931,
+                0.32432432432432434,
+                1.0
+              ],
+              "train_loss": 1.0518229802449544
+            },
+            {
+              "accuracy": 0.5,
+              "auc": 0.8574895605477323,
+              "balanced_accuracy": 0.5299782541161852,
+              "epoch": 3,
+              "macro_f1": 0.4535126546362502,
+              "recall_per_class": [
+                0.10344827586206896,
+                0.4864864864864865,
+                1.0
+              ],
+              "train_loss": 1.02073229153951
+            }
+          ],
+          "n_train": 120
+        },
+        "iss_commercial": {
+          "final": {
+            "accuracy": 0.5555555555555556,
+            "auc": 0.8095742837308801,
+            "balanced_accuracy": 0.49233716475095785,
+            "macro_f1": 0.4587612822906941,
+            "recall_per_class": [
+              0.3103448275862069,
+              1.0,
+              0.16666666666666666
+            ]
+          },
+          "history": [
+            {
+              "accuracy": 0.43333333333333335,
+              "auc": 0.6761272871156666,
+              "balanced_accuracy": 0.3611111111111111,
+              "epoch": 1,
+              "macro_f1": 0.2485663082437276,
+              "recall_per_class": [
+                0.0,
+                1.0,
+                0.08333333333333333
+              ],
+              "train_loss": 1.0760391712188722
+            },
+            {
+              "accuracy": 0.4777777777777778,
+              "auc": 0.7611457634089277,
+              "balanced_accuracy": 0.407088122605364,
+              "epoch": 2,
+              "macro_f1": 0.33712449849878273,
+              "recall_per_class": [
+                0.13793103448275862,
+                1.0,
+                0.08333333333333333
+              ],
+              "train_loss": 1.058504989412096
+            },
+            {
+              "accuracy": 0.5555555555555556,
+              "auc": 0.8095742837308801,
+              "balanced_accuracy": 0.49233716475095785,
+              "epoch": 3,
+              "macro_f1": 0.4587612822906941,
+              "recall_per_class": [
+                0.3103448275862069,
+                1.0,
+                0.16666666666666666
+              ],
+              "train_loss": 1.0247966408729554
+            }
+          ],
+          "n_train": 90
+        },
+        "lunar_habitat": {
+          "final": {
+            "accuracy": 0.4444444444444444,
+            "auc": 0.8628695950322602,
+            "balanced_accuracy": 0.5004789272030652,
+            "macro_f1": 0.38957750233240035,
+            "recall_per_class": [
+              0.7931034482758621,
+              0.0,
+              0.7083333333333334
+            ]
+          },
+          "history": [
+            {
+              "accuracy": 0.36666666666666664,
+              "auc": 0.7840691358508695,
+              "balanced_accuracy": 0.4176245210727969,
+              "epoch": 1,
+              "macro_f1": 0.31907452246435297,
+              "recall_per_class": [
+                0.5862068965517241,
+                0.0,
+                0.6666666666666666
+              ],
+              "train_loss": 1.0980730692545573
+            },
+            {
+              "accuracy": 0.4,
+              "auc": 0.8314203358786697,
+              "balanced_accuracy": 0.4545019157088122,
+              "epoch": 2,
+              "macro_f1": 0.3540051679586563,
+              "recall_per_class": [
+                0.6551724137931034,
+                0.0,
+                0.7083333333333334
+              ],
+              "train_loss": 1.1039350986480714
+            },
+            {
+              "accuracy": 0.4444444444444444,
+              "auc": 0.8628695950322602,
+              "balanced_accuracy": 0.5004789272030652,
+              "epoch": 3,
+              "macro_f1": 0.38957750233240035,
+              "recall_per_class": [
+                0.7931034482758621,
+                0.0,
+                0.7083333333333334
+              ],
+              "train_loss": 1.0450305461883544
+            }
+          ],
+          "n_train": 60
+        },
+        "mars_transit": {
+          "final": {
+            "accuracy": 0.28888888888888886,
+            "auc": 0.5476841984296095,
+            "balanced_accuracy": 0.2856088847468158,
+            "macro_f1": 0.2667169431875314,
+            "recall_per_class": [
+              0.10344827586206896,
+              0.3783783783783784,
+              0.375
+            ]
+          },
+          "history": [
+            {
+              "accuracy": 0.24444444444444444,
+              "auc": 0.47738909477832975,
+              "balanced_accuracy": 0.23484260122191158,
+              "epoch": 1,
+              "macro_f1": 0.20422596457938014,
+              "recall_per_class": [
+                0.034482758620689655,
+                0.3783783783783784,
+                0.2916666666666667
+              ],
+              "train_loss": 1.1115493774414062
+            },
+            {
+              "accuracy": 0.26666666666666666,
+              "auc": 0.5092951200208525,
+              "balanced_accuracy": 0.26510562286424355,
+              "epoch": 2,
+              "macro_f1": 0.23823529411764707,
+              "recall_per_class": [
+                0.06896551724137931,
+                0.35135135135135137,
+                0.375
+              ],
+              "train_loss": 1.0971935987472534
+            },
+            {
+              "accuracy": 0.28888888888888886,
+              "auc": 0.5476841984296095,
+              "balanced_accuracy": 0.2856088847468158,
+              "epoch": 3,
+              "macro_f1": 0.2667169431875314,
+              "recall_per_class": [
+                0.10344827586206896,
+                0.3783783783783784,
+                0.375
+              ],
+              "train_loss": 1.0818499326705933
+            }
+          ],
+          "n_train": 30
+        },
+        "nasa_earth": {
+          "final": {
+            "accuracy": 0.6888888888888889,
+            "auc": 0.8602338403079948,
+            "balanced_accuracy": 0.7059516412964689,
+            "macro_f1": 0.689049561240885,
+            "recall_per_class": [
+              0.7586206896551724,
+              0.5675675675675675,
+              0.7916666666666666
+            ]
+          },
+          "history": [
+            {
+              "accuracy": 0.36666666666666664,
+              "auc": 0.7766795096134506,
+              "balanced_accuracy": 0.42950709330019676,
+              "epoch": 1,
+              "macro_f1": 0.3102974828375286,
+              "recall_per_class": [
+                0.3448275862068966,
+                0.02702702702702703,
+                0.9166666666666666
+              ],
+              "train_loss": 1.0746300504321145
+            },
+            {
+              "accuracy": 0.5555555555555556,
+              "auc": 0.8463484116515357,
+              "balanced_accuracy": 0.5804468261364814,
+              "epoch": 2,
+              "macro_f1": 0.5577528018842572,
+              "recall_per_class": [
+                0.5172413793103449,
+                0.43243243243243246,
+                0.7916666666666666
+              ],
+              "train_loss": 1.0237689773241678
+            },
+            {
+              "accuracy": 0.6888888888888889,
+              "auc": 0.8602338403079948,
+              "balanced_accuracy": 0.7059516412964689,
+              "epoch": 3,
+              "macro_f1": 0.689049561240885,
+              "recall_per_class": [
+                0.7586206896551724,
+                0.5675675675675675,
+                0.7916666666666666
+              ],
+              "train_loss": 0.976225817771185
+            }
+          ],
+          "n_train": 210
+        }
+      },
+      "std_across_silos": {
+        "accuracy": 0.1313932933252843,
+        "auc": 0.12154685840831682,
+        "balanced_accuracy": 0.13363836314225713,
+        "macro_f1": 0.13745234960897404
+      }
+    }
+  },
+  "comms": {
+    "los_events": [],
+    "preset": null
+  },
+  "config": {
+    "arms": [
+      "centralized",
+      "local_only"
+    ],
+    "data": {
+      "name": "synthetic",
+      "synthetic": {
+        "class_sep": 1.0,
+        "n_classes": 3,
+        "n_features": 8,
+        "n_sites": 0,
+        "n_subjects": 20,
+        "subject_shift": 0.5,
+        "windows_per_subject": 30
+      }
+    },
+    "device": "cpu",
+    "fl": {
+      "absolute_target": 0.0,
+      "local_epochs": 1,
+      "relative_target": 0.95,
+      "rounds": 30,
+      "strategy": "fedavg",
+      "timeout_s": 600.0
+    },
+    "model": {
+      "arch": "mlp",
+      "cnn_channels": [
+        16,
+        32
+      ],
+      "dropout": 0.2,
+      "hidden": [
+        64,
+        32
+      ],
+      "kernel_size": 5
+    },
+    "name": "smoke",
+    "notes": "Scaffold smoke test.",
+    "partition": {
+      "alpha": 0.0,
+      "holdout_seed": 0,
+      "holdout_subjects": 3,
+      "method": "by_subject"
+    },
+    "seed": 0,
+    "topology": {
+      "name": "five_agency",
+      "silos": [
+        {
+          "data_share": 0.4,
+          "latency_presets_s": {},
+          "los_profile": "none",
+          "name": "nasa_earth",
+          "one_way_latency_s": 0.0
+        },
+        {
+          "data_share": 0.2,
+          "latency_presets_s": {},
+          "los_profile": "rare",
+          "name": "esa_analog",
+          "one_way_latency_s": 0.0
+        },
+        {
+          "data_share": 0.2,
+          "latency_presets_s": {},
+          "los_profile": "short_occasional",
+          "name": "iss_commercial",
+          "one_way_latency_s": 0.25
+        },
+        {
+          "data_share": 0.12,
+          "latency_presets_s": {},
+          "los_profile": "periodic",
+          "name": "lunar_habitat",
+          "one_way_latency_s": 1.3
+        },
+        {
+          "data_share": 0.08,
+          "latency_presets_s": {
+            "far": 1337.0,
+            "mean": 751.0,
+            "near": 182.0
+          },
+          "los_profile": "long_blackout",
+          "name": "mars_transit",
+          "one_way_latency_s": 751.0
+        }
+      ]
+    },
+    "train": {
+      "batch_size": 32,
+      "class_weighting": "none",
+      "epochs": 3,
+      "lr": 0.001,
+      "optimizer": "adam",
+      "weight_decay": 0.0001
+    }
+  },
+  "drift": {
+    "detected_round": null,
+    "enabled": false,
+    "onset_round": null
+  },
+  "fairness": {
+    "centralized": {
+      "max": 0.7755802600630186,
+      "mean": 0.7725039571591295,
+      "min": 0.7682458320389355,
+      "per_silo": {
+        "esa_analog": 0.7710896241068654,
+        "iss_commercial": 0.7682458320389355,
+        "lunar_habitat": 0.7748796210003106,
+        "mars_transit": 0.7727244485865175,
+        "nasa_earth": 0.7755802600630186
+      },
+      "spread": 0.007334428024083128,
+      "std": 0.0026566144708736875
+    },
+    "local_only": {
+      "max": 0.6962244263968401,
+      "mean": 0.4963008636715534,
+      "min": 0.27666977322149733,
+      "per_silo": {
+        "esa_analog": 0.5449207828518173,
+        "iss_commercial": 0.4910600255427842,
+        "lunar_habitat": 0.4726293103448276,
+        "mars_transit": 0.27666977322149733,
+        "nasa_earth": 0.6962244263968401
+      },
+      "spread": 0.4195546531753428,
+      "std": 0.13502514742620333
+    },
+    "metric": "holdout recall re-weighted to each silo's training label mix"
+  },
+  "git_sha": "GOLDEN-MASKED",
+  "holdout": {
+    "label_counts": {
+      "class_0": 29,
+      "class_1": 37,
+      "class_2": 24
+    },
+    "n_test": 90,
+    "subjects": [
+      14,
+      18,
+      19
+    ]
+  },
+  "notes": "PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements. Arms run: centralized, local_only. Scaffold smoke test.",
+  "privacy": {
+    "accountant": null,
+    "accounting": {},
+    "attack": {
+      "mse": null
+    },
+    "delta": null,
+    "delta_rule": null,
+    "enabled": false,
+    "epsilon": null,
+    "max_grad_norm": null,
+    "not_covered": [],
+    "subject_level": null,
+    "target_epsilon": null,
+    "unit": null
+  },
+  "provenance": [
+    {
+      "checksum": "sha256:c07ad2ea7c58acaa521b265625e0ce82650ae9f2073cc670ae2800a238e73420",
+      "dataset": "SYNTHETIC",
+      "kind": "SYNTHETIC",
+      "processed_checksum": "sha256:c07ad2ea7c58acaa521b265625e0ce82650ae9f2073cc670ae2800a238e73420",
+      "source": "fedastro.data.synthetic (generated, not measured)",
+      "version": "synthetic-v1"
+    }
+  ],
+  "run_id": "smoke-seed0-fde671b54c",
+  "seed": 0,
+  "silos": [
+    {
+      "label_counts": {
+        "class_0": 64,
+        "class_1": 80,
+        "class_2": 66
+      },
+      "n_dropped": 0,
+      "n_subjects": 7,
+      "n_train": 210,
+      "name": "nasa_earth",
+      "subjects": [
+        0,
+        2,
+        3,
+        4,
+        7,
+        10,
+        11
+      ],
+      "target_proportions": null
+    },
+    {
+      "label_counts": {
+        "class_0": 38,
+        "class_1": 40,
+        "class_2": 42
+      },
+      "n_dropped": 0,
+      "n_subjects": 4,
+      "n_train": 120,
+      "name": "esa_analog",
+      "subjects": [
+        5,
+        12,
+        13,
+        17
+      ],
+      "target_proportions": null
+    },
+    {
+      "label_counts": {
+        "class_0": 35,
+        "class_1": 29,
+        "class_2": 26
+      },
+      "n_dropped": 0,
+      "n_subjects": 3,
+      "n_train": 90,
+      "name": "iss_commercial",
+      "subjects": [
+        6,
+        9,
+        15
+      ],
+      "target_proportions": null
+    },
+    {
+      "label_counts": {
+        "class_0": 17,
+        "class_1": 22,
+        "class_2": 21
+      },
+      "n_dropped": 0,
+      "n_subjects": 2,
+      "n_train": 60,
+      "name": "lunar_habitat",
+      "subjects": [
+        1,
+        8
+      ],
+      "target_proportions": null
+    },
+    {
+      "label_counts": {
+        "class_0": 11,
+        "class_1": 11,
+        "class_2": 8
+      },
+      "n_dropped": 0,
+      "n_subjects": 1,
+      "n_train": 30,
+      "name": "mars_transit",
+      "subjects": [
+        16
+      ],
+      "target_proportions": null
+    }
+  ],
+  "timestamp_utc": "1970-01-01T00:00:00Z"
+}

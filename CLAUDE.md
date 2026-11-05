@@ -1,5 +1,7 @@
 # CLAUDE.md — Cross-Silo Sparse Federated Learning for Autonomous Astronaut Healthcare
 
+See @CLAUDE2.md for the extension plan (Phases 10–18), which supersedes Phases 7–9 below.
+
 > Project instruction file for Claude Code. Read this fully before touching any code.
 > **Work one phase at a time. Do not attempt the whole project in a single session.**
 

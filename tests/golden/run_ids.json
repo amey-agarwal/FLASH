@@ -1,0 +1,757 @@
+{
+  "experiments": {
+    "configs/experiments/smoke.yaml": {
+      "config_hash": "fde671b54c094930821835873094a20565357d8889f8a4b3c888dc63553b8911",
+      "name": "smoke",
+      "run_ids": [
+        "smoke-seed0-fde671b54c",
+        "smoke-seed1-fde671b54c",
+        "smoke-seed2-fde671b54c",
+        "smoke-seed3-fde671b54c",
+        "smoke-seed4-fde671b54c"
+      ]
+    },
+    "configs/experiments/smoke_comms.yaml": {
+      "config_hash": "afcb02a49688c66e45ee94fe2dadd862328caf0407b4b94371020f584d49a8c6",
+      "name": "smoke_comms",
+      "run_ids": [
+        "smoke_comms-seed0-afcb02a496",
+        "smoke_comms-seed1-afcb02a496"
+      ]
+    },
+    "configs/experiments/smoke_dp.yaml": {
+      "config_hash": "385543cdcd0926ea702b0a624ad025a51b26f1b9df902baa7aed6fddf28028ee",
+      "name": "smoke_dp",
+      "run_ids": [
+        "smoke_dp-seed0-385543cdcd",
+        "smoke_dp-seed1-385543cdcd"
+      ]
+    },
+    "configs/experiments/smoke_fl.yaml": {
+      "config_hash": "597174db1b3e19b412649f4301f37a359a4db9c3083f13300964afa4633bbf89",
+      "name": "smoke_fl",
+      "run_ids": [
+        "smoke_fl-seed0-597174db1b",
+        "smoke_fl-seed1-597174db1b"
+      ]
+    },
+    "configs/experiments/wesad_by_subject.yaml": {
+      "config_hash": "ce31e25ddab3fef89b6f4638fef1b7b13d0d3fbf902c516e80afd28a8726ec1a",
+      "name": "wesad_by_subject",
+      "run_ids": [
+        "wesad_by_subject-seed0-ce31e25dda",
+        "wesad_by_subject-seed1-ce31e25dda",
+        "wesad_by_subject-seed2-ce31e25dda",
+        "wesad_by_subject-seed3-ce31e25dda",
+        "wesad_by_subject-seed4-ce31e25dda"
+      ]
+    },
+    "configs/experiments/wesad_by_subject_cnn.yaml": {
+      "config_hash": "c525c1fafc55c462650bf800a397f0487468d8d3aba1aaa0140caa5154d662d5",
+      "name": "wesad_by_subject_cnn",
+      "run_ids": [
+        "wesad_by_subject_cnn-seed0-c525c1fafc",
+        "wesad_by_subject_cnn-seed1-c525c1fafc",
+        "wesad_by_subject_cnn-seed2-c525c1fafc",
+        "wesad_by_subject_cnn-seed3-c525c1fafc",
+        "wesad_by_subject_cnn-seed4-c525c1fafc"
+      ]
+    },
+    "configs/experiments/wesad_comms.yaml": {
+      "config_hash": "51da46a915560b30877997f91f4eff012a93e96694ae0dc4ea18600b620eeade",
+      "name": "wesad_comms",
+      "run_ids": [
+        "wesad_comms-seed0-51da46a915",
+        "wesad_comms-seed1-51da46a915",
+        "wesad_comms-seed2-51da46a915",
+        "wesad_comms-seed3-51da46a915",
+        "wesad_comms-seed4-51da46a915"
+      ]
+    },
+    "configs/experiments/wesad_dirichlet.yaml": {
+      "config_hash": "e4315d0b47970b99732c2f085fe9a47f0468414667505361b34c896bfb5079a5",
+      "name": "wesad_dirichlet",
+      "run_ids": [
+        "wesad_dirichlet-seed0-e4315d0b47",
+        "wesad_dirichlet-seed1-e4315d0b47",
+        "wesad_dirichlet-seed2-e4315d0b47",
+        "wesad_dirichlet-seed3-e4315d0b47",
+        "wesad_dirichlet-seed4-e4315d0b47"
+      ]
+    },
+    "configs/experiments/wesad_dirichlet_control.yaml": {
+      "config_hash": "3aa45b127adfb2d475f23280896419d675db1ac55ebce410331ba5ff4f9d5a30",
+      "name": "wesad_dirichlet_control",
+      "run_ids": [
+        "wesad_dirichlet_control-seed0-3aa45b127a",
+        "wesad_dirichlet_control-seed1-3aa45b127a",
+        "wesad_dirichlet_control-seed2-3aa45b127a",
+        "wesad_dirichlet_control-seed3-3aa45b127a",
+        "wesad_dirichlet_control-seed4-3aa45b127a"
+      ]
+    },
+    "configs/experiments/wesad_privacy.yaml": {
+      "config_hash": "b466d3357609ca3fe56ed560a4c88915dc16078070ec892773e64e0326ddbab0",
+      "name": "wesad_privacy",
+      "run_ids": [
+        "wesad_privacy-seed0-b466d33576",
+        "wesad_privacy-seed1-b466d33576",
+        "wesad_privacy-seed2-b466d33576",
+        "wesad_privacy-seed3-b466d33576",
+        "wesad_privacy-seed4-b466d33576"
+      ]
+    }
+  },
+  "sweeps": {
+    "configs/sweeps/phase4_alpha.yaml": {
+      "p4alpha-a0p1-dirichlet-fedavg": {
+        "config_hash": "51351f4a1adea7f28a415c355ac11d91acd1bb72df535c8b0417db6ad5f47fc3",
+        "index": 0,
+        "name": "p4alpha-a0p1-dirichlet-fedavg",
+        "run_ids": [
+          "p4alpha-a0p1-dirichlet-fedavg-seed0-51351f4a1a",
+          "p4alpha-a0p1-dirichlet-fedavg-seed1-51351f4a1a",
+          "p4alpha-a0p1-dirichlet-fedavg-seed2-51351f4a1a",
+          "p4alpha-a0p1-dirichlet-fedavg-seed3-51351f4a1a",
+          "p4alpha-a0p1-dirichlet-fedavg-seed4-51351f4a1a"
+        ]
+      },
+      "p4alpha-a0p1-dirichlet-fedprox": {
+        "config_hash": "2e209faa01b7ed24d646b458ae175f28b08635fc3a698bfc343a8fd92b494e5d",
+        "index": 1,
+        "name": "p4alpha-a0p1-dirichlet-fedprox",
+        "run_ids": [
+          "p4alpha-a0p1-dirichlet-fedprox-seed0-2e209faa01",
+          "p4alpha-a0p1-dirichlet-fedprox-seed1-2e209faa01",
+          "p4alpha-a0p1-dirichlet-fedprox-seed2-2e209faa01",
+          "p4alpha-a0p1-dirichlet-fedprox-seed3-2e209faa01",
+          "p4alpha-a0p1-dirichlet-fedprox-seed4-2e209faa01"
+        ]
+      },
+      "p4alpha-a0p1-dirichletquantitycontrol-fedavg": {
+        "config_hash": "cf1fe940a79a1ca85147482fb945cb1de5da571310aa636be78fd87c25475e6d",
+        "index": 2,
+        "name": "p4alpha-a0p1-dirichletquantitycontrol-fedavg",
+        "run_ids": [
+          "p4alpha-a0p1-dirichletquantitycontrol-fedavg-seed0-cf1fe940a7",
+          "p4alpha-a0p1-dirichletquantitycontrol-fedavg-seed1-cf1fe940a7",
+          "p4alpha-a0p1-dirichletquantitycontrol-fedavg-seed2-cf1fe940a7",
+          "p4alpha-a0p1-dirichletquantitycontrol-fedavg-seed3-cf1fe940a7",
+          "p4alpha-a0p1-dirichletquantitycontrol-fedavg-seed4-cf1fe940a7"
+        ]
+      },
+      "p4alpha-a0p1-dirichletquantitycontrol-fedprox": {
+        "config_hash": "626612315bf3f4ccbbc2c249001225f894fd32304a159a9cad0120ba63469b7e",
+        "index": 3,
+        "name": "p4alpha-a0p1-dirichletquantitycontrol-fedprox",
+        "run_ids": [
+          "p4alpha-a0p1-dirichletquantitycontrol-fedprox-seed0-626612315b",
+          "p4alpha-a0p1-dirichletquantitycontrol-fedprox-seed1-626612315b",
+          "p4alpha-a0p1-dirichletquantitycontrol-fedprox-seed2-626612315b",
+          "p4alpha-a0p1-dirichletquantitycontrol-fedprox-seed3-626612315b",
+          "p4alpha-a0p1-dirichletquantitycontrol-fedprox-seed4-626612315b"
+        ]
+      },
+      "p4alpha-a0p3-dirichlet-fedavg": {
+        "config_hash": "25062576eca344ddeba2d9f102ca5b055ed32534aa64aae878ac3717f4ff93e9",
+        "index": 4,
+        "name": "p4alpha-a0p3-dirichlet-fedavg",
+        "run_ids": [
+          "p4alpha-a0p3-dirichlet-fedavg-seed0-25062576ec",
+          "p4alpha-a0p3-dirichlet-fedavg-seed1-25062576ec",
+          "p4alpha-a0p3-dirichlet-fedavg-seed2-25062576ec",
+          "p4alpha-a0p3-dirichlet-fedavg-seed3-25062576ec",
+          "p4alpha-a0p3-dirichlet-fedavg-seed4-25062576ec"
+        ]
+      },
+      "p4alpha-a0p3-dirichlet-fedprox": {
+        "config_hash": "6f08759be39f5869e7fa05e154c7e7d487f9387b9e239118f6690f032f7aed88",
+        "index": 5,
+        "name": "p4alpha-a0p3-dirichlet-fedprox",
+        "run_ids": [
+          "p4alpha-a0p3-dirichlet-fedprox-seed0-6f08759be3",
+          "p4alpha-a0p3-dirichlet-fedprox-seed1-6f08759be3",
+          "p4alpha-a0p3-dirichlet-fedprox-seed2-6f08759be3",
+          "p4alpha-a0p3-dirichlet-fedprox-seed3-6f08759be3",
+          "p4alpha-a0p3-dirichlet-fedprox-seed4-6f08759be3"
+        ]
+      },
+      "p4alpha-a0p3-dirichletquantitycontrol-fedavg": {
+        "config_hash": "2cea54f7e62eebbf2a08624bfb3955f251d8eb174ff1a05a63e93ea7b352789d",
+        "index": 6,
+        "name": "p4alpha-a0p3-dirichletquantitycontrol-fedavg",
+        "run_ids": [
+          "p4alpha-a0p3-dirichletquantitycontrol-fedavg-seed0-2cea54f7e6",
+          "p4alpha-a0p3-dirichletquantitycontrol-fedavg-seed1-2cea54f7e6",
+          "p4alpha-a0p3-dirichletquantitycontrol-fedavg-seed2-2cea54f7e6",
+          "p4alpha-a0p3-dirichletquantitycontrol-fedavg-seed3-2cea54f7e6",
+          "p4alpha-a0p3-dirichletquantitycontrol-fedavg-seed4-2cea54f7e6"
+        ]
+      },
+      "p4alpha-a0p3-dirichletquantitycontrol-fedprox": {
+        "config_hash": "93be06b2f7e11c4adf5d91dff5c5fda3528b1fa76a1bb9850116d762e6179436",
+        "index": 7,
+        "name": "p4alpha-a0p3-dirichletquantitycontrol-fedprox",
+        "run_ids": [
+          "p4alpha-a0p3-dirichletquantitycontrol-fedprox-seed0-93be06b2f7",
+          "p4alpha-a0p3-dirichletquantitycontrol-fedprox-seed1-93be06b2f7",
+          "p4alpha-a0p3-dirichletquantitycontrol-fedprox-seed2-93be06b2f7",
+          "p4alpha-a0p3-dirichletquantitycontrol-fedprox-seed3-93be06b2f7",
+          "p4alpha-a0p3-dirichletquantitycontrol-fedprox-seed4-93be06b2f7"
+        ]
+      },
+      "p4alpha-a10p0-dirichlet-fedavg": {
+        "config_hash": "d57d9ea65d2aab2a767fb2815ccd2d35bd2e43f5014a6fc193a5e372cb43eb81",
+        "index": 16,
+        "name": "p4alpha-a10p0-dirichlet-fedavg",
+        "run_ids": [
+          "p4alpha-a10p0-dirichlet-fedavg-seed0-d57d9ea65d",
+          "p4alpha-a10p0-dirichlet-fedavg-seed1-d57d9ea65d",
+          "p4alpha-a10p0-dirichlet-fedavg-seed2-d57d9ea65d",
+          "p4alpha-a10p0-dirichlet-fedavg-seed3-d57d9ea65d",
+          "p4alpha-a10p0-dirichlet-fedavg-seed4-d57d9ea65d"
+        ]
+      },
+      "p4alpha-a10p0-dirichlet-fedprox": {
+        "config_hash": "51ac666f341332fb2975cd20ca0ec66739e1dc9a01ed51c18ea701bd3bbbc67d",
+        "index": 17,
+        "name": "p4alpha-a10p0-dirichlet-fedprox",
+        "run_ids": [
+          "p4alpha-a10p0-dirichlet-fedprox-seed0-51ac666f34",
+          "p4alpha-a10p0-dirichlet-fedprox-seed1-51ac666f34",
+          "p4alpha-a10p0-dirichlet-fedprox-seed2-51ac666f34",
+          "p4alpha-a10p0-dirichlet-fedprox-seed3-51ac666f34",
+          "p4alpha-a10p0-dirichlet-fedprox-seed4-51ac666f34"
+        ]
+      },
+      "p4alpha-a10p0-dirichletquantitycontrol-fedavg": {
+        "config_hash": "c31f06598949d216f3b045e126e18277a53119f6e997d0fdc822d121c562107b",
+        "index": 18,
+        "name": "p4alpha-a10p0-dirichletquantitycontrol-fedavg",
+        "run_ids": [
+          "p4alpha-a10p0-dirichletquantitycontrol-fedavg-seed0-c31f065989",
+          "p4alpha-a10p0-dirichletquantitycontrol-fedavg-seed1-c31f065989",
+          "p4alpha-a10p0-dirichletquantitycontrol-fedavg-seed2-c31f065989",
+          "p4alpha-a10p0-dirichletquantitycontrol-fedavg-seed3-c31f065989",
+          "p4alpha-a10p0-dirichletquantitycontrol-fedavg-seed4-c31f065989"
+        ]
+      },
+      "p4alpha-a10p0-dirichletquantitycontrol-fedprox": {
+        "config_hash": "fab676c3f9b1a3ea0c5065e1c88a62f7ac778892b0e987f4dcc98384a8d35982",
+        "index": 19,
+        "name": "p4alpha-a10p0-dirichletquantitycontrol-fedprox",
+        "run_ids": [
+          "p4alpha-a10p0-dirichletquantitycontrol-fedprox-seed0-fab676c3f9",
+          "p4alpha-a10p0-dirichletquantitycontrol-fedprox-seed1-fab676c3f9",
+          "p4alpha-a10p0-dirichletquantitycontrol-fedprox-seed2-fab676c3f9",
+          "p4alpha-a10p0-dirichletquantitycontrol-fedprox-seed3-fab676c3f9",
+          "p4alpha-a10p0-dirichletquantitycontrol-fedprox-seed4-fab676c3f9"
+        ]
+      },
+      "p4alpha-a1p0-dirichlet-fedavg": {
+        "config_hash": "0540e2a38578472ea5236aadc88ce8134e60a0e077705650854ae9ee4224cfd9",
+        "index": 8,
+        "name": "p4alpha-a1p0-dirichlet-fedavg",
+        "run_ids": [
+          "p4alpha-a1p0-dirichlet-fedavg-seed0-0540e2a385",
+          "p4alpha-a1p0-dirichlet-fedavg-seed1-0540e2a385",
+          "p4alpha-a1p0-dirichlet-fedavg-seed2-0540e2a385",
+          "p4alpha-a1p0-dirichlet-fedavg-seed3-0540e2a385",
+          "p4alpha-a1p0-dirichlet-fedavg-seed4-0540e2a385"
+        ]
+      },
+      "p4alpha-a1p0-dirichlet-fedprox": {
+        "config_hash": "255171077f7d8c94a459ca776fd79c15f372b6aebb62487c4d963c2c14fa54f0",
+        "index": 9,
+        "name": "p4alpha-a1p0-dirichlet-fedprox",
+        "run_ids": [
+          "p4alpha-a1p0-dirichlet-fedprox-seed0-255171077f",
+          "p4alpha-a1p0-dirichlet-fedprox-seed1-255171077f",
+          "p4alpha-a1p0-dirichlet-fedprox-seed2-255171077f",
+          "p4alpha-a1p0-dirichlet-fedprox-seed3-255171077f",
+          "p4alpha-a1p0-dirichlet-fedprox-seed4-255171077f"
+        ]
+      },
+      "p4alpha-a1p0-dirichletquantitycontrol-fedavg": {
+        "config_hash": "21c8a1db58eea1efc24babc4d33af703f74160eca5b299b82da0149d54d825f1",
+        "index": 10,
+        "name": "p4alpha-a1p0-dirichletquantitycontrol-fedavg",
+        "run_ids": [
+          "p4alpha-a1p0-dirichletquantitycontrol-fedavg-seed0-21c8a1db58",
+          "p4alpha-a1p0-dirichletquantitycontrol-fedavg-seed1-21c8a1db58",
+          "p4alpha-a1p0-dirichletquantitycontrol-fedavg-seed2-21c8a1db58",
+          "p4alpha-a1p0-dirichletquantitycontrol-fedavg-seed3-21c8a1db58",
+          "p4alpha-a1p0-dirichletquantitycontrol-fedavg-seed4-21c8a1db58"
+        ]
+      },
+      "p4alpha-a1p0-dirichletquantitycontrol-fedprox": {
+        "config_hash": "1c76a85a10a751248c9aafda512e4e08ad557883790b48c5e804ead12fed7eeb",
+        "index": 11,
+        "name": "p4alpha-a1p0-dirichletquantitycontrol-fedprox",
+        "run_ids": [
+          "p4alpha-a1p0-dirichletquantitycontrol-fedprox-seed0-1c76a85a10",
+          "p4alpha-a1p0-dirichletquantitycontrol-fedprox-seed1-1c76a85a10",
+          "p4alpha-a1p0-dirichletquantitycontrol-fedprox-seed2-1c76a85a10",
+          "p4alpha-a1p0-dirichletquantitycontrol-fedprox-seed3-1c76a85a10",
+          "p4alpha-a1p0-dirichletquantitycontrol-fedprox-seed4-1c76a85a10"
+        ]
+      },
+      "p4alpha-a3p0-dirichlet-fedavg": {
+        "config_hash": "4117c7c8a826a7663825270f3789a3af363a1a69bf0fbbe966d9496b28ac9e17",
+        "index": 12,
+        "name": "p4alpha-a3p0-dirichlet-fedavg",
+        "run_ids": [
+          "p4alpha-a3p0-dirichlet-fedavg-seed0-4117c7c8a8",
+          "p4alpha-a3p0-dirichlet-fedavg-seed1-4117c7c8a8",
+          "p4alpha-a3p0-dirichlet-fedavg-seed2-4117c7c8a8",
+          "p4alpha-a3p0-dirichlet-fedavg-seed3-4117c7c8a8",
+          "p4alpha-a3p0-dirichlet-fedavg-seed4-4117c7c8a8"
+        ]
+      },
+      "p4alpha-a3p0-dirichlet-fedprox": {
+        "config_hash": "36456787c511545c75c5067e0d14a59f5855d935b8f2a9e757482175098ce170",
+        "index": 13,
+        "name": "p4alpha-a3p0-dirichlet-fedprox",
+        "run_ids": [
+          "p4alpha-a3p0-dirichlet-fedprox-seed0-36456787c5",
+          "p4alpha-a3p0-dirichlet-fedprox-seed1-36456787c5",
+          "p4alpha-a3p0-dirichlet-fedprox-seed2-36456787c5",
+          "p4alpha-a3p0-dirichlet-fedprox-seed3-36456787c5",
+          "p4alpha-a3p0-dirichlet-fedprox-seed4-36456787c5"
+        ]
+      },
+      "p4alpha-a3p0-dirichletquantitycontrol-fedavg": {
+        "config_hash": "b2c6d95058aeb61077c93500c05b346afd6be2990bf904ed92fe4787e1b166bd",
+        "index": 14,
+        "name": "p4alpha-a3p0-dirichletquantitycontrol-fedavg",
+        "run_ids": [
+          "p4alpha-a3p0-dirichletquantitycontrol-fedavg-seed0-b2c6d95058",
+          "p4alpha-a3p0-dirichletquantitycontrol-fedavg-seed1-b2c6d95058",
+          "p4alpha-a3p0-dirichletquantitycontrol-fedavg-seed2-b2c6d95058",
+          "p4alpha-a3p0-dirichletquantitycontrol-fedavg-seed3-b2c6d95058",
+          "p4alpha-a3p0-dirichletquantitycontrol-fedavg-seed4-b2c6d95058"
+        ]
+      },
+      "p4alpha-a3p0-dirichletquantitycontrol-fedprox": {
+        "config_hash": "dd825c90b9e3f4dca3e1be2d1f0189c551c4eb32167728915b185e55285a5435",
+        "index": 15,
+        "name": "p4alpha-a3p0-dirichletquantitycontrol-fedprox",
+        "run_ids": [
+          "p4alpha-a3p0-dirichletquantitycontrol-fedprox-seed0-dd825c90b9",
+          "p4alpha-a3p0-dirichletquantitycontrol-fedprox-seed1-dd825c90b9",
+          "p4alpha-a3p0-dirichletquantitycontrol-fedprox-seed2-dd825c90b9",
+          "p4alpha-a3p0-dirichletquantitycontrol-fedprox-seed3-dd825c90b9",
+          "p4alpha-a3p0-dirichletquantitycontrol-fedprox-seed4-dd825c90b9"
+        ]
+      }
+    },
+    "configs/sweeps/phase4_by_subject.yaml": {
+      "p4subj-fedavg": {
+        "config_hash": "382b0d6b2d2040075cc7dada59c0026cc52b25f406f276351e07b18657731f37",
+        "index": 0,
+        "name": "p4subj-fedavg",
+        "run_ids": [
+          "p4subj-fedavg-seed0-382b0d6b2d",
+          "p4subj-fedavg-seed1-382b0d6b2d",
+          "p4subj-fedavg-seed2-382b0d6b2d",
+          "p4subj-fedavg-seed3-382b0d6b2d",
+          "p4subj-fedavg-seed4-382b0d6b2d"
+        ]
+      },
+      "p4subj-fedprox": {
+        "config_hash": "9e2234adb7cfd591381de79c4a3527f9fc4515fb65a1ae17945964d728e7c072",
+        "index": 1,
+        "name": "p4subj-fedprox",
+        "run_ids": [
+          "p4subj-fedprox-seed0-9e2234adb7",
+          "p4subj-fedprox-seed1-9e2234adb7",
+          "p4subj-fedprox-seed2-9e2234adb7",
+          "p4subj-fedprox-seed3-9e2234adb7",
+          "p4subj-fedprox-seed4-9e2234adb7"
+        ]
+      }
+    },
+    "configs/sweeps/phase4_mu.yaml": {
+      "p4mu-mu0p001": {
+        "config_hash": "147d4f66ee042cf23dbe9b6a92a3444999a029ffd9480855c053a33c6b92532f",
+        "index": 0,
+        "name": "p4mu-mu0p001",
+        "run_ids": [
+          "p4mu-mu0p001-seed0-147d4f66ee",
+          "p4mu-mu0p001-seed1-147d4f66ee",
+          "p4mu-mu0p001-seed2-147d4f66ee",
+          "p4mu-mu0p001-seed3-147d4f66ee",
+          "p4mu-mu0p001-seed4-147d4f66ee"
+        ]
+      },
+      "p4mu-mu0p01": {
+        "config_hash": "db6a07251ec52972a3ff6669849f7fbe4e494aa0ea04327ebb3710a4f525374c",
+        "index": 1,
+        "name": "p4mu-mu0p01",
+        "run_ids": [
+          "p4mu-mu0p01-seed0-db6a07251e",
+          "p4mu-mu0p01-seed1-db6a07251e",
+          "p4mu-mu0p01-seed2-db6a07251e",
+          "p4mu-mu0p01-seed3-db6a07251e",
+          "p4mu-mu0p01-seed4-db6a07251e"
+        ]
+      },
+      "p4mu-mu0p1": {
+        "config_hash": "d04fba89bfc00c16671a5f83f54c56176c0f436bafcec3dc2ee5660cba01babf",
+        "index": 2,
+        "name": "p4mu-mu0p1",
+        "run_ids": [
+          "p4mu-mu0p1-seed0-d04fba89bf",
+          "p4mu-mu0p1-seed1-d04fba89bf",
+          "p4mu-mu0p1-seed2-d04fba89bf",
+          "p4mu-mu0p1-seed3-d04fba89bf",
+          "p4mu-mu0p1-seed4-d04fba89bf"
+        ]
+      },
+      "p4mu-mu1p0": {
+        "config_hash": "f22cc0ff09fc2a3b1ea7329790e21685691835dfa6cf4b372432e3b7b580aaf5",
+        "index": 3,
+        "name": "p4mu-mu1p0",
+        "run_ids": [
+          "p4mu-mu1p0-seed0-f22cc0ff09",
+          "p4mu-mu1p0-seed1-f22cc0ff09",
+          "p4mu-mu1p0-seed2-f22cc0ff09",
+          "p4mu-mu1p0-seed3-f22cc0ff09",
+          "p4mu-mu1p0-seed4-f22cc0ff09"
+        ]
+      }
+    },
+    "configs/sweeps/phase5_eps.yaml": {
+      "p5eps-base": {
+        "config_hash": "eeaeb768e65fb750a7ae3b0334f73885502965f170c05d8d324b9466a9427c10",
+        "index": 0,
+        "name": "p5eps-base",
+        "run_ids": [
+          "p5eps-base-seed0-eeaeb768e6",
+          "p5eps-base-seed1-eeaeb768e6",
+          "p5eps-base-seed2-eeaeb768e6",
+          "p5eps-base-seed3-eeaeb768e6",
+          "p5eps-base-seed4-eeaeb768e6"
+        ]
+      },
+      "p5eps-eps0p5": {
+        "config_hash": "72db4979261d54dcc42d0fdebe3b548b1986611ad35f8fca4d83b8bac1489565",
+        "index": 1,
+        "name": "p5eps-eps0p5",
+        "run_ids": [
+          "p5eps-eps0p5-seed0-72db497926",
+          "p5eps-eps0p5-seed1-72db497926",
+          "p5eps-eps0p5-seed2-72db497926",
+          "p5eps-eps0p5-seed3-72db497926",
+          "p5eps-eps0p5-seed4-72db497926"
+        ]
+      },
+      "p5eps-eps10p0": {
+        "config_hash": "60530bf472aa7041eeb82d1cab03aa7a0d5a4a0ef60e10a897974b0630bf3c4c",
+        "index": 6,
+        "name": "p5eps-eps10p0",
+        "run_ids": [
+          "p5eps-eps10p0-seed0-60530bf472",
+          "p5eps-eps10p0-seed1-60530bf472",
+          "p5eps-eps10p0-seed2-60530bf472",
+          "p5eps-eps10p0-seed3-60530bf472",
+          "p5eps-eps10p0-seed4-60530bf472"
+        ]
+      },
+      "p5eps-eps13p0": {
+        "config_hash": "945b4453131c9c07ce77087022a794617a0eda0301cf4616a5861528ca5661d3",
+        "index": 7,
+        "name": "p5eps-eps13p0",
+        "run_ids": [
+          "p5eps-eps13p0-seed0-945b445313",
+          "p5eps-eps13p0-seed1-945b445313",
+          "p5eps-eps13p0-seed2-945b445313",
+          "p5eps-eps13p0-seed3-945b445313",
+          "p5eps-eps13p0-seed4-945b445313"
+        ]
+      },
+      "p5eps-eps1p0": {
+        "config_hash": "ea373fd066105ba5259835a50e28ca226194f628c7f741ee5ed359677ce7fb2b",
+        "index": 2,
+        "name": "p5eps-eps1p0",
+        "run_ids": [
+          "p5eps-eps1p0-seed0-ea373fd066",
+          "p5eps-eps1p0-seed1-ea373fd066",
+          "p5eps-eps1p0-seed2-ea373fd066",
+          "p5eps-eps1p0-seed3-ea373fd066",
+          "p5eps-eps1p0-seed4-ea373fd066"
+        ]
+      },
+      "p5eps-eps2p0": {
+        "config_hash": "3f77428fc410a46fa883e898e5fe66e43549dac392587decaa2ca25325cd5cc4",
+        "index": 3,
+        "name": "p5eps-eps2p0",
+        "run_ids": [
+          "p5eps-eps2p0-seed0-3f77428fc4",
+          "p5eps-eps2p0-seed1-3f77428fc4",
+          "p5eps-eps2p0-seed2-3f77428fc4",
+          "p5eps-eps2p0-seed3-3f77428fc4",
+          "p5eps-eps2p0-seed4-3f77428fc4"
+        ]
+      },
+      "p5eps-eps3p0": {
+        "config_hash": "f9b637f1a2175685913c149aeaab14a995f1d0f165e4e347588f705aa4fe86bc",
+        "index": 4,
+        "name": "p5eps-eps3p0",
+        "run_ids": [
+          "p5eps-eps3p0-seed0-f9b637f1a2",
+          "p5eps-eps3p0-seed1-f9b637f1a2",
+          "p5eps-eps3p0-seed2-f9b637f1a2",
+          "p5eps-eps3p0-seed3-f9b637f1a2",
+          "p5eps-eps3p0-seed4-f9b637f1a2"
+        ]
+      },
+      "p5eps-eps5p0": {
+        "config_hash": "b94c81896090e648f4bbb5fb0442f56b131e29ed1ab4fcd501750f11cd5abb31",
+        "index": 5,
+        "name": "p5eps-eps5p0",
+        "run_ids": [
+          "p5eps-eps5p0-seed0-b94c818960",
+          "p5eps-eps5p0-seed1-b94c818960",
+          "p5eps-eps5p0-seed2-b94c818960",
+          "p5eps-eps5p0-seed3-b94c818960",
+          "p5eps-eps5p0-seed4-b94c818960"
+        ]
+      }
+    },
+    "configs/sweeps/phase5_eps_cluster.yaml": {
+      "p5epsc-base": {
+        "config_hash": "128cfc26426116141015f271c811fb727341597f1f6c71e2b9dd7960cfcbbfd0",
+        "index": 0,
+        "name": "p5epsc-base",
+        "run_ids": [
+          "p5epsc-base-seed0-128cfc2642",
+          "p5epsc-base-seed1-128cfc2642",
+          "p5epsc-base-seed2-128cfc2642",
+          "p5epsc-base-seed3-128cfc2642",
+          "p5epsc-base-seed4-128cfc2642"
+        ]
+      },
+      "p5epsc-eps0p5": {
+        "config_hash": "7f38d5b0ee5caf35ab928fec3c628ae6a9c67d3f10eda3ad9b21cdf14989d531",
+        "index": 1,
+        "name": "p5epsc-eps0p5",
+        "run_ids": [
+          "p5epsc-eps0p5-seed0-7f38d5b0ee",
+          "p5epsc-eps0p5-seed1-7f38d5b0ee",
+          "p5epsc-eps0p5-seed2-7f38d5b0ee",
+          "p5epsc-eps0p5-seed3-7f38d5b0ee",
+          "p5epsc-eps0p5-seed4-7f38d5b0ee"
+        ]
+      },
+      "p5epsc-eps10p0": {
+        "config_hash": "eaf77416d412bf4cab17b69d7d4222786f4c626358f5d6fab78a57c1c19742a5",
+        "index": 6,
+        "name": "p5epsc-eps10p0",
+        "run_ids": [
+          "p5epsc-eps10p0-seed0-eaf77416d4",
+          "p5epsc-eps10p0-seed1-eaf77416d4",
+          "p5epsc-eps10p0-seed2-eaf77416d4",
+          "p5epsc-eps10p0-seed3-eaf77416d4",
+          "p5epsc-eps10p0-seed4-eaf77416d4"
+        ]
+      },
+      "p5epsc-eps13p0": {
+        "config_hash": "31cc90ef2b2ce860691469936676d09a2f59cf9546f58f5564dd570b8e35adc3",
+        "index": 7,
+        "name": "p5epsc-eps13p0",
+        "run_ids": [
+          "p5epsc-eps13p0-seed0-31cc90ef2b",
+          "p5epsc-eps13p0-seed1-31cc90ef2b",
+          "p5epsc-eps13p0-seed2-31cc90ef2b",
+          "p5epsc-eps13p0-seed3-31cc90ef2b",
+          "p5epsc-eps13p0-seed4-31cc90ef2b"
+        ]
+      },
+      "p5epsc-eps1p0": {
+        "config_hash": "c74a59788b03856eeb834237505e048c2e89642b3d8f7c521ff23e59bb1fdd27",
+        "index": 2,
+        "name": "p5epsc-eps1p0",
+        "run_ids": [
+          "p5epsc-eps1p0-seed0-c74a59788b",
+          "p5epsc-eps1p0-seed1-c74a59788b",
+          "p5epsc-eps1p0-seed2-c74a59788b",
+          "p5epsc-eps1p0-seed3-c74a59788b",
+          "p5epsc-eps1p0-seed4-c74a59788b"
+        ]
+      },
+      "p5epsc-eps2p0": {
+        "config_hash": "7db1c83b50d4afc3387f34094825948219dc917e0ca314b0a92d025efeff8ae6",
+        "index": 3,
+        "name": "p5epsc-eps2p0",
+        "run_ids": [
+          "p5epsc-eps2p0-seed0-7db1c83b50",
+          "p5epsc-eps2p0-seed1-7db1c83b50",
+          "p5epsc-eps2p0-seed2-7db1c83b50",
+          "p5epsc-eps2p0-seed3-7db1c83b50",
+          "p5epsc-eps2p0-seed4-7db1c83b50"
+        ]
+      },
+      "p5epsc-eps3p0": {
+        "config_hash": "9280372589f7274b041dbc01a315e9f9fa1e5adf6966bcbe4b406a9f253b4f89",
+        "index": 4,
+        "name": "p5epsc-eps3p0",
+        "run_ids": [
+          "p5epsc-eps3p0-seed0-9280372589",
+          "p5epsc-eps3p0-seed1-9280372589",
+          "p5epsc-eps3p0-seed2-9280372589",
+          "p5epsc-eps3p0-seed3-9280372589",
+          "p5epsc-eps3p0-seed4-9280372589"
+        ]
+      },
+      "p5epsc-eps5p0": {
+        "config_hash": "97b9447b83cd6a377343f9c7d938cb8f27e28f1d044fa79c1cc58a8bcf0046d3",
+        "index": 5,
+        "name": "p5epsc-eps5p0",
+        "run_ids": [
+          "p5epsc-eps5p0-seed0-97b9447b83",
+          "p5epsc-eps5p0-seed1-97b9447b83",
+          "p5epsc-eps5p0-seed2-97b9447b83",
+          "p5epsc-eps5p0-seed3-97b9447b83",
+          "p5epsc-eps5p0-seed4-97b9447b83"
+        ]
+      }
+    },
+    "configs/sweeps/phase6_dark.yaml": {
+      "p6dark-fedavg": {
+        "config_hash": "4bbde8681f7493ade497dc8bb5006490e571dea948e758e75c7f0db43fc01214",
+        "index": 0,
+        "name": "p6dark-fedavg",
+        "run_ids": [
+          "p6dark-fedavg-seed0-4bbde8681f",
+          "p6dark-fedavg-seed1-4bbde8681f",
+          "p6dark-fedavg-seed2-4bbde8681f",
+          "p6dark-fedavg-seed3-4bbde8681f",
+          "p6dark-fedavg-seed4-4bbde8681f"
+        ]
+      },
+      "p6dark-fedavg-dl3600": {
+        "config_hash": "303b6f710fc6d756549797f8fdb2eeaf500c959bbc90f43d81e634e5d7c0362b",
+        "index": 1,
+        "name": "p6dark-fedavg-dl3600",
+        "run_ids": [
+          "p6dark-fedavg-dl3600-seed0-303b6f710f",
+          "p6dark-fedavg-dl3600-seed1-303b6f710f",
+          "p6dark-fedavg-dl3600-seed2-303b6f710f",
+          "p6dark-fedavg-dl3600-seed3-303b6f710f",
+          "p6dark-fedavg-dl3600-seed4-303b6f710f"
+        ]
+      },
+      "p6dark-fedbuff": {
+        "config_hash": "7e19e6b456abfcf5a885cf006ac082000464d70f3a7bbc06bd6d88fc24f5995f",
+        "index": 2,
+        "name": "p6dark-fedbuff",
+        "run_ids": [
+          "p6dark-fedbuff-seed0-7e19e6b456",
+          "p6dark-fedbuff-seed1-7e19e6b456",
+          "p6dark-fedbuff-seed2-7e19e6b456",
+          "p6dark-fedbuff-seed3-7e19e6b456",
+          "p6dark-fedbuff-seed4-7e19e6b456"
+        ]
+      }
+    },
+    "configs/sweeps/phase6_presets.yaml": {
+      "p6pre-earth-fedavg": {
+        "config_hash": "11ed567b3276fe97cb7ae5ee16f297c302ae44790e27a86d56aa60abfe3e6c06",
+        "index": 0,
+        "name": "p6pre-earth-fedavg",
+        "run_ids": [
+          "p6pre-earth-fedavg-seed0-11ed567b32",
+          "p6pre-earth-fedavg-seed1-11ed567b32",
+          "p6pre-earth-fedavg-seed2-11ed567b32",
+          "p6pre-earth-fedavg-seed3-11ed567b32",
+          "p6pre-earth-fedavg-seed4-11ed567b32"
+        ]
+      },
+      "p6pre-earth-fedbuff": {
+        "config_hash": "a6f210d3fe88ab91fd31ae174fb50ebcae5bfa2b1aa0f8479ce3702bf8be8ea9",
+        "index": 1,
+        "name": "p6pre-earth-fedbuff",
+        "run_ids": [
+          "p6pre-earth-fedbuff-seed0-a6f210d3fe",
+          "p6pre-earth-fedbuff-seed1-a6f210d3fe",
+          "p6pre-earth-fedbuff-seed2-a6f210d3fe",
+          "p6pre-earth-fedbuff-seed3-a6f210d3fe",
+          "p6pre-earth-fedbuff-seed4-a6f210d3fe"
+        ]
+      },
+      "p6pre-marsfar-fedavg": {
+        "config_hash": "c029e6f5cf2b2c705de96c7507057d80cfe538360218e7af2aee84b1e72c8141",
+        "index": 6,
+        "name": "p6pre-marsfar-fedavg",
+        "run_ids": [
+          "p6pre-marsfar-fedavg-seed0-c029e6f5cf",
+          "p6pre-marsfar-fedavg-seed1-c029e6f5cf",
+          "p6pre-marsfar-fedavg-seed2-c029e6f5cf",
+          "p6pre-marsfar-fedavg-seed3-c029e6f5cf",
+          "p6pre-marsfar-fedavg-seed4-c029e6f5cf"
+        ]
+      },
+      "p6pre-marsfar-fedbuff": {
+        "config_hash": "0d31114ef86d8b5668cba9bafd773ebc79532fd13368e1f060dfc81a0d5abac7",
+        "index": 7,
+        "name": "p6pre-marsfar-fedbuff",
+        "run_ids": [
+          "p6pre-marsfar-fedbuff-seed0-0d31114ef8",
+          "p6pre-marsfar-fedbuff-seed1-0d31114ef8",
+          "p6pre-marsfar-fedbuff-seed2-0d31114ef8",
+          "p6pre-marsfar-fedbuff-seed3-0d31114ef8",
+          "p6pre-marsfar-fedbuff-seed4-0d31114ef8"
+        ]
+      },
+      "p6pre-marsnear-fedavg": {
+        "config_hash": "af9acaa9de4db0e84871cf1916d8dc164419eb4795a94ae82511fb95107ed076",
+        "index": 4,
+        "name": "p6pre-marsnear-fedavg",
+        "run_ids": [
+          "p6pre-marsnear-fedavg-seed0-af9acaa9de",
+          "p6pre-marsnear-fedavg-seed1-af9acaa9de",
+          "p6pre-marsnear-fedavg-seed2-af9acaa9de",
+          "p6pre-marsnear-fedavg-seed3-af9acaa9de",
+          "p6pre-marsnear-fedavg-seed4-af9acaa9de"
+        ]
+      },
+      "p6pre-marsnear-fedbuff": {
+        "config_hash": "fe2b96ee366680d0656ba7ff2e914bbd994e86a70b3e0db9630ebda6e903ef86",
+        "index": 5,
+        "name": "p6pre-marsnear-fedbuff",
+        "run_ids": [
+          "p6pre-marsnear-fedbuff-seed0-fe2b96ee36",
+          "p6pre-marsnear-fedbuff-seed1-fe2b96ee36",
+          "p6pre-marsnear-fedbuff-seed2-fe2b96ee36",
+          "p6pre-marsnear-fedbuff-seed3-fe2b96ee36",
+          "p6pre-marsnear-fedbuff-seed4-fe2b96ee36"
+        ]
+      },
+      "p6pre-moon-fedavg": {
+        "config_hash": "e6a22e3903e794a6eaa26cb80f81c6cf40a968c2db72cd30a4baf7f10f33d0b5",
+        "index": 2,
+        "name": "p6pre-moon-fedavg",
+        "run_ids": [
+          "p6pre-moon-fedavg-seed0-e6a22e3903",
+          "p6pre-moon-fedavg-seed1-e6a22e3903",
+          "p6pre-moon-fedavg-seed2-e6a22e3903",
+          "p6pre-moon-fedavg-seed3-e6a22e3903",
+          "p6pre-moon-fedavg-seed4-e6a22e3903"
+        ]
+      },
+      "p6pre-moon-fedbuff": {
+        "config_hash": "651be63007d738e4ff41020f62f013e8ca4546a5d6b850e0bb44f9a020d7b53c",
+        "index": 3,
+        "name": "p6pre-moon-fedbuff",
+        "run_ids": [
+          "p6pre-moon-fedbuff-seed0-651be63007",
+          "p6pre-moon-fedbuff-seed1-651be63007",
+          "p6pre-moon-fedbuff-seed2-651be63007",
+          "p6pre-moon-fedbuff-seed3-651be63007",
+          "p6pre-moon-fedbuff-seed4-651be63007"
+        ]
+      }
+    }
+  }
+}

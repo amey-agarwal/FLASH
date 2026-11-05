@@ -1,0 +1,69 @@
+{
+  "items": {
+    "G1": {
+      "config": "configs/experiments/wesad_by_subject.yaml",
+      "finding": "three-arm H1 on WESAD by-subject",
+      "variant": null
+    },
+    "G2": {
+      "config": "configs/sweeps/phase4_alpha.yaml",
+      "finding": "federated performance vs Dirichlet alpha (strongest skew)",
+      "variant": "p4alpha-a0p1-dirichlet-fedavg"
+    },
+    "G3": {
+      "config": "configs/sweeps/phase4_mu.yaml",
+      "finding": "FedProx mu sweep (the only mu with a measurable effect)",
+      "variant": "p4mu-mu1p0"
+    },
+    "G4": {
+      "config": "configs/sweeps/phase5_eps.yaml",
+      "finding": "DP utility collapse at small epsilon; attack under DP",
+      "variant": "p5eps-eps1p0"
+    },
+    "G5": {
+      "config": "configs/sweeps/phase6_presets.yaml",
+      "finding": "FedBuff speed from excluding far silos (Mars far, loss of signal on)",
+      "variant": "p6pre-marsfar-fedbuff"
+    }
+  },
+  "needs_clean_runs": {
+    "G1": [
+      "wesad_by_subject-seed0-ce31e25dda",
+      "wesad_by_subject-seed1-ce31e25dda",
+      "wesad_by_subject-seed2-ce31e25dda",
+      "wesad_by_subject-seed3-ce31e25dda",
+      "wesad_by_subject-seed4-ce31e25dda"
+    ],
+    "G2": [
+      "p4alpha-a0p1-dirichlet-fedavg-seed0-51351f4a1a",
+      "p4alpha-a0p1-dirichlet-fedavg-seed1-51351f4a1a",
+      "p4alpha-a0p1-dirichlet-fedavg-seed2-51351f4a1a",
+      "p4alpha-a0p1-dirichlet-fedavg-seed3-51351f4a1a",
+      "p4alpha-a0p1-dirichlet-fedavg-seed4-51351f4a1a"
+    ],
+    "G3": [
+      "p4mu-mu1p0-seed0-f22cc0ff09",
+      "p4mu-mu1p0-seed1-f22cc0ff09",
+      "p4mu-mu1p0-seed2-f22cc0ff09",
+      "p4mu-mu1p0-seed3-f22cc0ff09",
+      "p4mu-mu1p0-seed4-f22cc0ff09"
+    ],
+    "G4": [
+      "p5eps-eps1p0-seed0-ea373fd066",
+      "p5eps-eps1p0-seed1-ea373fd066",
+      "p5eps-eps1p0-seed2-ea373fd066",
+      "p5eps-eps1p0-seed3-ea373fd066",
+      "p5eps-eps1p0-seed4-ea373fd066"
+    ],
+    "G5": [
+      "p6pre-marsfar-fedbuff-seed0-0d31114ef8",
+      "p6pre-marsfar-fedbuff-seed1-0d31114ef8",
+      "p6pre-marsfar-fedbuff-seed2-0d31114ef8",
+      "p6pre-marsfar-fedbuff-seed3-0d31114ef8",
+      "p6pre-marsfar-fedbuff-seed4-0d31114ef8"
+    ]
+  },
+  "reason": "Only -dirty runs exist (PROGRESS.md, Phase 10). Run scripts/slurm/golden.sbatch on a clean commit, then: python scripts/golden.py freeze --runs-dir <dir>.",
+  "status": "PENDING",
+  "tolerance": 0.001
+}
