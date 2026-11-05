@@ -38,7 +38,7 @@ def test_metrics_golden_covers_the_pinned_subset():
     m = json.loads(golden.METRICS.read_text())
     assert m["tolerance"] == golden.TOLERANCE == 1e-3
     pinned = golden.pinned_run_ids()
-    assert set(pinned) == {"G1", "G2", "G3", "G4", "G5"}
+    assert set(pinned) == {"G1", "G2", "G3", "G4", "G4b", "G5"}
     assert len(pinned["G1"]) == 5
     if m["status"] == "PENDING":
         assert m["needs_clean_runs"] == pinned
@@ -66,6 +66,19 @@ def test_compare_metrics_tolerance_and_structure():
     assert len(golden.compare_metrics(want, {**want, "a.auc": 0.5})) == 1  # None -> number
     extra = golden.compare_metrics(want, {**want, "a.f1": 0.6})
     assert extra == ["a.f1: new field"]
+
+
+def test_g4b_compares_every_attack_cell():
+    item = next(i for i in golden.PINNED if i.id == "G4b")
+    assert item.variant == "p5eps-base" and item.attack_cells
+    cell = {"state": "final", "batch_size": 1, "labels": "known",
+            "mse": {"mean": 0.08, "std": 0.04}, "nn_identified": {"mean": 0.93, "std": 0.15}}
+    result = {"arms": {}, "privacy": {"attack": {
+        "mse": 0.08, "silos": {"nasa_earth": {"cells": [cell, {**cell, "batch_size": 32}]}}}}}
+    m = golden.extract_metrics(result, item)
+    assert m["privacy.attack.cells.nasa_earth.final.B1.known.nn_identified"] == 0.93
+    assert "privacy.attack.cells.nasa_earth.final.B32.known.mse" in m
+    assert m["privacy.attack.mse"] == 0.08
 
 
 def test_freeze_rejects_dirty_mixed_or_synthetic_runs():

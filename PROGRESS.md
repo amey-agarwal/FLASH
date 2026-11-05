@@ -2,9 +2,10 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
-**Phase 10 (reproducibility lock, CLAUDE2.md): AT THE GATE (2026-11-05). Tier A passes; Tier B
-is pending clean-commit cluster runs (job script ready). Not committed, not tagged: the user
-commits and tags.** The plan now follows CLAUDE2.md: Phases 10–18 replace CLAUDE.md Phases 7–9.
+**Phase 10 (reproducibility lock, CLAUDE2.md): COMPLETE (2026-11-05). Committed on branch
+`agency-build` (`121838e`), tagged `v0.6-golden`. The G4b amendment (below) is not committed yet
+and needs the new tag `v0.6.1-golden`. Tier A passes; Tier B is pending clean-commit cluster runs
+(job script ready).** The plan now follows CLAUDE2.md: Phases 10–18 replace CLAUDE.md Phases 7–9.
 Phases 0–6 are committed (Phase 6 in `b99ef93`). Long commands run under `caffeinate -i`.
 **GPU cluster (PACE ICE):** shakedown DONE 2026-10-29. **Clean-commit batch started
 2026-11-04 at `9bd7753`:** attack settings frozen, prep job passed; `p5epsc` and the poster
@@ -12,11 +13,38 @@ configs are next (below).
 
 ---
 
-## Phase 10 — Reproducibility lock — AT THE GATE (2026-11-05)
+## Phase 10 — Reproducibility lock — COMPLETE (2026-11-05)
 
-**Not committed.** Suggested message:
-`test(golden): phase 10 reproducibility lock (run-id and smoke golden files, Tier B tooling, SLURM jobs)`.
-Then tag: `git tag -a v0.6-golden -m "Phase 10 reproducibility lock" && git push origin v0.6-golden`.
+Committed by the user on branch `agency-build` as `121838e`
+(`test(golden): phase 10 reproducibility lock ...`), tagged `v0.6-golden`.
+
+### Amendment 2026-11-05: G4b added (user decision, approval recorded here)
+- **Decision:** the user asked for `p5eps-base` as a 6th pinned item, so Tier B covers both
+  halves of G4: the DP utility collapse (G4, ε 1) and the no-DP attack success against batch size
+  (G4b, B=1 vs B=32). This closes risk R11.
+- **G4b compares** the base fields, `privacy.attack.mse` (the headline), and **every attack
+  cell**: 5 silos × 2 model states × 3 batch sizes × 2 label modes, the trial-mean `mse` and
+  `nn_identified` (120 values per run).
+- **Files changed (no `src/` change):**
+  - `scripts/golden.py`: `PINNED` gains G4b, plus an `attack_cells` flag and `ATTACK_CELL_SCORES`.
+  - `scripts/slurm/golden.sbatch`: array 0–5, `ITEMS=(G1 G2 G3 G4 G5 G4b)`. Indices 0–4 are
+    unchanged; G4b is index 5.
+  - `tests/test_golden.py`: 9 tests (new `test_g4b_compares_every_attack_cell`).
+  - `Makefile` comment: about 2.5 h of CPU.
+- **Golden file change, approved by the user (2026-11-05):** `tests/golden/metrics.json`
+  regenerated with `golden.py pending --force`. It is still PENDING and now lists 30 run ids
+  (G4b: `p5eps-base-seed{0..4}-eeaeb768e6`). `run_ids.json` and `smoke_result.json` are
+  unchanged: G4b is an existing variant.
+- **Verified:**
+  - `golden.py ids`: run ids match the lock.
+  - `pytest tests/test_golden.py`: 9 passed.
+  - Cell extraction on a current-format attack result (`smoke_dp`, synthetic): 80 cell fields for
+    its grid. The local `p5eps-base` runs use the older single-silo layout, so they cannot be used.
+- **Tag:** `v0.6-golden` (`121838e`) predates G4b. Golden runs must use the amended commit.
+  Tag it `v0.6.1-golden` rather than moving the pushed tag:
+  `git tag -a v0.6.1-golden -m "Phase 10 lock + G4b" && git push origin v0.6.1-golden`.
+  Suggested commit message:
+  `test(golden): pin p5eps-base as G4b (no-DP attack vs batch size)`.
 
 ### Session start
 - Golden Tier A did not exist yet, so the full existing suite was the clean-start check, run
@@ -27,17 +55,17 @@ Then tag: `git tag -a v0.6-golden -m "Phase 10 reproducibility lock" && git push
   - `ids [--write]`: run ids of every experiment config and sweep variant.
   - `smoke [--write]`: the smoke result, compared byte for byte.
   - `pending`: writes the placeholder `metrics.json`.
-  - `run --item G1..G5`: re-runs the pinned subset through the normal CLI (`fedastro sweep` for
-    G1, `fedastro grid --index i` for G2–G5).
+  - `run --item G1..G5 G4b`: re-runs the pinned subset through the normal CLI (`fedastro sweep`
+    for G1, `fedastro grid --index i` for the others).
   - `check --runs-dir`: compares final metrics with `metrics.json` at 1e-3.
   - `freeze --runs-dir`: writes `metrics.json` from clean runs.
 - **`tests/golden/run_ids.json`**: 10 experiment configs and 53 sweep variants, 306 run ids, with
   full 64-hex config hashes. G1 = `wesad_by_subject`, hash `ce31e25dda…` (the laptop-vs-cluster hash).
 - **`tests/golden/smoke_result.json`**: `fedastro run configs/experiments/smoke.yaml --seed 0` with
   `SOURCE_DATE_EPOCH=0`, and `git_sha` masked as `GOLDEN-MASKED`.
-- **`tests/golden/metrics.json`: status `PENDING`.** It lists the 25 pinned run ids that need
-  clean-commit runs (below).
-- **`tests/test_golden.py`** (Tier A, 8 tests):
+- **`tests/golden/metrics.json`: status `PENDING`.** It lists the pinned run ids that need
+  clean-commit runs: 25 at `v0.6-golden`, 30 after the G4b amendment (below).
+- **`tests/test_golden.py`** (Tier A, 8 tests; 9 after the amendment):
   - run ids against the lock;
   - G1 hash check;
   - smoke byte identity;
@@ -50,7 +78,7 @@ Then tag: `git tag -a v0.6-golden -m "Phase 10 reproducibility lock" && git push
   - `common.sh`: sources `~/.bashrc` safely (the PACE `/etc/bashrc` issue), refuses a dirty tree,
     sets `OUT=runs/<prefix>-<sha>` and a per-job `RAY_TMPDIR`.
   - `p5epsc.sbatch`: array 0–7, one variant per job, 8 h.
-  - `golden.sbatch`: array 0–4 = G1–G5, one item per job, 3 h.
+  - `golden.sbatch`: array 0–4 = G1–G5 (0–5 with G4b after the amendment), one item per job, 3 h.
   - Submit from the repo root after `mkdir -p runs/slurm`.
 - **Frozen `privacy.attack` block and commit sha**: recorded 2026-11-04 in the clean-commit batch
   section below (commit `9bd7753`, `trials: 10`, every silo, both label modes). This was Phase 5
@@ -64,6 +92,7 @@ Then tag: `git tag -a v0.6-golden -m "Phase 10 reproducibility lock" && git push
 | G3 | `sweeps/phase4_mu.yaml` | `p4mu-mu1p0` | the same |
 | G4 | `sweeps/phase5_eps.yaml` | `p5eps-eps1p0` | the same + `privacy.epsilon`, `privacy.attack.mse` |
 | G5 | `sweeps/phase6_presets.yaml` | `p6pre-marsfar-fedbuff` | the same + `sim_wallclock_s_total`, per-silo `dispatches` |
+| G4b | `sweeps/phase5_eps.yaml` | `p5eps-base` (no DP) | the same + `privacy.attack.mse` + every attack cell's `mse` and `nn_identified` (amendment, 2026-11-05) |
 
 1. **G2 = α 0.1**, the strongest skew and the end point of the degradation curve.
 2. **G3 = μ 1**, the only μ with a measurable effect, so it is the most sensitive canary for
@@ -71,14 +100,15 @@ Then tag: `git tag -a v0.6-golden -m "Phase 10 reproducibility lock" && git push
 3. **G4 = `p5eps` ε 1 (3 attack trials), not `p5epsc`.**
    - It covers Opacus and the attack under DP, at ~1 h per Tier B run instead of ~3 h.
    - Trade-off: the "attack succeeds at B=1, modest at B=32" half of G4 is a no-DP result, so it
-     is not in the pinned variant. Alternative: `p5eps-base`, which drops Opacus coverage.
+     is not in the pinned variant. **Resolved 2026-11-05:** `p5eps-base` added as G4b, alongside
+     G4 rather than replacing it, so Opacus coverage stays.
    - The local `p5eps` runs carry an older hash (`4a68779d84`, before `chance_draws`), so G4
      needs new runs anyway (`ea373fd066`).
 4. **G5 = Mars-far FedBuff**: comms, the outage model and FedBuff in one variant.
 5. **Tolerance: absolute 1e-3 on every number**, including simulated seconds and dispatch counts
    (counts are integers, so effectively exact). `None` must stay `None`, and the set of fields
    must not change.
-6. **Freeze rules:** all 25 runs must come from **one clean commit** with REAL provenance.
+6. **Freeze rules:** all pinned runs (30 with G4b) must come from **one clean commit** with REAL provenance.
    Overwriting a frozen golden file needs `--force` and the user's approval recorded here.
    Replacing the PENDING placeholder is the intended first freeze.
 7. **Smoke byte identity masks `git_sha`.** It is the one field that names the commit, so an
@@ -94,26 +124,82 @@ Then tag: `git tag -a v0.6-golden -m "Phase 10 reproducibility lock" && git push
 | Tier A passes | **Yes.** `make test` (laptop, 2026-11-05): **181 passed, 1 skipped (CUDA), 1 warning** (the known sklearn notice), 7 min 46 s. That is the 173 earlier tests plus the 8 new golden tests. The smoke byte check also holds when run after the whole suite in one process |
 | Tier B passing, or pending with job scripts ready | **Pending.** `metrics.json` is PENDING; `scripts/slurm/golden.sbatch` is ready. Verified: `check` exits 2 on PENDING; `freeze` refuses missing runs and the local `-dirty` runs (494e164-dirty for G1) and leaves `metrics.json` unchanged |
 | No file under `src/` changed | **Yes**: `git diff --stat -- src` and `git status -- src` are empty |
-| Tag `v0.6-golden` | **Not created**: the user commits and tags (commands above) |
+| Tag `v0.6-golden` | **Created by the user** on `121838e` (branch `agency-build`). The G4b amendment needs `v0.6.1-golden` |
 
 ### Clean-commit runs needed for Tier B (the gate's stop)
-Only `-dirty` runs exist on the laptop. **Run `scripts/slurm/golden.sbatch` (5 jobs) on the
-tagged commit.** Freezing requires one commit, so G1–G3 from the running `9bd7753` batch cannot
-be combined with new G4/G5 runs. Run ids:
+Only `-dirty` runs exist on the laptop. **Run `scripts/slurm/golden.sbatch` (6 jobs) on the
+commit tagged `v0.6.1-golden`.** Freezing requires one commit, so G1–G3 from the running `9bd7753`
+batch cannot be combined with new G4/G5 runs. Run ids:
 - G1: `wesad_by_subject-seed{0..4}-ce31e25dda`
 - G2: `p4alpha-a0p1-dirichlet-fedavg-seed{0..4}-51351f4a1a`
 - G3: `p4mu-mu1p0-seed{0..4}-f22cc0ff09`
 - G4: `p5eps-eps1p0-seed{0..4}-ea373fd066`
 - G5: `p6pre-marsfar-fedbuff-seed{0..4}-0d31114ef8`
+- G4b: `p5eps-base-seed{0..4}-eeaeb768e6`
 
 Steps:
-1. Commit and tag.
+1. Commit the G4b amendment and tag it `v0.6.1-golden`.
 2. Let the `9bd7753` batch finish, or use a second clone. Pulling into `$SCR/FLASH` mid-batch
    would give later jobs a different `git_sha`.
 3. `mkdir -p runs/slurm && sbatch scripts/slurm/golden.sbatch`.
 4. On the login node: `uv run --frozen python scripts/golden.py freeze --runs-dir runs/golden-<sha>`,
    then `... check --runs-dir runs/golden-<sha>` (it must report `Tier B PASSED`).
 5. Commit `tests/golden/metrics.json` (it records its source sha).
+
+### Risk statement for PACE runs (read before every Tier B or golden run)
+Written 2026-11-05. The Phase 10 commit is on branch `agency-build`, tagged `v0.6-golden`. Golden
+runs use the G4b amendment, tagged `v0.6.1-golden`. The `9bd7753` batch (`p5epsc` + poster
+configs) is still running in `$SCR/FLASH`. Repo edits will not be pulled on PACE until it finishes.
+
+| # | Risk | What goes wrong | Mitigation |
+|---|---|---|---|
+| R1 | Changing `$SCR/FLASH` while its jobs run | Jobs read source files live: later seeds could run different code, and results record another `git_sha` | Do not `checkout`, `pull` or edit in `$SCR/FLASH` until the `9bd7753` batch has finished and been copied back |
+| R2 | Golden runs from the wrong commit | `metrics.json` would record a commit that is not the tag | Run golden from a separate clone of the tag: `git clone --branch v0.6.1-golden <repo> $SCR/FLASH-golden`, `make install`, `export FEDASTRO_DATA_ROOT=$SCR/FLASH/data` before `sbatch` (it reuses the WESAD zip and cache) |
+| R3 | Mixing batches | `freeze` refuses runs from more than one commit | Freeze only `runs/golden-<sha>` from `golden.sbatch`. Never add `9bd7753` batch runs to it |
+| R4 | Nodes not giving identical results | Different nodes (CPU model, math library path) could give slightly different floats; a later Tier B on another node could then "move" with no code change | Cross-check: golden G1–G3 must equal the `9bd7753` batch results for the same run ids (same code). Record each job's node (`hostname` in the log, `manifest.json`) and `lscpu \| grep "Model name"`. If they differ, report it before freezing |
+| R5 | Tier B across platforms | Freeze on PACE, check on the laptop: G2 (α 0.1) and G4 (1000-step attack) are the most likely to exceed 1e-3 | Treat the PACE `check` as the gate result; a laptop `make golden` is informative only |
+| R6 | Smoke byte test on Linux | The smoke golden file was written on the Intel Mac; the first PACE `make test` may fail only `test_smoke_result_is_byte_identical_to_golden` | That is a platform difference, not a regression. Do not regenerate the file; report it and decide (per-platform file or 1e-3 tolerance) |
+| R7 | Time limits | `golden.sbatch` allows 3 h. G4 and G4b (attack, all silos, both label modes) are estimated at ~1 h each on 4 cores, unverified. G1 runs through `fedastro sweep`, which has no `--resume`, so a resubmit re-runs all 5 seeds | If a task times out: `sbatch --array=<i> scripts/slurm/golden.sbatch` (all but G1 skip finished seeds), or raise `-t` on the command line |
+| R8 | Parallel Ray jobs on one node | Untested before the 2026-11-04 batch; a startup hang would time the task out | Per-job `RAY_TMPDIR` (in `common.sh`). If a task dies at Ray startup, resubmit that index |
+| R9 | Merge strategy | A squash or rebase merge gives main new commit ids; the tag and `metrics.json` would then name a commit that is not on main | Merge the branch with a merge commit or a fast-forward only |
+| R10 | Gate ordering | Phase 11+ change `src/`, so their gates need Tier B, which cannot pass while `metrics.json` is PENDING | Freeze before closing the Phase 11 gate. Development of Phase 11 can go ahead on the branch meanwhile |
+| R11 | G4 coverage gap | Tier B did not cover the no-DP attack numbers (B=1 success vs B=32) | **Resolved 2026-11-05:** G4b (`p5eps-base`) added before the first freeze, with every attack cell compared. It needs the `v0.6.1-golden` commit (R2) |
+| R12 | Golden file updates | Regenerating a golden file to make a check pass hides a moved finding | The first `freeze` replaces PENDING. Any later change needs `--force` and the user's approval recorded here (CLAUDE2.md §3) |
+| R13 | Scratch purge | PACE scratch is purged after inactivity | Copy `runs/golden-<sha>` and `$SCR/results/` back to the laptop as soon as each batch finishes |
+
+Order on PACE once the `9bd7753` batch is done and copied back:
+1. Clone the tag `v0.6.1-golden` (R2).
+2. `mkdir -p runs/slurm && sbatch scripts/slurm/golden.sbatch` (6 jobs).
+3. Cross-check G1–G3 against the `9bd7753` batch (R4).
+4. `golden.py freeze`, then `golden.py check` (must print `Tier B PASSED`).
+5. Commit `metrics.json` on the branch.
+
+### Caveats of freezing `metrics.json` (read before relying on Tier B)
+1. **Golden means "unchanged", not "correct".** The freeze locks whatever the tagged code
+   produces, including any bug it contains. A later bug fix that changes a number fails Tier B
+   by design. Re-freezing then needs the user's approval recorded here, and every poster number
+   from the old code has to be re-run.
+2. **At 1e-3, accuracy is checked exactly.** One holdout window is 1/212 ≈ 0.0047 of accuracy,
+   more than the tolerance, so a single flipped prediction fails. The same holds for integer
+   fields (dispatch counts). Tier B tolerates float noise only where it does not change a
+   prediction.
+3. **Only the listed fields are locked.** These are final metrics per arm, plus each item's
+   extras. Round-by-round curves, per-silo results, fairness, rounds-to-target, bytes and the
+   attack trials beyond the cell means are not compared. Other configs are locked only by run id
+   (Tier A), not by numbers.
+4. **The freeze is tied to the platform and the environment.** Node type (R4), and any change to
+   `uv.lock`, Python, torch, Opacus, Flower or Ray, can move floats. A dependency upgrade is
+   therefore a re-freeze event, with approval.
+5. **Tied to the data version.** `freeze` checks REAL provenance but does not compare the WESAD
+   checksum across runs. A different archive or preprocessing version would show up only as
+   moved metrics. The checksum is in each run's `provenance`, so keep the source runs.
+6. **Keep the evidence.** `metrics.json` stores values, the source sha and the run-folder name,
+   not the runs. Copy `runs/golden-<sha>` back (R13) and keep it with the tag.
+7. **The metrics commit comes after the tag.** `metrics.json` is committed after
+   `v0.6.1-golden`, and it records the tagged commit as its source. Tier A checks only that
+   `metrics.json` covers the pinned run ids, not which commit produced them.
+8. **A Tier B pass is evidence for the pinned subset only.** It does not re-validate the full
+   sweeps behind G2–G5. Those numbers come from their own clean-commit runs.
 
 ### Open questions and risks
 - **Cross-platform smoke identity is unverified.** The smoke golden file was written on the

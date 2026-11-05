@@ -20,6 +20,11 @@
       "finding": "DP utility collapse at small epsilon; attack under DP",
       "variant": "p5eps-eps1p0"
     },
+    "G4b": {
+      "config": "configs/sweeps/phase5_eps.yaml",
+      "finding": "attack success depends on batch size without DP (B=1 vs B=32)",
+      "variant": "p5eps-base"
+    },
     "G5": {
       "config": "configs/sweeps/phase6_presets.yaml",
       "finding": "FedBuff speed from excluding far silos (Mars far, loss of signal on)",
@@ -54,6 +59,13 @@
       "p5eps-eps1p0-seed2-ea373fd066",
       "p5eps-eps1p0-seed3-ea373fd066",
       "p5eps-eps1p0-seed4-ea373fd066"
+    ],
+    "G4b": [
+      "p5eps-base-seed0-eeaeb768e6",
+      "p5eps-base-seed1-eeaeb768e6",
+      "p5eps-base-seed2-eeaeb768e6",
+      "p5eps-base-seed3-eeaeb768e6",
+      "p5eps-base-seed4-eeaeb768e6"
     ],
     "G5": [
       "p6pre-marsfar-fedbuff-seed0-0d31114ef8",

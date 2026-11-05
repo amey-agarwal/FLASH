@@ -1,7 +1,7 @@
 #!/bin/bash
-# Golden Tier B (CLAUDE2.md section 3): one pinned item per array task, 0..4 = G1..G5
-# (scripts/golden.py PINNED). G1 is `fedastro sweep` (5 seeds); G2-G5 are one variant
-# each via `fedastro grid --index i`. Longest task: G4 (DP + attack), about 1 h.
+# Golden Tier B (CLAUDE2.md section 3): one pinned item per array task, 0..4 = G1..G5 and
+# 5 = G4b (scripts/golden.py PINNED). G1 is `fedastro sweep` (5 seeds); the others are one
+# variant each via `fedastro grid --index i`. Longest tasks: G4 and G4b (attack), ~1 h each.
 #
 # From the repo root, on a clean checkout:
 #   mkdir -p runs/slurm && sbatch scripts/slurm/golden.sbatch
@@ -16,11 +16,11 @@
 #SBATCH -c 4
 #SBATCH --mem=16G
 #SBATCH -t 03:00:00
-#SBATCH --array=0-4
+#SBATCH --array=0-5
 #SBATCH -o runs/slurm/%x-%A_%a.out
 set -uo pipefail
 OUT_PREFIX=golden
 source scripts/slurm/common.sh
-ITEMS=(G1 G2 G3 G4 G5)
+ITEMS=(G1 G2 G3 G4 G5 G4b)
 uv run --frozen python scripts/golden.py run --item "${ITEMS[$SLURM_ARRAY_TASK_ID]}" \
     --resume --output-dir "$OUT"

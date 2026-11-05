@@ -52,6 +52,8 @@ TOLERANCE = 1e-3  # absolute, the laptop-vs-cluster tolerance (PROGRESS.md, clus
 
 # Final metrics compared for every pinned run; items add their finding-specific fields.
 BASE_FIELDS = ("arms.centralized.final", "arms.local_only.mean", "arms.federated.final")
+# Per-cell attack scores (mean over trials) compared when an item sets attack_cells.
+ATTACK_CELL_SCORES = ("mse", "nn_identified")
 
 
 @dataclass(frozen=True)
@@ -61,10 +63,12 @@ class Pinned:
     config: str  # repo-relative path
     variant: str | None  # sweep variant name; None for an experiment config
     extra: tuple[str, ...] = ()
+    attack_cells: bool = False  # also compare every (silo, state, batch size, labels) cell
 
 
 # One entry per golden finding (CLAUDE2.md section 3): G1 at 5 seeds, one variant each of
-# G2-G5. Choices are recorded in PROGRESS.md, Phase 10.
+# G2-G5, plus G4b (user decision 2026-11-05), so both halves of G4 are covered. Choices are
+# recorded in PROGRESS.md, Phase 10.
 PINNED = (
     Pinned("G1", "three-arm H1 on WESAD by-subject", "configs/experiments/wesad_by_subject.yaml", None),
     Pinned("G2", "federated performance vs Dirichlet alpha (strongest skew)",
@@ -77,6 +81,8 @@ PINNED = (
     Pinned("G5", "FedBuff speed from excluding far silos (Mars far, loss of signal on)",
            "configs/sweeps/phase6_presets.yaml", "p6pre-marsfar-fedbuff",
            ("arms.federated.sim_wallclock_s_total", "arms.federated.dispatches")),
+    Pinned("G4b", "attack success depends on batch size without DP (B=1 vs B=32)",
+           "configs/sweeps/phase5_eps.yaml", "p5eps-base", ("privacy.attack.mse",), attack_cells=True),
 )
 
 
@@ -213,6 +219,13 @@ def extract_metrics(result: dict[str, Any], item: Pinned) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for field in BASE_FIELDS + item.extra:
         _flatten(field, _get(result, field), out)
+    if item.attack_cells:
+        silos = _get(result, "privacy.attack.silos") or {}
+        for silo in sorted(silos):
+            for c in silos[silo]["cells"]:
+                key = f"privacy.attack.cells.{silo}.{c['state']}.B{c['batch_size']}.{c['labels']}"
+                for s in ATTACK_CELL_SCORES:
+                    out[f"{key}.{s}"] = c[s]["mean"]
     return out
 
 
