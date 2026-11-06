@@ -2,6 +2,9 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
+**Phase 11 (dataset registry + provenance domain): built, AT THE GATE but cannot close (2026-11-05).
+Tier A passes; `src/` changed, so the gate needs Tier B, which waits for the Phase 10 freeze (R10).
+Not committed.**
 **Phase 10 (reproducibility lock, CLAUDE2.md): COMPLETE (2026-11-05). Committed on branch
 `agency-build` (`121838e`), tagged `v0.6-golden`. The G4b amendment (below) is not committed yet
 and needs the new tag `v0.6.1-golden`. Tier A passes; Tier B is pending clean-commit cluster runs
@@ -10,6 +13,108 @@ Phases 0–6 are committed (Phase 6 in `b99ef93`). Long commands run under `caff
 **GPU cluster (PACE ICE):** shakedown DONE 2026-10-29. **Clean-commit batch started
 2026-11-04 at `9bd7753`:** attack settings frozen, prep job passed; `p5epsc` and the poster
 configs are next (below).
+
+---
+
+## Phase 11 — Dataset registry and provenance domain — AT THE GATE, blocked on Tier B (2026-11-05)
+
+**Not committed.** Suggested message:
+`feat(data): phase 11 dataset registry, provenance domain, grouped bundles, by_group and holdout_groups`.
+
+### Session start
+Golden Tier A before any edit: `tests/test_golden.py` 9 passed; `golden.py ids` and `golden.py smoke`
+both match the lock.
+
+### Built
+- **Registry** (`src/fedastro/data/__init__.py`): `REGISTRY` maps `data.name` to a
+  `DatasetSpec(name, label, domain, module, loader)`.
+  - `pipeline.load_dataset` is now `get_dataset(name).load(cfg.data, seed)`.
+  - `config.DATASETS = dataset_names()`.
+  - `synthetic` and `wesad` are registered. Each has a `load(data_config, seed)` entry point that
+    wraps the unchanged `load_synthetic` / `load_wesad`.
+  - Also `domain_of(provenance)`.
+- **Provenance domain** (`data/base.py`): `DOMAINS`, plus an optional `Provenance.domain`.
+  - It is validated when set and omitted from `to_dict()` when empty (only for a bundle built
+    outside the registry).
+  - **`DatasetSpec.load` stamps the registry's domain into every loaded bundle**, so new WESAD
+    results carry `terrestrial_proxy` and synthetic ones `synthetic`. It rejects a loader whose
+    own domain or dataset label contradicts the registry.
+  - The schema checks the domain when present.
+  - `run_report.py` shows a Domain row. Artifacts written before Phase 11 have no domain field,
+    so it falls back to `LEGACY_DOMAINS`, a stdlib copy of the registry that a test keeps in step.
+- **`GroupedDatasetBundle(DatasetBundle)`**: adds `group_id` (per sample) and `group_names`.
+  - Every subject must belong to exactly one group, enforced on construction.
+  - `subset` keeps the type; also `groups` and `in_groups(names)`.
+  - `DatasetBundle` and `site_id` are unchanged.
+- **Synthetic groups:** `data.synthetic.n_groups` (default 0 = ungrouped). Groups are contiguous
+  blocks of subjects `group_0..`, each with its own mean shift. That shift is drawn after every
+  other draw, so ungrouped data is unchanged.
+- **Partitioning** (`data/partition.py`):
+  - `by_group`: one silo per group, or the groups listed per silo in `partition.group_map`.
+    Deterministic, and data shares are not used: natural silos keep their natural size.
+  - `partition.holdout_groups`: whole groups removed before anything else; they join the test set.
+  - Under `by_group`, **unused groups** (in no silo, not held out) are removed before held-out
+    individuals are drawn, so they appear neither in training nor in the test set.
+  - `assert_disjoint` also fails if a held-out group has samples in a silo.
+  - `Federation.groups = {silo_to_groups, holdout_groups, unused_groups}`.
+- **Result** (grouped data only, so earlier results are unchanged):
+  - top-level `groups` block;
+  - `silos[].groups` and `holdout.groups`;
+  - notes naming the held-out and unused groups;
+  - `inspect` prints a groups line;
+  - `run_report.py` gains a groups table and a "Held-out groups contribute no training data"
+    integrity check.
+- **Config:** `partition.group_map` and `partition.holdout_groups`, both excluded from the run id
+  when empty, as is `data.synthetic.n_groups` when 0. Validation:
+  - `group_map` only with `by_group`, with one entry per topology silo;
+  - a group in at most one silo, and never in both a silo and `holdout_groups`;
+  - grouped data required for `by_group` and `holdout_groups`;
+  - `holdout_subjects` may be 0 only with `holdout_groups`.
+- **`configs/experiments/smoke_grouped.yaml`**: 24 synthetic subjects in 8 groups, `by_group` over
+  `five_agency`, `group_6` held out, 2 held-out individuals, and `group_7` deliberately unused.
+- **Tests:** `tests/test_registry_groups.py`, 20 tests.
+
+### Decisions (review these)
+1. **Every artifact records its domain (user decision 2026-11-05: "write the domain, the final
+   repo should be as per the planned goal").**
+   - The first pass left the domain out of synthetic and WESAD artifacts to keep the smoke lock
+     byte-identical. The user chose the planned behaviour instead (CLAUDE2.md rule 10).
+   - The registry is the single source of a dataset's domain; `DatasetSpec.load` writes it.
+   - **Golden file change, approved by the user (2026-11-05):** `tests/golden/smoke_result.json`
+     regenerated with `golden.py smoke --write --force`. Before writing, the diff was checked:
+     **the only change is the added line `"domain": "synthetic"`** in the provenance record. Every
+     metric and every other byte is identical.
+   - **Unaffected:**
+     - every run id (provenance is not in the config hash; `golden.py ids` matches the lock);
+     - `tests/golden/metrics.json` and Tier B (they compare metrics, not provenance);
+     - the PACE golden runs at `v0.6.1-golden`: that checkout tests against its own, older smoke
+       file, which is consistent with its code.
+   - Old artifacts (the 360 laptop runs and the `9bd7753` batch) have no domain field. They
+     resolve through `domain_of` / `LEGACY_DOMAINS`.
+2. **The registry is a dict with lazily imported loaders, not a decorator.** Config validation
+   needs the names before any loader is imported, and loaders import `fedastro.config`, so a
+   decorator would create an import cycle. A new dataset still needs its own `DataConfig`
+   parameter block in `config.py` (strict validation); `pipeline.py` needs no edit.
+3. **`GroupedDatasetBundle` is a subclass, not new optional fields on `DatasetBundle`.** That
+   leaves the base class and every existing code path untouched. `site_id` stays as it was:
+   `by_site` assigns sites randomly by share, while `by_group` maps natural groups deterministically.
+4. **Under `by_group`, `holdout_subjects` draws held-out individuals from the training groups**
+   (with the fixed `holdout_seed`). Per-silo held-out individuals and per-group metrics are
+   Phase 12/13 work.
+5. **Unused groups are excluded from the test set too.** Found while testing:
+   - The first version drew held-out individuals from a pool that still contained the unused
+     `group_7`, so an excluded cohort would have been scored (the `inspect` output showed
+     `HOLDOUT=…,group_7`).
+   - Fixed before any result was produced.
+   - Regression test: `test_holdout_groups_contribute_no_samples`.
+
+### Acceptance results
+| Check | Result |
+|---|---|
+| Golden Tier A unchanged | **Yes, with the approved smoke-file change** (decision 1). `make test` (laptop, 2026-11-05, after the domain change): **203 passed, 1 skipped (CUDA), 1 warning** (the known sklearn notice), 6 min 59 s. That is 182 earlier + 21 new. `golden.py ids`: every locked run id unchanged; the only addition is `smoke_grouped.yaml` (allowed). The smoke result equals the regenerated lock |
+| Registry path gives byte-identical smoke results | **Yes**: `test_registry_path_gives_identical_data_and_byte_identical_smoke`. The arrays through the registry are identical to the direct loader's; the provenance is identical apart from the added domain; `fedastro run smoke` equals the smoke lock (regenerated with the approved domain line, decision 1) |
+| Held-out groups contribute no samples and no scaler statistics | **Yes**: `test_holdout_groups_contribute_no_samples` (subjects and groups) and `test_holdout_groups_contribute_no_scaler_statistics`. In the latter, the held-out group's features are set to 1e6. Silo data stays below 1e3, so the centralized and local scalers are clean, and the federated scaler from the real Flower stats exchange equals the scaler fit on silo data (rtol 1e-6) |
+| Tier B (required: `src/` changed) | **Blocked**: `metrics.json` is still PENDING (Phase 10 freeze, R10). The gate closes after `golden.sbatch` at `v0.6.1-golden` + `freeze`, then a Tier B run on this phase's commit |
 
 ---
 

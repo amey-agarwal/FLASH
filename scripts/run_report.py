@@ -32,6 +32,14 @@ ARM_NAMES = {"centralized": "Centralized (upper bound)", "federated": "Federated
 ARM_SHORT = {"centralized": "Centralized", "federated": "Federated", "local_only": "Local-only"}
 ARM_VAR = {"federated": "--series-1", "centralized": "--series-2", "local_only": "--series-3"}
 PACKAGES = ("torch", "flwr", "ray", "opacus", "numpy", "scikit-learn")
+# provenance.domain (CLAUDE2.md rule 10) for artifacts written before Phase 11, which have
+# no domain field. A copy of the registry in fedastro/data/__init__.py (this script is
+# standard-library only); a test keeps the two in step.
+LEGACY_DOMAINS = {"SYNTHETIC": "synthetic", "WESAD": "terrestrial_proxy"}
+
+
+def domain(prov: dict) -> str:
+    return prov.get("domain") or LEGACY_DOMAINS.get(prov.get("dataset"), "not recorded")
 
 
 # -- loading -------------------------------------------------------------------------
@@ -277,6 +285,12 @@ def integrity(runs: list[dict]) -> tuple[list[tuple[str, str, str]], bool]:
                 seen[subj] = s["name"]
     rows.append(("Subjects disjoint across silos and held-out set", "fail" if leak else "ok",
                  "; ".join(leak) or "no subject appears twice"))
+    if any("groups" in r for r in rs):
+        group_leak = [f"seed {r['seed']}: {g} in {s['name']}" for r in rs
+                      for s in r.get("silos", []) for g in s.get("groups") or []
+                      if g in (r.get("groups") or {}).get("holdout_groups", [])]
+        rows.append(("Held-out groups contribute no training data", "fail" if group_leak else "ok",
+                     "; ".join(group_leak) or "no held-out group appears in a silo"))
     missing = [r["run_id"] for r in runs_without_manifest(runs)]
     rows.append(("manifest.json present", "warn" if missing else "ok", ", ".join(missing) or "all runs"))
     return rows, not any(s == "fail" for _, s, _ in rows)
@@ -393,6 +407,11 @@ def build(runs: list[dict], title: str, label: str | None) -> str:
                     + table(["Silo"] + [f"Seed {r['seed']}" for r in rs], silo_rows)
                     + f"<p>Held-out set: <b>{hold.get('n_test', 'n/a')}</b> windows from subjects "
                     f"{esc(hold.get('subjects'))}; label counts {esc(hold.get('label_counts'))}.</p>")
+    groups = rs[0].get("groups")
+    if groups:
+        sections.append(table(["Silo", "Groups"], [[esc(s), esc(", ".join(g))] for s, g in groups["silo_to_groups"].items()])
+                        + f"<p>Held-out groups: <b>{esc(', '.join(groups['holdout_groups']) or 'none')}</b>; "
+                        f"unused groups: {esc(', '.join(groups['unused_groups']) or 'none')}.</p>")
 
     # comms
     fed = rs[0]["arms"].get("federated")
@@ -416,7 +435,8 @@ def build(runs: list[dict], title: str, label: str | None) -> str:
                          f'{m.get("real_elapsed_s", float("nan")):.0f} s' if m else "n/a"])
     sections.append("<h2>Provenance and environment</h2>" + table(["Field", "Value"], [
         ["Experiment", esc(exp)], ["Config hash", esc(chash)], ["Git commit", esc(", ".join(sorted({r["git_sha"] for r in rs})))],
-        ["Dataset", esc(f'{prov.get("dataset")} ({prov.get("kind")})')], ["Version", esc(prov.get("version"))],
+        ["Dataset", esc(f'{prov.get("dataset")} ({prov.get("kind")})')], ["Domain", esc(domain(prov))],
+        ["Version", esc(prov.get("version"))],
         ["Archive checksum", esc(prov.get("checksum"))], ["Processed checksum", esc(prov.get("processed_checksum"))],
         ["Source", esc(prov.get("source"))]]) + table(
         ["Run", "Host", "Platform", "Python", "Packages", "Started (UTC)", "Real time"], env_rows))

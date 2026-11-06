@@ -540,6 +540,7 @@
     {
       "checksum": "sha256:c07ad2ea7c58acaa521b265625e0ce82650ae9f2073cc670ae2800a238e73420",
       "dataset": "SYNTHETIC",
+      "domain": "synthetic",
       "kind": "SYNTHETIC",
       "processed_checksum": "sha256:c07ad2ea7c58acaa521b265625e0ce82650ae9f2073cc670ae2800a238e73420",
       "source": "fedastro.data.synthetic (generated, not measured)",

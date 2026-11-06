@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from fedastro.config import ExperimentConfig
+from fedastro.data import get_dataset
 from fedastro.data.base import SYNTHETIC, DatasetBundle
 from fedastro.data.partition import Federation, make_federation
 from fedastro.manifest import git_sha, make_run_id, timestamp_utc, write_run
@@ -19,15 +20,8 @@ from fedastro.seeding import seed_everything
 
 
 def load_dataset(cfg: ExperimentConfig, seed: int) -> DatasetBundle:
-    if cfg.data.name == "synthetic":
-        from fedastro.data.synthetic import load_synthetic
-
-        return load_synthetic(cfg.data.synthetic, seed)
-    if cfg.data.name == "wesad":
-        from fedastro.data.wesad import load_wesad
-
-        return load_wesad(cfg.data.wesad)
-    raise NotImplementedError(f"dataset {cfg.data.name!r} is not implemented yet")
+    """Through the registry (fedastro.data.REGISTRY); a new dataset needs no edit here."""
+    return get_dataset(cfg.data.name).load(cfg.data, seed)
 
 
 def build_federation(cfg: ExperimentConfig, seed: int) -> tuple[DatasetBundle, Federation]:
@@ -37,6 +31,7 @@ def build_federation(cfg: ExperimentConfig, seed: int) -> tuple[DatasetBundle, F
     fed = make_federation(
         bundle, shares, cfg.partition.method, cfg.partition.holdout_subjects, rng,
         alpha=cfg.partition.alpha, holdout_seed=cfg.partition.holdout_seed,
+        group_map=cfg.partition.group_map, holdout_groups=cfg.partition.holdout_groups,
     )
     return bundle, fed
 
@@ -61,6 +56,10 @@ def describe_federation(fed: Federation) -> tuple[list[dict[str, Any]], dict[str
         "subjects": fed.holdout.subjects,
         "label_counts": fed.holdout.label_counts(),
     }
+    if fed.groups is not None:  # grouped data only, so earlier results are unchanged
+        for entry in silos:
+            entry["groups"] = fed.groups["silo_to_groups"][entry["name"]]
+        holdout["groups"] = fed.holdout.groups
     return silos, holdout
 
 
@@ -130,6 +129,8 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
         silos=silos,
         holdout=holdout,
     )
+    if fed.groups is not None:
+        result["groups"] = fed.groups
     capture = run_arms(cfg, fed, seed, result)
     if "comms" in capture:
         result["comms"] = capture["comms"]
@@ -141,6 +142,12 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
     notes.append(f"Arms run: {', '.join(cfg.arms)}.")
+    if fed.groups is not None:
+        if fed.groups["holdout_groups"]:
+            notes.append(f"Held-out groups (no training samples, no scaler statistics): "
+                         f"{', '.join(fed.groups['holdout_groups'])}.")
+        if fed.groups["unused_groups"]:
+            notes.append(f"Unused groups (in no silo and not held out): {', '.join(fed.groups['unused_groups'])}.")
     if "federated" in cfg.arms and not cfg.comms.enabled:
         notes.append("Federated arm: synchronous lossless links; sim_wallclock_s is null (comms off).")
     if "federated" in cfg.arms and cfg.comms.enabled:
@@ -176,4 +183,8 @@ def format_distribution_table(fed: Federation, class_names: tuple[str, ...]) -> 
         n = max(len(data), 1)
         cells = "".join(f"{counts[c]:>8} ({100 * counts[c] / n:5.1f}%)" for c in class_names)
         lines.append(f"{name:<16}{len(data.subjects):>5}{len(data):>7}{cells}{dropped:>9}")
+    if fed.groups is not None:
+        lines.append("groups: " + "; ".join(f"{k}={','.join(v)}" for k, v in fed.groups["silo_to_groups"].items())
+                     + f"; HOLDOUT={','.join(fed.holdout.groups)}"
+                     + (f"; unused={','.join(fed.groups['unused_groups'])}" if fed.groups["unused_groups"] else ""))
     return "\n".join(lines)

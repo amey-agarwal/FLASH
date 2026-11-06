@@ -15,21 +15,29 @@ Order of operations, enforced by ``make_federation``:
      counts per silo as ``dirichlet`` (same alpha, same rng), but windows are kept
      uniformly at random, so each silo retains its natural label mix. Comparing the
      two isolates the effect of label skew from the effect of losing data.
+   - ``by_group``: natural groups (countries, cohorts) of a GroupedDatasetBundle. One
+     silo per group, or the groups listed per silo in ``group_map``. Deterministic: no
+     rng, and data shares are not used (natural silos keep their natural sizes).
 
 The held-out set is drawn from its own fixed seed (``holdout_seed``), so it is the same
 for every run seed of an experiment.
 
+``holdout_groups`` (grouped data only) removes whole groups before anything else. They
+join the held-out set and contribute nothing to training: no samples, so no scaler
+statistics either (every scaler, local or federated, is fit on silo data only).
+
 Invariant for every method: no subject appears in two silos or in a silo and the
-held-out set.
+held-out set; no held-out group appears in a silo.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
-from fedastro.data.base import DatasetBundle
+from fedastro.data.base import DatasetBundle, GroupedDatasetBundle
 
 # Separates the holdout RNG stream from run-seed streams even when the integers coincide.
 _HOLDOUT_STREAM = 0x484F4C44
@@ -46,6 +54,8 @@ class SiloSplit:
 class Federation:
     holdout: DatasetBundle
     silos: dict[str, SiloSplit]
+    # Grouped data only: {"silo_to_groups", "holdout_groups", "unused_groups"}; else None.
+    groups: dict[str, Any] | None = None
 
 
 def holdout_split(
@@ -77,6 +87,30 @@ def by_site(
         if len(np.unique(bundle.site_id[bundle.subject_id == s])) > 1:
             raise ValueError(f"subject {s} spans multiple sites; by_site would leak it")
     return _assign_groups(bundle, bundle.site_id, silo_shares, rng, "sites")
+
+
+def by_group(
+    bundle: DatasetBundle, silo_names: list[str], group_map: dict[str, tuple[str, ...]] | None = None
+) -> dict[str, DatasetBundle]:
+    """Natural silos: each silo holds whole groups, never re-mixed (CLAUDE2.md rule 11).
+    Without ``group_map`` every silo name must be a group name. Groups not listed are
+    left out (the caller reports them)."""
+    if not isinstance(bundle, GroupedDatasetBundle):
+        raise ValueError(f"dataset {bundle.provenance.dataset} has no groups; by_group needs grouped data")
+    mapping = _group_mapping(silo_names, group_map)
+    if set(mapping) != set(silo_names):
+        raise ValueError(f"group_map silos {sorted(mapping)} != topology silos {sorted(silo_names)}")
+    out = {}
+    for name in silo_names:
+        part = bundle.subset(bundle.in_groups(mapping[name]))
+        if not len(part):
+            raise ValueError(f"silo {name}: groups {list(mapping[name])} have no training samples")
+        out[name] = part
+    return out
+
+
+def _group_mapping(silo_names: list[str], group_map: dict[str, tuple[str, ...]] | None) -> dict[str, tuple[str, ...]]:
+    return group_map or {name: (name,) for name in silo_names}
 
 
 def dirichlet(
@@ -153,11 +187,36 @@ def make_federation(
     rng: np.random.Generator,
     alpha: float = 0.0,
     holdout_seed: int = 0,
+    group_map: dict[str, tuple[str, ...]] | None = None,
+    holdout_groups: tuple[str, ...] = (),
 ) -> Federation:
-    """Hold out test subjects (fixed ``holdout_seed``), then partition the rest (``rng``)."""
+    """Hold out whole groups (grouped data), then test subjects (fixed ``holdout_seed``),
+    then partition the rest (``rng``). Without groups this is exactly the earlier path.
+
+    Under by_group, groups that are in no silo and not held out are unused: they are
+    removed before held-out subjects are drawn, so they appear neither in training nor
+    in the test set (e.g. a cohort excluded by CLAUDE2.md rule 14)."""
     holdout_rng = np.random.default_rng([holdout_seed, _HOLDOUT_STREAM])
-    pool, holdout = holdout_split(bundle, holdout_subjects, holdout_rng)
-    if method == "by_subject":
+    grouped = isinstance(bundle, GroupedDatasetBundle)
+    if holdout_groups and not grouped:
+        raise ValueError(f"dataset {bundle.provenance.dataset} has no groups; holdout_groups needs grouped data")
+    if grouped:
+        held_group = bundle.in_groups(holdout_groups)
+        keep = ~held_group
+        if method == "by_group":
+            mapped = [g for gs in _group_mapping(list(silo_shares), group_map).values() for g in gs]
+            keep &= bundle.in_groups(mapped)
+        pool = bundle.subset(keep)
+        held_subjects: list[int] = []
+        if holdout_subjects:
+            pool, held = holdout_split(pool, holdout_subjects, holdout_rng)
+            held_subjects = held.subjects
+        holdout = bundle.subset(held_group | np.isin(bundle.subject_id, held_subjects))
+    else:
+        pool, holdout = holdout_split(bundle, holdout_subjects, holdout_rng)
+    if method == "by_group":
+        silos = {k: SiloSplit(v) for k, v in by_group(pool, list(silo_shares), group_map).items()}
+    elif method == "by_subject":
         silos = {k: SiloSplit(v) for k, v in by_subject(pool, silo_shares, rng).items()}
     elif method == "by_site":
         silos = {k: SiloSplit(v) for k, v in by_site(pool, silo_shares, rng).items()}
@@ -167,19 +226,31 @@ def make_federation(
         silos = dirichlet(pool, silo_shares, alpha, rng, quantity_control=True)
     else:
         raise ValueError(f"unknown partition method {method!r}")
-    fed = Federation(holdout=holdout, silos=silos)
+    groups = None
+    if grouped:
+        silo_groups = {name: split.data.groups for name, split in silos.items()}
+        used = {g for gs in silo_groups.values() for g in gs} | set(holdout_groups)
+        groups = {"silo_to_groups": silo_groups, "holdout_groups": list(holdout_groups),
+                  "unused_groups": [g for g in bundle.group_names if g not in used]}
+    fed = Federation(holdout=holdout, silos=silos, groups=groups)
     assert_disjoint(fed)
     return fed
 
 
 def assert_disjoint(fed: Federation) -> None:
-    """Raise if any subject is shared between two silos or a silo and the holdout."""
+    """Raise if any subject is shared between two silos or a silo and the holdout, or a
+    held-out group has samples in a silo."""
     seen: dict[int, str] = {s: "holdout" for s in fed.holdout.subjects}
     for name, split in fed.silos.items():
         for s in split.data.subjects:
             if s in seen:
                 raise AssertionError(f"subject {s} in both {seen[s]} and {name}")
             seen[s] = name
+    held = set(fed.groups["holdout_groups"]) if fed.groups else set()
+    for name, split in fed.silos.items():
+        leaked = held & set(getattr(split.data, "groups", []))
+        if leaked:
+            raise AssertionError(f"held-out groups {sorted(leaked)} have samples in silo {name}")
 
 
 def _assign_groups(

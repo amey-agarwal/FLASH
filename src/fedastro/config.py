@@ -21,13 +21,15 @@ from typing import Any
 
 import yaml
 
+from fedastro.data import dataset_names
+
 
 class ConfigError(ValueError):
     """Raised when a config file is missing, malformed, or fails validation."""
 
 
-DATASETS = ("synthetic", "wesad")  # Phase 9 adds "osd435", "eicu".
-PARTITION_METHODS = ("by_subject", "by_site", "dirichlet", "dirichlet_quantity_control")
+DATASETS = dataset_names()  # from the registry in fedastro/data/__init__.py
+PARTITION_METHODS = ("by_subject", "by_site", "dirichlet", "dirichlet_quantity_control", "by_group")
 DIRICHLET_METHODS = ("dirichlet", "dirichlet_quantity_control")
 WESAD_DEVICES = ("chest", "wrist")
 ARCHS = ("mlp", "cnn1d")
@@ -54,6 +56,9 @@ class SyntheticParams:
     class_sep: float = 1.0
     subject_shift: float = 0.5
     n_sites: int = 0  # 0 = no site ids; >0 assigns subject i to site i % n_sites
+    # 0 = ungrouped (default; left out of the run id). >0 = contiguous subject groups
+    # group_0.. with their own mean shift: a grouped bundle, for the by-group path.
+    n_groups: int = 0
 
     def validate(self) -> None:
         for name in ("n_subjects", "windows_per_subject", "n_features", "n_classes"):
@@ -65,6 +70,8 @@ class SyntheticParams:
             raise ConfigError("data.synthetic.class_sep and subject_shift must be >= 0")
         if self.n_sites < 0:
             raise ConfigError("data.synthetic.n_sites must be >= 0")
+        if not 0 <= self.n_groups <= self.n_subjects:
+            raise ConfigError("data.synthetic.n_groups must be in [0, n_subjects]")
 
 
 @dataclass(frozen=True)
@@ -158,6 +165,13 @@ class PartitionConfig:
     # The test set is drawn from this seed, NOT the run seed, so every run and arm of an
     # experiment family is evaluated on the same held-out subjects.
     holdout_seed: int = 0
+    # Grouped data only (GroupedDatasetBundle). Both are left out of the run id when empty.
+    # group_map: silo name -> the groups it holds, for by_group. Empty = one silo per group,
+    #   with silo names equal to group names. Groups in no silo and not held out are unused.
+    # holdout_groups: whole groups excluded from training (no samples, no scaler
+    #   statistics); they join the global test set. Any partition method.
+    group_map: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    holdout_groups: tuple[str, ...] = ()
 
     def validate(self) -> None:
         if self.method not in PARTITION_METHODS:
@@ -166,10 +180,21 @@ class PartitionConfig:
             raise ConfigError(f"partition.alpha must be > 0 for method {self.method!r}")
         if self.method not in DIRICHLET_METHODS and self.alpha != 0:
             raise ConfigError("partition.alpha is only meaningful for the dirichlet methods")
-        if self.holdout_subjects < 1:
-            raise ConfigError("partition.holdout_subjects must be >= 1")
+        if self.holdout_subjects < (0 if self.holdout_groups else 1):
+            raise ConfigError("partition.holdout_subjects must be >= 1 (>= 0 with holdout_groups)")
         if self.holdout_seed < 0:
             raise ConfigError("partition.holdout_seed must be >= 0")
+        if len(set(self.holdout_groups)) != len(self.holdout_groups):
+            raise ConfigError("partition.holdout_groups has duplicates")
+        if self.group_map and self.method != "by_group":
+            raise ConfigError("partition.group_map is only meaningful for method 'by_group'")
+        mapped = [g for groups in self.group_map.values() for g in groups]
+        if any(not groups for groups in self.group_map.values()):
+            raise ConfigError("partition.group_map: every silo needs at least one group")
+        if len(set(mapped)) != len(mapped):
+            raise ConfigError("partition.group_map: a group is mapped to more than one silo")
+        if set(mapped) & set(self.holdout_groups):
+            raise ConfigError("partition.group_map: a held-out group cannot also train in a silo")
 
 
 @dataclass(frozen=True)
@@ -530,6 +555,11 @@ class ExperimentConfig:
             if unknown:
                 raise ConfigError(f"privacy.attack.silos {sorted(unknown)} are not silos of the topology")
         n_silos = len(self.topology.silos)
+        if self.partition.group_map and set(self.partition.group_map) != {s.name for s in self.topology.silos}:
+            raise ConfigError("partition.group_map must have exactly one entry per topology silo")
+        if self.data.is_synthetic and (self.partition.method == "by_group" or self.partition.holdout_groups) \
+                and self.data.synthetic.n_groups == 0:
+            raise ConfigError("by_group and holdout_groups need grouped data (data.synthetic.n_groups > 0)")
         if self.data.is_synthetic:
             needed = n_silos + self.partition.holdout_subjects
             if self.data.synthetic.n_subjects < needed:
@@ -552,6 +582,13 @@ class ExperimentConfig:
         for other in DATASETS:
             if other != self.data.name:
                 d["data"].pop(other, None)
+        # Phase 11 fields: absent when unused, so earlier run ids are unchanged.
+        if "synthetic" in d["data"] and not self.data.synthetic.n_groups:
+            d["data"]["synthetic"].pop("n_groups")
+        if not self.partition.group_map:
+            d["partition"].pop("group_map")
+        if not self.partition.holdout_groups:
+            d["partition"].pop("holdout_groups")
         if self.fl.strategy != "fedprox":
             d["fl"].pop("proximal_mu")
         if self.fl.strategy != "fedbuff":

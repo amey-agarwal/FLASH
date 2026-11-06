@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from fedastro.data.base import DOMAINS
+
 SCHEMA_VERSION = "1"
 
 
@@ -83,6 +85,8 @@ _REQUIRED: list[tuple[str, tuple]] = [
 ]
 
 _PROVENANCE_KEYS = ("dataset", "version", "checksum")
+# Optional (CLAUDE2.md section 6): absent in artifacts that predate them, checked when present.
+_GROUPS_KEYS = {"silo_to_groups": (dict,), "holdout_groups": (list,), "unused_groups": (list,)}
 _SILO_KEYS = {"name": (str,), "n_train": (int,), "label_counts": (dict,)}
 _ROUND_KEYS = {
     "round": (int,),
@@ -120,6 +124,11 @@ def validate_result(result: dict[str, Any]) -> None:
     for i, p in enumerate(result["provenance"]):
         for k in _PROVENANCE_KEYS:
             _check(_get(p, k), (str,), f"provenance[{i}].{k}")
+        if "domain" in p and p["domain"] not in DOMAINS:
+            raise SchemaError(f"provenance[{i}].domain: {p['domain']!r} not in {DOMAINS}")
+    if "groups" in result:
+        for k, types in _GROUPS_KEYS.items():
+            _check(_get(result, f"groups.{k}"), types, f"groups.{k}")
     for i, s in enumerate(result["silos"]):
         for k, types in _SILO_KEYS.items():
             _check(_get(s, k), types, f"silos[{i}].{k}")

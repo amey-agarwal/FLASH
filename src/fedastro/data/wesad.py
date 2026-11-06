@@ -36,7 +36,7 @@ from pathlib import Path
 
 import numpy as np
 
-from fedastro.config import WesadParams
+from fedastro.config import DataConfig, WesadParams
 from fedastro.data.base import REAL, DatasetBundle, Provenance, array_checksum
 from fedastro.paths import cache_dir, raw_dir
 
@@ -201,6 +201,12 @@ def _n_workers(n_jobs: int) -> int:
     """Each worker holds one ~1 GB decompressed subject; default 3 suits an 8 GB laptop."""
     requested = int(os.environ.get("FEDASTRO_WESAD_WORKERS", "3"))
     return max(1, min(requested, n_jobs, os.cpu_count() or 1))
+
+
+def load(data: DataConfig, seed: int) -> DatasetBundle:
+    """Registry entry point (fedastro.data.REGISTRY). WESAD loading does not depend on
+    the run seed."""
+    return load_wesad(data.wesad)
 
 
 def load_wesad(params: WesadParams, archive: Path | None = None) -> DatasetBundle:

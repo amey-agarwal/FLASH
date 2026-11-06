@@ -1,0 +1,26 @@
+# Smoke test for grouped data (Phase 11): SYNTHETIC groups, natural silos (by_group), one
+# whole held-out group, all three arms, few rounds. Results are tagged SYNTHETIC.
+# group_7 is deliberately in no silo, to exercise the unused-group report.
+name: smoke_grouped
+seed: 0
+seeds: [0, 1]
+data:
+  name: synthetic
+  synthetic:
+    n_subjects: 24
+    n_groups: 8
+partition:
+  method: by_group
+  holdout_subjects: 2          # held-out individuals from the training groups
+  holdout_groups: [group_6]    # a whole held-out group: no samples, no scaler statistics
+  group_map:
+    nasa_earth: [group_0, group_1]
+    esa_analog: [group_2]
+    iss_commercial: [group_3]
+    lunar_habitat: [group_4]
+    mars_transit: [group_5]
+train:
+  epochs: 3
+fl:
+  rounds: 3
+notes: "Grouped-data smoke test."
