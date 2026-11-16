@@ -42,7 +42,9 @@ required-environments = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# "slow" tests (the 4 extra flat-WESAD regression seeds) are off by default: pytest -m slow
+addopts = "-q -m 'not slow'"
+markers = ["slow: long regression runs, deselected by default (run with -m slow)"]
 # Opacus noise that does not apply here (see src/fedastro/privacy/dp.py). "Optimal order
 # is the largest alpha" means the RDP bound may be loose, i.e. the reported epsilon
 # over-states the spend: the conservative direction.

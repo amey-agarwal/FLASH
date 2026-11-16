@@ -2,6 +2,67 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
+**Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
+removed; its Phases 13–18 are dropped. Phase H0 is at the gate (below). Next: Phase H1, in plan
+mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
+"CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
+
+---
+
+## Phase H0 — Branch setup and reproducibility lock — AT THE GATE (2026-11-15)
+
+**Not committed.** Suggested message:
+`test(regression): phase H0 flat WESAD reproducibility lock and PREREG skeleton`.
+
+### Session start
+- The tree had `CLAUDE.md` modified and `CLAUDE2.md` deleted. The user committed that
+  (`c20c455`) and tagged it `pre-hier-fl`. Work started from a clean tree.
+
+### Built (no file under `src/` or `configs/` changed)
+- **`tests/test_regression_flat.py`:** runs `configs/experiments/wesad_by_subject.yaml` and
+  compares centralized `final`, local_only `mean` and federated `final` (accuracy, balanced
+  accuracy, macro-F1, AUC) with the reference, absolute tolerance **1e-3** (the
+  laptop-vs-cluster tolerance, as in `scripts/golden.py`).
+  - Seed 0 runs in the default suite; seeds 1–4 carry the `slow` marker.
+  - Skipped without the WESAD archive.
+  - It also checks that the reference rounds to the Phase 3 per-seed table in this file, that
+    the config hash is still `ce31e25dda`, and that `privacy.enabled` is false.
+- **`tests/golden/flat_wesad_g1.json`:** the reference. Full-precision final metrics copied from
+  the laptop runs `runs/wesad_by_subject-seed{0..4}-ce31e25dda` (git `494e164-dirty`,
+  2026-10-15), which are the runs behind the Phase 3 table.
+- **`pyproject.toml`:** registers the `slow` marker; `addopts` is now `-q -m 'not slow'`. Run
+  everything with `uv run --frozen pytest -m "slow or not slow"`.
+- **`PREREG.md`:** skeleton with H1–H4 and PLACEHOLDER_ sections for metrics, shift, update
+  tolerance, the H8 grid and the configuration list. Nothing frozen yet.
+
+### Decisions (user approved 2026-11-15)
+1. **Phases 10–12 code stays** as the baseline of this branch (additive, default off).
+2. **The lock is golden Tier A plus the new regression test.** It does not wait for the cluster
+   Tier B freeze.
+3. **The Phase 12 redraw run and the Tier B freeze are dropped as superseded.**
+   `prereg/p12-wesad-redraws.md` was never run and is kept for the record.
+   `tests/golden/metrics.json` stays `PENDING`.
+4. **The schema bump to "2" is deferred to Phase H1.** It changes the byte-locked
+   `tests/golden/smoke_result.json`, so regenerating that file needs the user's approval then.
+
+### Acceptance results
+| Check | Result |
+|---|---|
+| `pytest` passes, including the regression test | **Yes.** `caffeinate -i uv run --frozen pytest -m "slow or not slow"` (laptop, 2026-11-15): **225 passed, 1 skipped (CUDA), 1 warning** (the known sklearn notice), 11 min 17 s. That is the 218 earlier tests plus 7 new (2 reference checks + 5 seeds). All 5 seeds reproduce within 1e-3 |
+| Existing configs run unchanged | **Yes.** Golden Tier A passes inside the suite: every locked run id is unchanged and the smoke result is byte-identical |
+| `privacy.enabled` false by default | **Yes.** `base.yaml` has no `privacy` key; the default is `PrivacyConfig.enabled = False` (`config.py`), asserted in the regression test |
+| Branch point tagged | **Yes:** `pre-hier-fl` on `c20c455` (by the user) |
+
+### Open questions
+- CLAUDE.md §3 lists `PREREG.md` only; the old `prereg/` directory still exists. Keep it, or
+  delete it once the user confirms the Phase 12 run will never happen?
+- `Makefile` and `scripts/golden.py` comments still cite CLAUDE2.md. Left alone in H0 (not in
+  the approved plan); a one-line cleanup for a later phase.
+
+---
+
+## Earlier plans (history)
+
 **Phase 12 (evaluation and statistics): code built, STOPPED before the real-data run (2026-11-05).
 The pre-registration `prereg/p12-wesad-redraws.md` must be committed before the WESAD redraw run
 (CLAUDE2.md rule 9). Not committed.**

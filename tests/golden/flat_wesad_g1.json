@@ -1,0 +1,108 @@
+{
+  "config": "configs/experiments/wesad_by_subject.yaml",
+  "config_hash_prefix": "ce31e25dda",
+  "seeds": {
+    "0": {
+      "centralized": {
+        "accuracy": 0.8490566037735849,
+        "auc": 0.8720567088736114,
+        "balanced_accuracy": 0.7711978080399132,
+        "macro_f1": 0.7787321822720052
+      },
+      "federated": {
+        "accuracy": 0.6698113207547169,
+        "auc": 0.821545488483784,
+        "balanced_accuracy": 0.6617797407271091,
+        "macro_f1": 0.6354596131381846
+      },
+      "local_only": {
+        "accuracy": 0.631132075471698,
+        "auc": 0.7664870188128053,
+        "balanced_accuracy": 0.5524475524475525,
+        "macro_f1": 0.5117388072771298
+      }
+    },
+    "1": {
+      "centralized": {
+        "accuracy": 0.8632075471698113,
+        "auc": 0.8841760273209006,
+        "balanced_accuracy": 0.7965280333701387,
+        "macro_f1": 0.8030363799496633
+      },
+      "federated": {
+        "accuracy": 0.7216981132075472,
+        "auc": 0.7859099477131988,
+        "balanced_accuracy": 0.6884063305115937,
+        "macro_f1": 0.6878050621135645
+      },
+      "local_only": {
+        "accuracy": 0.6424528301886792,
+        "auc": 0.7676261982604654,
+        "balanced_accuracy": 0.5615883531673005,
+        "macro_f1": 0.5461252384045365
+      }
+    },
+    "2": {
+      "centralized": {
+        "accuracy": 0.9009433962264151,
+        "auc": 0.8928510298548522,
+        "balanced_accuracy": 0.8171512697828488,
+        "macro_f1": 0.8373823774196504
+      },
+      "federated": {
+        "accuracy": 0.8301886792452831,
+        "auc": 0.8628057814221547,
+        "balanced_accuracy": 0.7838015785384207,
+        "macro_f1": 0.7816949459077307
+      },
+      "local_only": {
+        "accuracy": 0.7047169811320754,
+        "auc": 0.7785607607739753,
+        "balanced_accuracy": 0.5929055739582056,
+        "macro_f1": 0.5926403084058076
+      }
+    },
+    "3": {
+      "centralized": {
+        "accuracy": 0.8490566037735849,
+        "auc": 0.8770847432438562,
+        "balanced_accuracy": 0.7645851224798593,
+        "macro_f1": 0.7740225403867266
+      },
+      "federated": {
+        "accuracy": 0.6792452830188679,
+        "auc": 0.7834516426107134,
+        "balanced_accuracy": 0.6267697215065636,
+        "macro_f1": 0.6209107186448705
+      },
+      "local_only": {
+        "accuracy": 0.6396226415094339,
+        "auc": 0.7913683657227573,
+        "balanced_accuracy": 0.5613397129186602,
+        "macro_f1": 0.5308834231515946
+      }
+    },
+    "4": {
+      "centralized": {
+        "accuracy": 0.8773584905660378,
+        "auc": 0.8779874785608394,
+        "balanced_accuracy": 0.816885453727559,
+        "macro_f1": 0.82133643893347
+      },
+      "federated": {
+        "accuracy": 0.6415094339622641,
+        "auc": 0.7795765556277171,
+        "balanced_accuracy": 0.6266020529178423,
+        "macro_f1": 0.6152281316350224
+      },
+      "local_only": {
+        "accuracy": 0.6518867924528301,
+        "auc": 0.7862069022439921,
+        "balanced_accuracy": 0.5876023391812866,
+        "macro_f1": 0.575803012296283
+      }
+    }
+  },
+  "source": "laptop runs wesad_by_subject-seed{0..4}-ce31e25dda (git 494e164-dirty, 2026-10-15); the Phase 3 numbers in PROGRESS.md, full precision",
+  "tolerance": 0.001
+}
