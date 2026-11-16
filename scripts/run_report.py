@@ -26,11 +26,14 @@ from pathlib import Path
 METRICS = ("accuracy", "balanced_accuracy", "macro_f1", "auc")
 METRIC_NAMES = {"accuracy": "Accuracy", "balanced_accuracy": "Balanced accuracy",
                 "macro_f1": "Macro-F1", "auc": "AUC (macro OvR)"}
-ARMS = ("centralized", "federated", "local_only")
+ARMS = ("centralized", "federated", "local_only", "ensemble_of_locals")
 ARM_NAMES = {"centralized": "Centralized (upper bound)", "federated": "Federated",
-             "local_only": "Local-only, silo mean (lower bound)"}
-ARM_SHORT = {"centralized": "Centralized", "federated": "Federated", "local_only": "Local-only"}
-ARM_VAR = {"federated": "--series-1", "centralized": "--series-2", "local_only": "--series-3"}
+             "local_only": "Local-only, silo mean (lower bound)",
+             "ensemble_of_locals": "Ensemble of local models (no federation)"}
+ARM_SHORT = {"centralized": "Centralized", "federated": "Federated", "local_only": "Local-only",
+             "ensemble_of_locals": "Ensemble of locals"}
+ARM_VAR = {"federated": "--series-1", "centralized": "--series-2", "local_only": "--series-3",
+           "ensemble_of_locals": "--series-4"}
 PACKAGES = ("torch", "flwr", "ray", "opacus", "numpy", "scikit-learn")
 # provenance.domain (CLAUDE2.md rule 10) for artifacts written before Phase 11, which have
 # no domain field. A copy of the registry in fedastro/data/__init__.py (this script is
@@ -50,9 +53,26 @@ def load_runs(paths: list[str]) -> list[dict]:
         if not res.is_file():
             continue
         man = res.parent / "manifest.json"
-        runs.append({"result": json.loads(res.read_text()),
+        runs.append({"result": json.loads(res.read_text()), "dir": res.parent,
                      "manifest": json.loads(man.read_text()) if man.is_file() else None})
-    return sorted(runs, key=lambda r: r["result"]["seed"])
+    return sorted(runs, key=lambda r: (r["result"]["seed"], draw(r["result"])))
+
+
+def draw(r: dict) -> int:
+    """Holdout draw of a run (Phase 12); 0 for runs without redraws."""
+    return (r.get("evaluation") or {}).get("holdout_draw", 0)
+
+
+def run_label(r: dict) -> str:
+    return f"seed {r['seed']}" + (f" · draw {draw(r)}" if "evaluation" in r and r["evaluation"].get("holdout_draws", 1) > 1 else "")
+
+
+def load_summary(runs: list[dict]) -> dict | None:
+    """The sweep summary (<name>-<hash>-summary.json) next to the run dirs, for the paired
+    statistics; None if it is not there."""
+    r0 = runs[0]["result"]
+    path = runs[0]["dir"].parent / f"{experiment_name(r0['run_id'])}-{config_hash(r0['run_id'])}-summary.json"
+    return json.loads(path.read_text()) if path.is_file() else None
 
 
 def config_hash(run_id: str) -> str:
@@ -60,7 +80,7 @@ def config_hash(run_id: str) -> str:
 
 
 def experiment_name(run_id: str) -> str:
-    return run_id.rsplit("-seed", 1)[0]
+    return run_id.rsplit("-seed", 1)[0]  # also for <name>-seed<s>-draw<d>-<hash>
 
 
 # -- statistics ----------------------------------------------------------------------
@@ -185,7 +205,7 @@ def line_chart(runs: list[dict], metric: str) -> str:
     for r in rounds:
         m, s = stats[r]
         tip = (f"Round {r}<br>Federated {fmt(m)}" + (f" ± {fmt(s)}" if s is not None else "")
-               + f" (n={len(per_round[r])} seeds)")
+               + f" (n={len(per_round[r])} runs)")
         for arm, v in refs.items():
             if v is not None:
                 tip += f"<br>{ARM_SHORT[arm]} (final) {fmt(v)}"
@@ -230,8 +250,8 @@ def interval_chart(rows: list[tuple[str, list[tuple[str, list[float], str]]]],
             if s is not None:
                 out.append(f'<line class="whisker" style="stroke:var({var})" x1="{xv(max(x0, m - s)):.1f}" '
                            f'x2="{xv(min(x1, m + s)):.1f}" y1="{y:.1f}" y2="{y:.1f}"/>')
-            tip = (f"{esc(label)} · {esc(sname)}<br>{fmt_ms((m, s))} over {len(vals)} seeds"
-                   f"<br>per seed: {', '.join(fmt(v) for v in vals)}")
+            tip = (f"{esc(label)} · {esc(sname)}<br>{fmt_ms((m, s))} over {len(vals)} runs"
+                   f"<br>per run: {', '.join(fmt(v) for v in vals)}")
             out.append(f'<circle class="dot" style="fill:var({var})" cx="{xv(m):.1f}" cy="{y:.1f}" r="5"/>'
                        f'<circle class="hit" cx="{xv(m):.1f}" cy="{y:.1f}" r="12" data-tip="{esc(tip)}"/>')
     out.append("</svg>")
@@ -258,10 +278,11 @@ def integrity(runs: list[dict]) -> tuple[list[tuple[str, str, str]], bool]:
     hashes = {config_hash(r["run_id"]) for r in rs}
     rows.append(("One experiment and config", "ok" if len(names) == 1 and len(hashes) == 1 else "fail",
                  f"experiment {', '.join(sorted(names))}; config hash {', '.join(sorted(hashes))}"))
-    seeds = [r["seed"] for r in rs]
-    rows.append(("Distinct seeds", "ok" if len(set(seeds)) == len(seeds) else "fail",
-                 f"{len(seeds)} runs, seeds {seeds}"))
-    rows.append(("At least 5 seeds (poster rule)", "ok" if len(set(seeds)) >= 5 else "warn", f"{len(set(seeds))} seeds"))
+    keys = [(r["seed"], draw(r)) for r in rs]
+    seeds = sorted({s for s, _ in keys})
+    rows.append(("Distinct runs (seed, holdout draw)", "ok" if len(set(keys)) == len(keys) else "fail",
+                 f"{len(keys)} runs: " + ", ".join(run_label(r) for r in rs)))
+    rows.append(("At least 5 seeds (poster rule)", "ok" if len(seeds) >= 5 else "warn", f"{len(seeds)} seeds"))
     shas = {r["git_sha"] for r in rs}
     dirty = any(s.endswith("-dirty") or s == "unknown" for s in shas)
     rows.append(("Same, clean git commit", "ok" if len(shas) == 1 and not dirty else "fail",
@@ -272,8 +293,11 @@ def integrity(runs: list[dict]) -> tuple[list[tuple[str, str, str]], bool]:
     sums = {(p.get("dataset"), p.get("checksum")) for r in rs for p in r.get("provenance", [])}
     rows.append(("Same dataset checksum in every run", "ok" if len(sums) == 1 else "fail",
                  "; ".join(f"{d}: {c}" for d, c in sorted(sums, key=str))))
-    hold = {json.dumps(r.get("holdout", {}).get("subjects")) for r in rs}
-    rows.append(("Same held-out subjects in every run", "ok" if len(hold) == 1 else "warn", ", ".join(hold)))
+    by_draw: dict[int, set] = {}
+    for r in rs:
+        by_draw.setdefault(draw(r), set()).add(json.dumps(r.get("holdout", {}).get("subjects")))
+    rows.append(("Same held-out subjects in every run of a draw", "ok" if all(len(h) == 1 for h in by_draw.values()) else "warn",
+                 "; ".join(f"draw {d}: {', '.join(sorted(h))}" for d, h in sorted(by_draw.items()))))
     leak = []
     for r in rs:
         held = set(r.get("holdout", {}).get("subjects") or [])
@@ -308,7 +332,7 @@ def h1_rows(rs: list[dict]) -> tuple[list[list[str]], int, int]:
         b = fa is not None and la is not None and fa > la
         bt = b and ca is not None and fa <= ca
         beat, between = beat + b, between + bt
-        rows.append([str(r["seed"]), fmt(ca), fmt(fa), fmt(la), fmt(f.get("macro_f1")), fmt(lo.get("macro_f1")),
+        rows.append([esc(run_label(r)), fmt(ca), fmt(fa), fmt(la), fmt(f.get("macro_f1")), fmt(lo.get("macro_f1")),
                      fmt(c.get("macro_f1")), "yes" if b else "no", "yes" if bt else "no"])
     return rows, beat, between
 
@@ -326,8 +350,8 @@ def build(runs: list[dict], title: str, label: str | None) -> str:
     tiles = "".join(
         f'<div class="tile"><div class="tile-label"><i style="background:var({ARM_VAR[a]})"></i>'
         f'{esc(ARM_NAMES[a])}</div><div class="tile-value">{fmt(finals[a]["accuracy"][0])}</div>'
-        f'<div class="tile-sub">accuracy ± {fmt(finals[a]["accuracy"][1])} (std over {len(rs)} seeds)</div></div>'
-        for a in ("centralized", "federated", "local_only") if a in finals)
+        f'<div class="tile-sub">accuracy ± {fmt(finals[a]["accuracy"][1])} (std over {len(rs)} runs)</div></div>'
+        for a in ARMS if a in finals)
 
     h1, beat, between = h1_rows(rs) if {"federated", "local_only", "centralized"} <= set(arms_present) else ([], 0, 0)
 
@@ -341,14 +365,31 @@ def build(runs: list[dict], title: str, label: str | None) -> str:
 
     # three-arm table
     sections.append("<h2>Three-arm comparison (final, held-out set)</h2>"
-                    "<p class=\"muted\">Mean ± sample std over seeds. Local-only is each silo's own model "
-                    "on the same global held-out set, averaged across silos.</p>"
+                    "<p class=\"muted\">Mean ± sample std over runs (seeds × holdout draws). Local-only is each "
+                    "silo's own model on the same global held-out set, averaged across silos. The ensemble "
+                    "averages those local models' predicted probabilities, with no federation.</p>"
                     + table(["Arm"] + [METRIC_NAMES[m] for m in METRICS],
                             [[f'<i class="sw" style="background:var({ARM_VAR[a]})"></i>{esc(ARM_NAMES[a])}']
                              + [fmt_ms(finals[a][m]) for m in METRICS] for a in arms_present], "num"))
     if h1:
-        sections.append(f"<p><b>H1, per seed:</b> federated beats the local-only mean in <b>{beat}/{len(rs)}</b> "
-                        f"seeds, and lies between local-only and centralized in <b>{between}/{len(rs)}</b>.</p>")
+        sections.append(f"<p><b>H1, per run:</b> federated beats the local-only mean in <b>{beat}/{len(rs)}</b> "
+                        f"runs, and lies between local-only and centralized in <b>{between}/{len(rs)}</b>.</p>")
+    summary = load_summary(runs)
+    stats = (summary or {}).get("stats")
+    if stats:
+        sections.append(
+            "<h2>Paired differences (federated − comparator)</h2><p class=\"muted\">One pair per run: both arms "
+            f"on the same silos and held-out set. {esc(stats['ci_method'])}. Primary comparison (pre-registered): "
+            f"<b>{esc(stats['primary'] or 'none')}</b>; every other row is exploratory. "
+            f"{stats['n_comparisons']} comparisons.</p>"
+            + table(["Comparator", "Metric", "Role", "Mean difference", "95% CI", "Federated better"],
+                    [[esc(ARM_SHORT.get(c["b"], c["b"])), esc(METRIC_NAMES[c["metric"]]), esc(c["role"]),
+                      f'{c["mean_diff"]:+.3f}',
+                      f'[{c["ci95"][0]:+.3f}, {c["ci95"][1]:+.3f}]' if c["ci95"] else "n/a",
+                      f'{c["n_a_better"]}/{c["n_pairs"]}'] for c in stats["comparisons"]], "num"))
+    elif len(rs) > 1:
+        sections.append("<p class=\"muted\">Paired statistics: no sweep summary found next to these runs "
+                        "(run <code>fedastro sweep</code> or <code>fedastro summarize</code>).</p>")
 
     # charts
     if "federated" in arms_present:
@@ -362,13 +403,45 @@ def build(runs: list[dict], title: str, label: str | None) -> str:
                                   for m in ("accuracy", "macro_f1")) + "</div>")
 
     rows = [(METRIC_NAMES[m], [(ARM_SHORT[a], [(arm_final(r, a) or {}).get(m) for r in rs if (arm_final(r, a) or {}).get(m) is not None],
-                                ARM_VAR[a]) for a in ("centralized", "federated", "local_only") if a in arms_present])
+                                ARM_VAR[a]) for a in arms_present])
             for m in METRICS]
-    sections.append("<h2>All metrics by arm</h2><p class=\"muted\">Dot = mean over seeds, whisker = ± 1 std. "
-                    "Hover a dot for per-seed values.</p>"
+    sections.append("<h2>All metrics by arm</h2><p class=\"muted\">Dot = mean over runs, whisker = ± 1 std. "
+                    "Hover a dot for per-run values.</p>"
                     + legend([(ARM_SHORT[a] + (" (silo mean)" if a == "local_only" else ""), ARM_VAR[a])
-                              for a in ("centralized", "federated", "local_only") if a in arms_present])
+                              for a in arms_present])
                     + interval_chart(rows, [], "Final metrics by arm"))
+
+    fair_arms = [a for a in ARMS if all(a in r.get("fairness", {}) for r in rs)]
+    if fair_arms:
+        def worst(a: str) -> str:
+            names = [min(r["fairness"][a]["per_silo"], key=r["fairness"][a]["per_silo"].get) for r in rs]
+            return ", ".join(f"{s} ×{names.count(s)}" for s in sorted(set(names)))
+
+        sections.append(
+            "<h2>Silo fairness</h2><p class=\"muted\">Held-out recall re-weighted to each silo's training label "
+            "mix (label-mix heterogeneity only). Worst silo = the lowest silo; gap = best − worst, lower is "
+            "fairer. Mean ± std over runs; the worst silo is named per run.</p>"
+            + table(["Arm", "Worst silo", "Worst silo (which, per run)", "Gap (best − worst)", "Silo mean"],
+                    [[esc(ARM_SHORT[a]), fmt_ms(mean_std([r["fairness"][a]["min"] for r in rs])), esc(worst(a)),
+                      fmt_ms(mean_std([r["fairness"][a]["spread"] for r in rs])),
+                      fmt_ms(mean_std([r["fairness"][a]["mean"] for r in rs]))] for a in fair_arms], "num"))
+
+    per_group = [r["evaluation"]["per_holdout_group"] for r in rs if (r.get("evaluation") or {}).get("per_holdout_group")]
+    if per_group:
+        gnames = list(per_group[0])
+        grp_arms = [a for a in ARMS if a in per_group[0][gnames[0]]]
+        indiv = [r["evaluation"]["held_out_individuals"] for r in rs if r["evaluation"].get("held_out_individuals")]
+        blocks = [(f"held-out group {g}", [p[g] for p in per_group]) for g in gnames]
+        if indiv:
+            blocks.append(("held-out individuals (training groups)", indiv))
+        sections.append(
+            "<h2>Held-out groups</h2><p class=\"muted\">Each arm on each whole held-out group, and on the held-out "
+            "individuals of the training groups, separately (accuracy and macro-F1, mean ± std over runs).</p>"
+            + table(["Held-out set", "n"] + [f"{ARM_SHORT[a]} acc / F1" for a in grp_arms],
+                    [[esc(name), str(rows_[0][grp_arms[0]]["n"])]
+                     + [f'{fmt_ms(mean_std([x[a]["accuracy"] for x in rows_]))} / '
+                        f'{fmt_ms(mean_std([x[a]["macro_f1"] for x in rows_]))}' for a in grp_arms]
+                     for name, rows_ in blocks], "num"))
 
     if "local_only" in arms_present:
         silo_names = [s["name"] for s in rs[0]["silos"]]
@@ -386,8 +459,8 @@ def build(runs: list[dict], title: str, label: str | None) -> str:
                                 [[esc(s)] + [fmt_ms(mean_std(per_silo[s][m])) for m in METRICS] for s in silo_names], "num"))
 
     if h1:
-        sections.append("<h2>Per-seed results</h2>" + table(
-            ["Seed", "Centralized acc", "Federated acc", "Local-only acc", "Federated F1", "Local-only F1",
+        sections.append("<h2>Per-run results</h2>" + table(
+            ["Run", "Centralized acc", "Federated acc", "Local-only acc", "Federated F1", "Local-only F1",
              "Centralized F1", "Fed > local", "Between bounds"], h1, "num"))
 
     # data
@@ -404,7 +477,7 @@ def build(runs: list[dict], title: str, label: str | None) -> str:
     hold = rs[0].get("holdout", {})
     sections.append("<h2>Data</h2><p class=\"muted\">Training windows per silo and seed (silo membership is "
                     f"re-drawn per seed). Label counts as {'/'.join(labels)}.</p>"
-                    + table(["Silo"] + [f"Seed {r['seed']}" for r in rs], silo_rows)
+                    + table(["Silo"] + [esc(run_label(r).capitalize()) for r in rs], silo_rows)
                     + f"<p>Held-out set: <b>{hold.get('n_test', 'n/a')}</b> windows from subjects "
                     f"{esc(hold.get('subjects'))}; label counts {esc(hold.get('label_counts'))}.</p>")
     groups = rs[0].get("groups")
@@ -450,7 +523,10 @@ def build(runs: list[dict], title: str, label: str | None) -> str:
     generated = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     status = ('<div class="banner ok">✓ All integrity checks passed</div>' if all_ok else
               '<div class="banner fail">✗ Integrity checks failed: see “Run integrity” before reporting these numbers</div>')
-    sub = f"{esc(exp)} · config {esc(chash)} · {len(rs)} seeds" + (f" · {esc(label)}" if label else "")
+    n_seeds = len({r["seed"] for r in rs})
+    sub = (f"{esc(exp)} · config {esc(chash)} · {n_seeds} seeds"
+           + (f" × {len({draw(r) for r in rs})} holdout draws = {len(rs)} runs" if len(rs) != n_seeds else "")
+           + (f" · {esc(label)}" if label else ""))
     return PAGE.format(title=esc(title), sub=sub, status=status, tiles=tiles, body="".join(sections),
                        generated=generated, argv=esc(" ".join(sys.argv)))
 
@@ -461,10 +537,10 @@ PAGE = """<!doctype html>
 <style>
 :root {{ color-scheme: light; --page:#f9f9f7; --surface-1:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e;
   --muted:#898781; --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
-  --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a; --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; }}
+  --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a; --series-4:#8a5fd1; --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; }}
 @media (prefers-color-scheme: dark) {{ :root:not([data-theme="light"]) {{ color-scheme: dark; --page:#0d0d0d;
   --surface-1:#1a1a19; --text-primary:#f0efec; --text-secondary:#c3c2b7; --grid:#2c2c2a; --axis:#383835;
-  --border:rgba(255,255,255,0.10); --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70; }} }}
+  --border:rgba(255,255,255,0.10); --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70; --series-4:#9a72e0; }} }}
 :root[data-theme="dark"] {{ color-scheme: dark; --page:#0d0d0d; --surface-1:#1a1a19; --text-primary:#f0efec;
   --text-secondary:#c3c2b7; --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
   --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70; }}

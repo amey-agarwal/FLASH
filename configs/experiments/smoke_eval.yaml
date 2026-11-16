@@ -1,0 +1,17 @@
+# Smoke test for Phase 12 evaluation: SYNTHETIC data, the three arms + ensemble_of_locals,
+# 2 seeds x 2 holdout draws (4 runs), paired statistics with a named primary comparison.
+# Results are tagged SYNTHETIC.
+name: smoke_eval
+seed: 0
+seeds: [0, 1]
+data:
+  name: synthetic
+arms: [centralized, local_only, federated, ensemble_of_locals]
+train:
+  epochs: 3
+fl:
+  rounds: 3
+evaluation:
+  holdout_draws: 2
+  primary: "federated-local_only:macro_f1"
+notes: "Evaluation smoke test."

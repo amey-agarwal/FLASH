@@ -189,14 +189,20 @@ def make_federation(
     holdout_seed: int = 0,
     group_map: dict[str, tuple[str, ...]] | None = None,
     holdout_groups: tuple[str, ...] = (),
+    holdout_draw: int = 0,
 ) -> Federation:
     """Hold out whole groups (grouped data), then test subjects (fixed ``holdout_seed``),
     then partition the rest (``rng``). Without groups this is exactly the earlier path.
 
     Under by_group, groups that are in no silo and not held out are unused: they are
     removed before held-out subjects are drawn, so they appear neither in training nor
-    in the test set (e.g. a cohort excluded by CLAUDE2.md rule 14)."""
-    holdout_rng = np.random.default_rng([holdout_seed, _HOLDOUT_STREAM])
+    in the test set (e.g. a cohort excluded by CLAUDE2.md rule 14).
+
+    ``holdout_draw`` (Phase 12) selects one of several fixed held-out subject sets. Draw 0
+    is exactly the earlier stream; draw d > 0 has its own stream, still independent of
+    the run seed."""
+    holdout_key = [holdout_seed, _HOLDOUT_STREAM] + ([holdout_draw] if holdout_draw else [])
+    holdout_rng = np.random.default_rng(holdout_key)
     grouped = isinstance(bundle, GroupedDatasetBundle)
     if holdout_groups and not grouped:
         raise ValueError(f"dataset {bundle.provenance.dataset} has no groups; holdout_groups needs grouped data")

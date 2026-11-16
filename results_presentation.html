@@ -1,0 +1,223 @@
+<title>Federated Astronaut Health Results</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--ink:#1d1d1f;--muted:#5f6368;--line:#e2e2de;--accent:#2a5bd7;
+--c1:#2a5bd7;--c2:#d9480f;--c3:#2b8a3e;--c4:#7048e8;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141416;--card:#1e1e21;--ink:#ececec;--muted:#a0a4ab;--line:#33343a;--accent:#7ea2ff;--c1:#7ea2ff;--c2:#ff8a50;--c3:#69db7c;--c4:#b197fc;}}
+:root[data-theme="dark"]{--bg:#141416;--card:#1e1e21;--ink:#ececec;--muted:#a0a4ab;--line:#33343a;--accent:#7ea2ff;--c1:#7ea2ff;--c2:#ff8a50;--c3:#69db7c;--c4:#b197fc;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+main{max-width:1080px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.qgrid section{border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.qgrid h3{margin:0 0 2px;font-size:1rem}
+.qgrid .who{color:var(--muted);font-size:.8rem;margin:0 0 8px}
+.qgrid ol{margin:0;padding-left:20px;display:grid;gap:8px;font-size:.92rem}
+.qgrid li span{display:block;color:var(--muted);font-size:.8rem}
+.decide{border:2px solid var(--accent)}
+h1{font-size:1.9rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:0 0 24px}
+.card h2{margin:0 0 12px;font-size:1.25rem}
+.tag{display:inline-block;font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);margin-right:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.grid div{border-left:3px solid var(--line);padding-left:10px}
+.grid b{display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.find{border-left:3px solid var(--accent);padding:8px 12px;background:color-mix(in srgb,var(--accent) 6%,transparent);border-radius:0 8px 8px 0;margin-bottom:16px}
+.chart{position:relative;height:320px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.row{grid-template-columns:1fr}}
+.toggle{margin:0 0 10px}
+.toggle button{font:inherit;font-size:.85rem;padding:4px 10px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;cursor:pointer}
+.toggle button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+.note{color:var(--muted);font-size:.85rem;margin-top:10px}
+</style>
+<main>
+<h1>Cross-Silo Federated Learning for Astronaut Healthcare</h1>
+<p class="sub">Results so far (Phases 3–6). Data: WESAD (terrestrial proxy: chest and wrist signals, 60 s windows, 3 classes: baseline / stress / amusement). Five simulated silos (scenario labels): nasa_earth, esa_analog, iss_commercial, lunar_habitat, mars_transit. The held-out subjects (13, 16, 17; n = 212 windows) are never used in training. Each value is the mean ± std over 5 seeds.</p>
+
+<!-- QoI 1 -->
+<section class="card">
+<h2><span class="tag">QoI 1 · H1</span>Does federation beat training alone?</h2>
+<div class="grid">
+<div><b>Method</b>Three arms on the same held-out subjects: centralized (pooled, the upper bound), federated (FedAvg, 30 rounds × 1 epoch), and local_only (each silo trains alone, the lower bound).</div>
+<div><b>Data</b>WESAD, partitioned by subject (no subject is in two silos), MLP, 5 seeds.</div>
+<div><b>Metric</b>Held-out accuracy, macro-F1, AUC.</div>
+</div>
+<div class="find"><b>Finding:</b> federated lands between the bounds. Accuracy: 0.708 vs 0.654 for local-only (4/5 seeds), and macro-F1 is higher in 5/5 seeds. It stays well below centralized (0.868). It never reaches 95% of centralized within 30 rounds.</div>
+<div class="toggle" id="t1"><button class="on" data-m="acc">Accuracy</button> <button data-m="f1">Macro-F1</button> <button data-m="auc">AUC</button></div>
+<div class="row">
+<div class="chart"><canvas id="h1bar"></canvas></div>
+<div class="chart"><canvas id="h1curve"></canvas></div>
+</div>
+<p class="note">Right: federated held-out accuracy and macro-F1 by round (mean over 5 seeds). Payload is 21.8 KB per model and 218 KB per round.</p>
+</section>
+
+<!-- QoI 2 -->
+<section class="card">
+<h2><span class="tag">QoI 2 · Non-IID</span>How does label skew across silos affect FL?</h2>
+<div class="grid">
+<div><b>Method</b>Dirichlet(α) label partition, α ∈ {0.1, 0.3, 1, 3, 10, ∞}. A quantity-matched control keeps each silo's size but not its skew. The fairness spread is best silo − worst silo.</div>
+<div><b>Data</b>WESAD, same holdout, FedAvg, 5 seeds per α.</div>
+<div><b>Metric</b>Federated macro-F1 and accuracy; per-silo spread.</div>
+</div>
+<div class="find"><b>Finding:</b> federated macro-F1 falls steadily as skew rises (0.668 → 0.218). The quantity-matched control stays flat (0.55–0.63), so label skew causes the drop, not smaller silos. FL still beats the local-only mean at every α. Fairness gets much worse under strong skew: the spread goes from 0.002 to 0.995.</div>
+<div class="toggle" id="t2"><button class="on" data-m="f1">Macro-F1</button> <button data-m="acc">Accuracy</button> <button data-m="spread">Fairness spread</button></div>
+<div class="chart"><canvas id="alpha"></canvas></div>
+</section>
+
+<!-- QoI 3 -->
+<section class="card">
+<h2><span class="tag">QoI 3 · Strategy</span>Does FedProx fix non-IID?</h2>
+<div class="grid">
+<div><b>Method</b>FedProx vs FedAvg: matched rounds, seeds and partitions, paired per seed. μ was fixed at 0.01 in advance, and a μ sensitivity sweep was run at α = 0.3.</div>
+<div><b>Data</b>WESAD, Dirichlet α = 0.3, 5 seeds.</div>
+<div><b>Metric</b>Paired Δ accuracy (FedProx − FedAvg).</div>
+</div>
+<div class="find"><b>Finding:</b> no measurable benefit for μ ≤ 0.1 (|Δ| ≤ 0.002). At μ = 1 there is a small, inconsistent gain (+0.016, from 0 to +0.061 by seed). This fits the setup: with 1 local epoch, clients barely drift. FedProx does <i>not</i> fix non-IID here.</div>
+<div class="chart"><canvas id="mu"></canvas></div>
+</section>
+
+<!-- QoI 4 -->
+<section class="card">
+<h2><span class="tag">QoI 4 · Privacy</span>Can updates leak data, and what does DP cost?</h2>
+<div class="grid">
+<div><b>Method</b>Gradient inversion attack on a single client update from the trained global model (nasa_earth silo). Batch sizes 1, 4 and 32, with and without differential privacy (Opacus, RDP accountant, δ = 0.1/N). ε ∈ {0.5…13}.</div>
+<div><b>Data</b>WESAD, 5 seeds × 3 attack trials. ε is per record (60 s window), not per subject.</div>
+<div><b>Metric</b>Re-identification rate and relative MSE; held-out accuracy vs ε.</div>
+</div>
+<div class="find"><b>Finding:</b> without DP, leakage is real but depends on batch size: 93% of windows re-identified at B = 1, 45% at B = 4, and 15% at B = 32 (≈ 3× chance). Any DP setting pushes the attack to chance. The cost is utility: at ε ≤ 10 the federated model collapses to predicting the majority class (≈ 0.54–0.58 accuracy; majority baseline 0.538).</div>
+<div class="row">
+<div class="chart"><canvas id="attack"></canvas></div>
+<div class="chart"><canvas id="util"></canvas></div>
+</div>
+<p class="note">Left: re-identification rate (dashed line is chance at B = 32 ≈ 0.045). Right: held-out accuracy vs ε (∞ = no DP, plotted at the far right).</p>
+</section>
+
+<!-- QoI 5 -->
+<section class="card">
+<h2><span class="tag">QoI 5 · Deep-space comms</span>How long does it take to reach target accuracy?</h2>
+<div class="grid">
+<div><b>Method</b>Simulated wall-clock (no real sleeping) with per-silo delay, jitter and loss-of-signal windows. Earth, Moon, Mars-near and Mars-far presets. Synchronous FedAvg vs buffered-async FedBuff (K = 3).</div>
+<div><b>Data</b>WESAD by subject, 30 rounds, 5 seeds, loss of signal on.</div>
+<div><b>Metric</b>Simulated time to accuracy 0.673; updates per silo.</div>
+</div>
+<div class="find"><b>Finding:</b> at Mars-far, FedBuff reaches the target 9.5× sooner (1.3 h vs 12.4 h). <b>But the speed comes from leaving silos out:</b> mars_transit contributes 0 updates in every seed. A silo going dark mid-run doesn't crash anything. Without a deadline, sync FedAvg stalls cleanly. With a 1 h deadline, it wastes about 15 h waiting on the dead silo.</div>
+<div class="toggle" id="t5"><button class="on" data-m="ttt">Time to target</button> <button data-m="tot">Total run time</button></div>
+<div class="chart"><canvas id="comms"></canvas></div>
+<p class="note">Log scale, simulated hours. The sync FedAvg target is reached at the same round under every preset: comms change only the time, not the learning.</p>
+</section>
+
+<section class="card">
+<h2>Pending (not yet run)</h2>
+<table>
+<tr><th>QoI</th><th>Status</th></tr>
+<tr><td>H1 with an ensemble-of-locals baseline and 3 holdout redraws (paired CIs)</td><td>Code built; pre-registered; run pending</td></tr>
+<tr><td>H2: natural agency-analog silos</td><td>Phase 13</td></tr>
+<tr><td>H3: FLUID replication (OSD-435, IID) vs non-IID</td><td>Phase 14</td></tr>
+<tr><td>H4: value of joining mid-run on day one</td><td>Phase 15</td></tr>
+<tr><td>H5: drift detection</td><td>Stretch</td></tr>
+</table>
+<p class="note">Limitations: WESAD is terrestrial proxy data, not spaceflight data. Silo names are simulation scenario labels. ε is per record, so subject-level privacy is much weaker. We demonstrate the mechanism under simulated conditions; we do not validate an operational system.</p>
+</section>
+
+<section class="card">
+<h2>Questions for the team</h2>
+<p class="note" style="margin-top:0">The poster session is 2–5 Dec 2026, about 4 weeks away. Each question below is an open decision that blocks or shapes the next phase.</p>
+<div class="qgrid">
+<section class="decide">
+<h3>Decide today (everyone)</h3>
+<p class="who">These block work this week</p>
+<ol>
+<li>Lock the primary comparison for the pre-registration: federated − local_only on macro-F1, where success means the 95% CI lower bound is above 0?<span>The pre-registration is fixed once committed. The redraw run waits on this.</span></li>
+<li>Which agency-analog dataset should we use for H2: gut microbiome (CRC), PhysioNet heart sounds, or WHO STEPS hypertension?<span>Phase 13 can't start without this choice.</span></li>
+<li>What do we cut if time runs short? Drift (H5) and the resource profile are stretch goals now.</li>
+</ol>
+</section>
+<section>
+<h3>ML</h3>
+<p class="who">Method and fairness of comparisons</p>
+<ol>
+<li>Should the ensemble-of-locals baseline weight silos equally (current) or by silo size?</li>
+<li>Under DP the model collapses to the majority class. Do we add a DP-tuned variant (e.g. SGD, larger batch), pre-registered, or report the collapse as it stands?</li>
+<li>Is the attack threat model fair: a single update, known architecture, B = 1 shown next to B = 32?</li>
+<li>Should we re-test FedProx with more than 1 local epoch, where clients actually drift?</li>
+<li>Should we add a dark-silo test on nasa_earth (40% of the data), so the FedBuff result means something?</li>
+</ol>
+</section>
+<section>
+<h3>Astrobiology</h3>
+<p class="who">Spaceflight relevance and the FLUID comparison</p>
+<ol>
+<li>OSD-435 (rodent cardiac): which non-IID split makes biological sense? Options are flight vs ground, batch or mission, or tissue.</li>
+<li>Is rodent data with tiny n a defensible spaceflight stand-in, and how should the poster word that?</li>
+<li>Which mission locations (LEO, lunar orbit, lunar surface, Mars) are realistic scenarios per agency for the 2030s?</li>
+<li>For microbiome data, is lab or batch effect confounded with country a dealbreaker?</li>
+</ol>
+</section>
+<section>
+<h3>Medical</h3>
+<p class="who">Clinical meaning of the task and the errors</p>
+<ol>
+<li>Is classifying baseline, stress or amusement from chest and wrist signals a meaningful astronaut-health task? If not, which target would be?</li>
+<li>What accuracy or F1 would be clinically useful? Our current target is 0.673 accuracy.</li>
+<li>Which error costs more: a missed stress episode or a false alarm? Should per-class recall lead?</li>
+<li>Privacy is per 60 s window, not per person. Would an ethics board accept that, or must it be per subject?</li>
+<li>What physiological changes over a long mission should the drift experiment imitate?</li>
+</ol>
+</section>
+<section>
+<h3>UI / UX</h3>
+<p class="who">Poster and booth demo</p>
+<ol>
+<li>What should a visitor take away in 30 seconds at the booth: this page, the run report, or a single hero chart?</li>
+<li>How do we show the attack (original vs reconstructed signal) to non-experts?</li>
+<li>How do we show simulated time vs real time without confusing people?</li>
+<li>Which 4–8 panels go on the printed poster, and do they read in greyscale at print size?</li>
+<li>Is an Earth–Moon–Mars silo map worth building for the booth?</li>
+</ol>
+</section>
+</div>
+</section>
+</main>
+
+<script>
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C=[css('--c1'),css('--c2'),css('--c3'),css('--c4')];
+Chart.defaults.color=css('--muted');Chart.defaults.borderColor=css('--line');Chart.defaults.font.family='-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif';
+const errPlugin={id:'err',afterDatasetsDraw(ch){const {ctx}=ch;ch.data.datasets.forEach((ds,i)=>{if(!ds.err)return;const m=ch.getDatasetMeta(i);if(m.hidden)return;m.data.forEach((pt,j)=>{const e=ds.err[j];if(e==null)return;const y=ch.scales.y,v=ds.data[j];const t=y.getPixelForValue(v+e),b=y.getPixelForValue(v-e);ctx.save();ctx.strokeStyle=css('--ink');ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(pt.x,t);ctx.lineTo(pt.x,b);ctx.moveTo(pt.x-5,t);ctx.lineTo(pt.x+5,t);ctx.moveTo(pt.x-5,b);ctx.lineTo(pt.x+5,b);ctx.stroke();ctx.restore();});});}};
+function toggle(id,fn){document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.remove('on'));b.classList.add('on');fn(b.dataset.m);});}
+
+// QoI1
+const H1={acc:{m:[0.868,0.708,0.654],s:[0.022,0.074,0.029]},f1:{m:[0.803,0.668,0.551],s:[0.027,0.070,0.033]},auc:{m:[0.881,0.807,0.778],s:[0.008,0.036,0.011]}};
+const h1=new Chart(h1bar,{type:'bar',data:{labels:['Centralized','Federated','Local-only'],datasets:[{label:'Accuracy',data:H1.acc.m,err:H1.acc.s,backgroundColor:[C[2],C[0],C[1]]}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'Three-arm comparison (mean ± std, 5 seeds)'}},scales:{y:{min:0.4,max:1}}},plugins:[errPlugin]});
+toggle('t1',m=>{h1.data.datasets[0].data=H1[m].m;h1.data.datasets[0].err=H1[m].s;h1.data.datasets[0].label=m;h1.update();});
+new Chart(h1curve,{type:'line',data:{labels:[1,5,10,15,20,25,30],datasets:[{label:'Fed accuracy',data:[.562,.683,.674,.680,.708,.710,.708],borderColor:C[0],backgroundColor:C[0]},{label:'Fed macro-F1',data:[.406,.488,.485,.543,.631,.663,.668],borderColor:C[3],backgroundColor:C[3]},{label:'Centralized acc',data:Array(7).fill(.868),borderColor:C[2],borderDash:[6,4],pointRadius:0},{label:'Local-only acc',data:Array(7).fill(.654),borderColor:C[1],borderDash:[6,4],pointRadius:0}]},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{title:{display:true,text:'Federated learning curve'}},scales:{x:{title:{display:true,text:'Round'}},y:{min:0.35,max:0.95}}}});
+
+// QoI2
+const AL=['∞ (by subject)','10','3','1','0.3','0.1'];
+const A={f1:[{l:'Federated (Dirichlet)',d:[.668,.524,.489,.384,.348,.218]},{l:'Quantity control',d:[null,.633,.593,.576,.573,.547]}],
+acc:[{l:'Federated (Dirichlet)',d:[.708,.652,.628,.575,.571,.492]},{l:'Quantity control',d:[null,.722,.696,.671,.685,.700]},{l:'Centralized',d:[.868,.838,.750,.647,.688,.536]},{l:'Local-only',d:[.654,.644,.573,.476,.509,.414]}],
+spread:[{l:'Federated spread',d:[.002,.160,.471,.641,.657,.995]},{l:'Local-only spread',d:[.300,.225,.335,.468,.176,.176]}]};
+const al=new Chart(alpha,{type:'line',data:{labels:AL,datasets:[]},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{title:{display:true,text:'← less skew          Dirichlet α          more skew →'}},scales:{y:{min:0,max:1}}}});
+function setA(m){al.data.datasets=A[m].map((s,i)=>({label:s.l,data:s.d,borderColor:C[i],backgroundColor:C[i],spanGaps:true,borderDash:s.l.includes('control')?[6,4]:[]}));al.update();}
+setA('f1');toggle('t2',setA);
+
+// QoI3
+new Chart(mu,{type:'bar',data:{labels:['μ=0.001','μ=0.01 (pre-set)','μ=0.1','μ=1.0'],datasets:[{label:'Mean paired Δacc (FedProx − FedAvg)',data:[0,-0.001,-0.002,0.016],backgroundColor:C[0]},{label:'Min over seeds',data:[0,-0.005,-0.009,0],backgroundColor:C[1]},{label:'Max over seeds',data:[0,0,0,0.061],backgroundColor:C[2]}]},options:{maintainAspectRatio:false,plugins:{title:{display:true,text:'FedProx − FedAvg, α = 0.3, 5 seeds paired'}},scales:{y:{title:{display:true,text:'Δ accuracy'}}}}});
+
+// QoI4
+const EPS=['0.5','1','2','3','5','10','13','∞'];
+new Chart(attack,{type:'bar',data:{labels:['No DP','ε=13','ε=5','ε=1','ε=0.5'],datasets:[{label:'B=1',data:[.93,0,0,0,0],err:[.15,null,null,null,null],backgroundColor:C[1]},{label:'B=4',data:[.45,0,0,0,0],err:[.08,null,null,null,null],backgroundColor:C[3]},{label:'B=32',data:[.15,.07,.05,.05,.05],err:[.04,.02,.01,.02,.02],backgroundColor:C[0]},{type:'line',label:'Chance (B=32)',data:Array(5).fill(.045),borderColor:css('--muted'),borderDash:[5,4],pointRadius:0}]},options:{maintainAspectRatio:false,plugins:{title:{display:true,text:'Gradient-inversion re-identification rate'}},scales:{y:{min:0,max:1.1}}},plugins:[errPlugin]});
+new Chart(util,{type:'line',data:{labels:EPS,datasets:[{label:'Federated',data:[.514,.540,.548,.546,.546,.565,.579,.708],borderColor:C[0],backgroundColor:C[0]},{label:'Centralized',data:[.556,.575,.634,.681,.699,.694,.693,.868],borderColor:C[2],backgroundColor:C[2]},{label:'Local-only',data:[.426,.470,.505,.532,.570,.597,.613,.654],borderColor:C[1],backgroundColor:C[1]},{label:'Majority class',data:Array(8).fill(.538),borderColor:css('--muted'),borderDash:[5,4],pointRadius:0}]},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{title:{display:true,text:'Utility vs privacy budget ε'}},scales:{x:{title:{display:true,text:'ε (smaller = more private)'}},y:{min:0.4,max:0.9}}}});
+
+// QoI5
+const P=['Earth','Moon','Mars near','Mars far'];
+const CM={ttt:{a:[155,155,8059,44627],b:[29,33,570,4716]},tot:{a:[257,257,23284,111020],b:[108,131,692,4850]}};
+const cm=new Chart(comms,{type:'bar',data:{labels:P,datasets:[{label:'Sync FedAvg',backgroundColor:C[1]},{label:'FedBuff (async, K=3)',backgroundColor:C[0]}]},options:{maintainAspectRatio:false,plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toFixed(3)+' h ('+Math.round(c.raw*3600)+' s)'}},title:{display:true,text:'Simulated hours (log scale)'}},scales:{y:{type:'logarithmic',title:{display:true,text:'Simulated hours'}}}}});
+function setC(m){cm.data.datasets[0].data=CM[m].a.map(s=>s/3600);cm.data.datasets[1].data=CM[m].b.map(s=>s/3600);cm.update();}
+setC('ttt');toggle('t5',setC);
+</script>

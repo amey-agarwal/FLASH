@@ -241,3 +241,5 @@ def test_grouped_smoke_run_end_to_end(tmp_path, monkeypatch):
     assert r["provenance"][0]["domain"] == "synthetic"
     assert "Held-out groups" in r["notes"] and "Unused groups" in r["notes"]
     assert r["arms"]["federated"]["final"]["accuracy"] is not None
+    # Phase 12: every arm, the federated one included, is scored on the held-out group
+    assert r["evaluation"]["per_holdout_group"]["group_6"]["federated"]["n"] == 3 * 30

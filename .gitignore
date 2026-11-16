@@ -11,6 +11,7 @@ dist/
 runs/
 data/raw/
 data/cache/
+PACE-runs-eval/
 
 # OS / editors
 .DS_Store

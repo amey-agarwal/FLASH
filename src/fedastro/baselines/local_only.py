@@ -17,7 +17,11 @@ from fedastro.metrics.classification import METRICS
 from fedastro.training import derive_seed, train_local
 
 
-def run_local_only(fed: Federation, cfg: ExperimentConfig, seed: int, device: str) -> dict[str, Any]:
+def run_local_only(fed: Federation, cfg: ExperimentConfig, seed: int, device: str,
+                   models: list | None = None) -> dict[str, Any]:
+    """If ``models`` is a list, it receives ``(silo, model, scaler)`` for every trained
+    local model (used by the ensemble_of_locals arm and per-group evaluation). The
+    returned arm is the same either way."""
     n_classes = len(fed.holdout.class_names)
     per_silo: dict[str, Any] = {}
     for idx, (name, split) in enumerate(fed.silos.items()):
@@ -32,6 +36,8 @@ def run_local_only(fed: Federation, cfg: ExperimentConfig, seed: int, device: st
         )
         final = {k: v for k, v in history[-1].items() if k not in ("epoch", "train_loss")}
         per_silo[name] = {"final": final, "history": history, "n_train": len(data)}
+        if models is not None:
+            models.append((name, model, scaler))
         if dp is not None:
             from fedastro.privacy.dp import records_per_subject
 

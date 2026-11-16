@@ -1,0 +1,14 @@
+# Phase 12 (pre-registered: prereg/p12-wesad-redraws.md). WESAD by-subject, as in
+# wesad_by_subject.yaml, plus the ensemble_of_locals arm and 3 held-out subject draws:
+# 5 seeds x 3 draws = 15 runs. Draw 0 is the wesad_by_subject holdout (subjects 13, 16, 17).
+name: wesad_by_subject_redraws
+seeds: [0, 1, 2, 3, 4]
+data:
+  name: wesad
+partition:
+  method: by_subject
+  holdout_subjects: 3
+arms: [centralized, local_only, federated, ensemble_of_locals]
+evaluation:
+  holdout_draws: 3
+  primary: "federated-local_only:macro_f1"

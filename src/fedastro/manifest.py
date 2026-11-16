@@ -29,8 +29,18 @@ TRACKED_PACKAGES = (
 )
 
 
-def make_run_id(cfg: ExperimentConfig, seed: int) -> str:
+def make_run_id(cfg: ExperimentConfig, seed: int, draw: int = 0) -> str:
+    """``<name>-seed<s>-<hash>``; with evaluation.holdout_draws > 1, ``<name>-seed<s>-draw<d>-<hash>``."""
+    if cfg.evaluation.holdout_draws > 1:
+        return f"{cfg.name}-seed{seed}-draw{draw}-{cfg.config_hash()[:10]}"
+    if draw:
+        raise ValueError("draw > 0 needs evaluation.holdout_draws > 1")
     return f"{cfg.name}-seed{seed}-{cfg.config_hash()[:10]}"
+
+
+def run_keys(cfg: ExperimentConfig, seeds: list[int] | tuple[int, ...]) -> list[tuple[int, int]]:
+    """Every (seed, draw) pair an experiment runs: seeds x holdout draws."""
+    return [(s, d) for s in seeds for d in range(cfg.evaluation.holdout_draws)]
 
 
 def git_sha() -> str:

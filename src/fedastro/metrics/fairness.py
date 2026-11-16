@@ -47,7 +47,9 @@ def fairness_report(result: dict[str, Any], class_names: list[str]) -> dict[str,
     out: dict[str, Any] = {
         "metric": "holdout recall re-weighted to each silo's training label mix",
     }
-    for arm in ("centralized", "federated"):
+    for arm in ("centralized", "federated", "ensemble_of_locals"):  # one model serves every silo
+        if arm not in arms:
+            continue
         recall = arms[arm]["final"].get("recall_per_class")
         if recall is not None:
             out[arm] = summarise({n: label_mix_accuracy(recall, lc, class_names) for n, lc in silos.items()})

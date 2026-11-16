@@ -24,7 +24,9 @@ def load_dataset(cfg: ExperimentConfig, seed: int) -> DatasetBundle:
     return get_dataset(cfg.data.name).load(cfg.data, seed)
 
 
-def build_federation(cfg: ExperimentConfig, seed: int) -> tuple[DatasetBundle, Federation]:
+def build_federation(cfg: ExperimentConfig, seed: int, draw: int = 0) -> tuple[DatasetBundle, Federation]:
+    if not 0 <= draw < cfg.evaluation.holdout_draws:
+        raise ValueError(f"holdout draw {draw} not in [0, {cfg.evaluation.holdout_draws})")
     rng = seed_everything(seed)
     bundle = load_dataset(cfg, seed)
     shares = {s.name: s.data_share for s in cfg.topology.silos}
@@ -32,6 +34,7 @@ def build_federation(cfg: ExperimentConfig, seed: int) -> tuple[DatasetBundle, F
         bundle, shares, cfg.partition.method, cfg.partition.holdout_subjects, rng,
         alpha=cfg.partition.alpha, holdout_seed=cfg.partition.holdout_seed,
         group_map=cfg.partition.group_map, holdout_groups=cfg.partition.holdout_groups,
+        holdout_draw=draw,
     )
     return bundle, fed
 
@@ -65,24 +68,43 @@ def describe_federation(fed: Federation) -> tuple[list[dict[str, Any]], dict[str
 
 def run_arms(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str, Any]) -> dict[str, Any]:
     """Train the configured arms into ``result["arms"]``. Returns what the federated
-    arm captured (global weights, scaler) for the privacy attack, or {}."""
+    arm captured (global weights, scaler) for the privacy attack, or {}; with held-out
+    groups or the ensemble arm, ``capture["models"]`` also holds the trained models."""
     from fedastro.baselines.centralized import run_centralized
     from fedastro.baselines.common import resolve_device
     from fedastro.baselines.local_only import run_local_only
 
     device = resolve_device(cfg.device)
+    # Keep trained models only when something scores them after training (Phase 12).
+    group_eval = bool(fed.groups and fed.groups["holdout_groups"])
+    keep = group_eval or "ensemble_of_locals" in cfg.arms
+    models: dict[str, Any] = {}
+    cen_capture: dict[str, Any] | None = {} if group_eval else None
+    local_models: list | None = [] if keep and "local_only" in cfg.arms else None
     if "centralized" in cfg.arms:
-        result["arms"]["centralized"] = run_centralized(fed, cfg, seed, device)
+        result["arms"]["centralized"] = run_centralized(fed, cfg, seed, device, capture=cen_capture)
+        if cen_capture:
+            models["centralized"] = (cen_capture["model"], cen_capture["scaler"])
     if "local_only" in cfg.arms:
-        result["arms"]["local_only"] = run_local_only(fed, cfg, seed, device)
+        result["arms"]["local_only"] = run_local_only(fed, cfg, seed, device, models=local_models)
+    if "ensemble_of_locals" in cfg.arms:
+        from fedastro.baselines.ensemble import run_ensemble_of_locals
+
+        local_arm = result["arms"]["local_only"] if "local_only" in cfg.arms else None
+        result["arms"]["ensemble_of_locals"], local_models = run_ensemble_of_locals(
+            fed, cfg, seed, device, local_models, local_arm)
+    if local_models is not None:
+        models["local"] = local_models
+    capture: dict[str, Any] = {}
     if "federated" in cfg.arms:
         from fedastro.fl.server import run_federated
 
         centralized_final = result["arms"]["centralized"]["final"] if "centralized" in cfg.arms else None
-        capture: dict[str, Any] = {}
         result["arms"]["federated"] = run_federated(fed, cfg, seed, device, centralized_final, capture)
-        return capture
-    return {}
+    if keep:
+        capture["models"] = models
+        capture["device"] = device
+    return capture
 
 
 def privacy_report(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str, Any],
@@ -98,6 +120,8 @@ def privacy_report(cfg: ExperimentConfig, fed: Federation, seed: int, result: di
         accounting["local_only"] = {k: v["privacy"] for k, v in arms["local_only"]["per_silo"].items()}
     if "privacy" in arms["federated"]:
         accounting["federated"] = arms["federated"]["privacy"]
+    if "privacy" in arms.get("ensemble_of_locals", {}) and "local_only" not in accounting:
+        accounting["ensemble_of_locals"] = arms["ensemble_of_locals"]["privacy"]  # its own local models
     section = privacy_section(cfg.privacy, accounting)
     if cfg.privacy.attack.enabled:
         from fedastro.baselines.common import init_model
@@ -112,15 +136,15 @@ def privacy_report(cfg: ExperimentConfig, fed: Federation, seed: int, result: di
     return section
 
 
-def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
-    bundle, fed = build_federation(cfg, seed)
+def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0) -> dict[str, Any]:
+    bundle, fed = build_federation(cfg, seed, draw)
     silos, holdout = describe_federation(fed)
 
     result = empty_result()
     run_cfg = cfg.experiment_dict()
     run_cfg["seed"] = seed
     result.update(
-        run_id=make_run_id(cfg, seed),
+        run_id=make_run_id(cfg, seed, draw),
         git_sha=git_sha(),
         timestamp_utc=timestamp_utc(),
         config=run_cfg,
@@ -138,10 +162,28 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
     from fedastro.metrics.fairness import fairness_report
 
     result["fairness"] = fairness_report(result, list(bundle.class_names))
+    # Phase 12 evaluation block: only with holdout redraws or held-out groups.
+    group_eval = bool(fed.groups and fed.groups["holdout_groups"])
+    if cfg.evaluation.holdout_draws > 1 or group_eval:
+        result["evaluation"] = {"holdout_draw": draw, "holdout_draws": cfg.evaluation.holdout_draws,
+                                "per_holdout_group": {}, "held_out_individuals": None}
+    if group_eval:
+        from fedastro.evaluation import arm_probabilities, holdout_group_report
+
+        probas = arm_probabilities(cfg, fed, capture["models"], capture, capture["device"])
+        result["evaluation"].update(holdout_group_report(fed, probas))
+        if "ensemble_of_locals" in result["arms"]:
+            result["arms"]["ensemble_of_locals"]["per_holdout_group"] = {
+                g: row["ensemble_of_locals"] for g, row in result["evaluation"]["per_holdout_group"].items()}
     notes = []
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
     notes.append(f"Arms run: {', '.join(cfg.arms)}.")
+    if "ensemble_of_locals" in cfg.arms:
+        notes.append("ensemble_of_locals: the local-only models' predicted probabilities averaged "
+                     "(unweighted) at test time; no weights exchanged.")
+    if cfg.evaluation.holdout_draws > 1:
+        notes.append(f"Held-out subject draw {draw} of {cfg.evaluation.holdout_draws}.")
     if fed.groups is not None:
         if fed.groups["holdout_groups"]:
             notes.append(f"Held-out groups (no training samples, no scaler statistics): "
@@ -166,9 +208,9 @@ def run_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
     return result
 
 
-def run_and_write(cfg: ExperimentConfig, seed: int) -> Path:
+def run_and_write(cfg: ExperimentConfig, seed: int, draw: int = 0) -> Path:
     t0 = time.perf_counter()
-    result = run_experiment(cfg, seed)
+    result = run_experiment(cfg, seed, draw)
     return write_run(result, cfg.output_dir, time.perf_counter() - t0)
 
 

@@ -32,8 +32,9 @@ def _parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="run one experiment for one seed")
     common(run)
     run.add_argument("--seed", type=int, help="override seed (default from config)")
+    run.add_argument("--draw", type=int, default=0, help="holdout draw (needs evaluation.holdout_draws > 1)")
 
-    sweep = sub.add_parser("sweep", help="run one experiment for several seeds, sequentially")
+    sweep = sub.add_parser("sweep", help="run one experiment for several seeds (x holdout draws), sequentially")
     common(sweep)
     sweep.add_argument("--seeds", type=int, nargs="+", help="override seeds list")
 
@@ -53,6 +54,7 @@ def _parser() -> argparse.ArgumentParser:
     inspect = sub.add_parser("inspect", help="print the per-silo class distribution; writes nothing")
     common(inspect)
     inspect.add_argument("--seed", type=int, help="override seed (default from config)")
+    inspect.add_argument("--draw", type=int, default=0, help="holdout draw (needs evaluation.holdout_draws > 1)")
     return p
 
 
@@ -67,7 +69,7 @@ def _summarize(paths: list[Path], out: Path | None) -> None:
 
 def _grid(args: argparse.Namespace) -> int:
     from fedastro.grid import load_grid
-    from fedastro.manifest import make_run_id
+    from fedastro.manifest import make_run_id, run_keys
 
     try:
         sweep_name, variants = load_grid(args.sweep)
@@ -96,21 +98,22 @@ def _grid(args: argparse.Namespace) -> int:
     for v in chosen:
         cfg = v.config.with_overrides(output_dir=args.output_dir)
         paths = []
-        for seed in cfg.seeds:
-            path = Path(cfg.output_dir) / make_run_id(cfg, seed) / "result.json"
+        keys = run_keys(cfg, cfg.seeds)
+        for seed, draw in keys:
+            path = Path(cfg.output_dir) / make_run_id(cfg, seed, draw) / "result.json"
             if not (args.resume and path.exists()):
                 try:
-                    path = run_and_write(cfg, seed) / "result.json"
+                    path = run_and_write(cfg, seed, draw) / "result.json"
                 except Exception as e:  # one failed run must not abort a long sweep
-                    failed.append(f"{v.name} seed {seed}: {type(e).__name__}: {e}")
+                    failed.append(f"{v.name} seed {seed} draw {draw}: {type(e).__name__}: {e}")
                     print(f"FAILED {failed[-1]}", file=sys.stderr)
                     continue
             paths.append(path)
             print(path)
-        if len(paths) == len(cfg.seeds):
+        if len(paths) == len(keys):
             _summarize(paths, Path(cfg.output_dir) / f"{cfg.name}-{cfg.config_hash()[:10]}-summary.json")
         else:
-            print(f"SKIPPED summary for {v.name}: {len(paths)}/{len(cfg.seeds)} seeds succeeded", file=sys.stderr)
+            print(f"SKIPPED summary for {v.name}: {len(paths)}/{len(keys)} runs succeeded", file=sys.stderr)
     if failed:
         print(f"{len(failed)} run(s) failed; re-run with --resume to fill gaps:", file=sys.stderr)
         for f in failed:
@@ -142,18 +145,24 @@ def main(argv: list[str] | None = None) -> int:
         print(f"config error: {e}", file=sys.stderr)
         return 2
 
+    if args.command in ("run", "inspect") and not 0 <= args.draw < cfg.evaluation.holdout_draws:
+        print(f"config error: --draw {args.draw} not in [0, evaluation.holdout_draws = "
+              f"{cfg.evaluation.holdout_draws})", file=sys.stderr)
+        return 2
     if args.command == "inspect":
-        bundle, fed = build_federation(cfg, cfg.seed)
+        bundle, fed = build_federation(cfg, cfg.seed, args.draw)
         p = bundle.provenance
         print(f"dataset={p.dataset} kind={p.kind} version={p.version}")
         print(f"partition={cfg.partition.method} alpha={cfg.partition.alpha} seed={cfg.seed}")
         print(format_distribution_table(fed, bundle.class_names))
         return 0
 
-    seeds = [cfg.seed] if args.command == "run" else list(cfg.seeds)
+    from fedastro.manifest import run_keys
+
+    keys = [(cfg.seed, args.draw)] if args.command == "run" else run_keys(cfg, cfg.seeds)
     paths = []
-    for seed in seeds:
-        run_dir = run_and_write(cfg, seed)
+    for seed, draw in keys:
+        run_dir = run_and_write(cfg, seed, draw)
         paths.append(run_dir / "result.json")
         print(paths[-1])
     if args.command == "sweep":

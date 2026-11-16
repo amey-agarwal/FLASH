@@ -33,9 +33,13 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
     hashes = {r["run_id"].rsplit("-", 1)[-1] for r in results}
     if len(names) != 1 or len(hashes) != 1:
         raise ValueError(f"results mix experiments: names={names}, config hashes={hashes}")
-    seeds = sorted(r["seed"] for r in results)
-    if len(set(seeds)) != len(seeds):
-        raise ValueError(f"duplicate seeds: {seeds}")
+    from fedastro.metrics.stats import holdout_draw, paired_comparisons
+
+    keys = sorted((r["seed"], holdout_draw(r)) for r in results)
+    if len(set(keys)) != len(keys):
+        raise ValueError(f"duplicate (seed, holdout draw) runs: {keys}")
+    seeds = sorted({s for s, _ in keys})
+    draws = sorted({d for _, d in keys})
     arms = results[0]["arms"]
     summary: dict[str, Any] = {
         "experiment": names.pop(),
@@ -45,6 +49,8 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
         "provenance": results[0]["provenance"],
         "arms": {},
     }
+    if draws != [0]:  # Phase 12 holdout redraws: every (seed, draw) is one run
+        summary.update(holdout_draws=draws, n_runs=len(results))
     if arms["centralized"]["history"]:
         summary["arms"]["centralized"] = {
             m: _mean_std([r["arms"]["centralized"]["final"][m] for r in results]) for m in METRICS
@@ -64,15 +70,27 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
         summary["arms"]["local_only"] = lo
     if arms["federated"]["rounds"]:
         summary["arms"]["federated"] = _summarise_federated(results)
+    if "ensemble_of_locals" in arms:
+        summary["arms"]["ensemble_of_locals"] = {
+            m: _mean_std([r["arms"]["ensemble_of_locals"]["final"][m] for r in results]) for m in METRICS}
     if {"centralized", "local_only", "federated"} <= set(summary["arms"]):
         summary["h1"] = _h1_tally(results)
     fairness = {}
-    for arm in ("centralized", "local_only", "federated"):
+    for arm in ("centralized", "local_only", "federated", "ensemble_of_locals"):
         if all(arm in r.get("fairness", {}) for r in results):
             fairness[arm] = {k: _mean_std([r["fairness"][arm][k] for r in results])
                              for k in ("spread", "std", "min", "mean")}
+            # First-class worst-silo and best-to-worst gap (Phase 12). The gap is the
+            # spread; the worst silo is named per run and counted.
+            worst = [min(r["fairness"][arm]["per_silo"], key=r["fairness"][arm]["per_silo"].get) for r in results]
+            fairness[arm]["worst_silo"] = {"value": fairness[arm]["min"],
+                                           "silo_counts": {s: worst.count(s) for s in sorted(set(worst))}}
+            fairness[arm]["gap"] = fairness[arm]["spread"]
     if fairness:
         summary["fairness"] = fairness
+    stats = paired_comparisons(results, (results[0]["config"].get("evaluation") or {}).get("primary", ""))
+    if stats:
+        summary["stats"] = stats
     privacy = _summarise_privacy(results)
     if privacy:
         summary["privacy"] = privacy
@@ -176,6 +194,7 @@ def _h1_tally(results: list[dict[str, Any]], metric: str = "accuracy") -> dict[s
         fed, lo, cen = a["federated"]["final"][metric], a["local_only"]["mean"][metric], a["centralized"]["final"][metric]
         beats_local += fed > lo
         between += lo < fed <= cen
+    # n_seeds counts runs; it equals the seed count unless there are holdout redraws.
     return {"metric": metric, "n_seeds": len(results), "federated_beats_local_only_mean": beats_local,
             "federated_between_local_only_and_centralized": between}
 
@@ -190,7 +209,8 @@ def format_summary(summary: dict[str, Any]) -> str:
             return "n/a"
         return f"{ms['mean']:.3f} ± {ms['std']:.3f}" if ms["std"] is not None else f"{ms['mean']:.3f}"
 
-    lines = [f"{summary['experiment']} ({summary['n_seeds']} seeds: {summary['seeds']})",
+    draws = f", holdout draws {summary['holdout_draws']} = {summary['n_runs']} runs" if "n_runs" in summary else ""
+    lines = [f"{summary['experiment']} ({summary['n_seeds']} seeds: {summary['seeds']}{draws})",
              f"{'arm':<28}" + "".join(f"{m:>20}" for m in METRICS)]
     arms = summary["arms"]
     if "centralized" in arms:
@@ -200,6 +220,8 @@ def format_summary(summary: dict[str, Any]) -> str:
         lines.append(f"{'local_only (silo mean)':<28}" + "".join(f"{fmt(lo['mean_across_silos'][m]):>20}" for m in METRICS))
         for silo, ms in lo["per_silo"].items():
             lines.append(f"{'  ' + silo:<28}" + "".join(f"{fmt(ms[m]):>20}" for m in METRICS))
+    if "ensemble_of_locals" in arms:
+        lines.append(f"{'ensemble_of_locals':<28}" + "".join(f"{fmt(arms['ensemble_of_locals'][m]):>20}" for m in METRICS))
     if "federated" in arms:
         fed = arms["federated"]
         lines.append(f"{'federated (final round)':<28}" + "".join(f"{fmt(fed['final'][m]):>20}" for m in METRICS))
@@ -214,7 +236,9 @@ def format_summary(summary: dict[str, Any]) -> str:
     if "fairness" in summary:
         lines.append("fairness (label-mix holdout accuracy across silos; spread = max - min, lower is fairer):")
         for arm, f in summary["fairness"].items():
-            lines.append(f"  {arm:<14} spread {fmt(f['spread'])}   worst silo {fmt(f['min'])}   silo mean {fmt(f['mean'])}")
+            counts = ", ".join(f"{s} x{n}" for s, n in f["worst_silo"]["silo_counts"].items())
+            lines.append(f"  {arm:<18} gap {fmt(f['gap'])}   worst silo {fmt(f['worst_silo']['value'])} "
+                         f"({counts})   silo mean {fmt(f['mean'])}")
     if "privacy" in summary:
         pr = summary["privacy"]
         if "epsilon" in pr:
@@ -235,8 +259,16 @@ def format_summary(summary: dict[str, Any]) -> str:
                              f"chance nn_id {fmt(c['chance']['nn_identified'])}{la}")
     if "h1" in summary:
         h = summary["h1"]
-        lines.append(f"H1 ({h['metric']}): federated > local_only mean in {h['federated_beats_local_only_mean']}/{h['n_seeds']} seeds; "
+        lines.append(f"H1 ({h['metric']}): federated > local_only mean in {h['federated_beats_local_only_mean']}/{h['n_seeds']} runs; "
                      f"between local_only and centralized in {h['federated_between_local_only_and_centralized']}/{h['n_seeds']}")
+    if "stats" in summary:
+        st = summary["stats"]
+        lines.append(f"paired differences federated - X over runs (95% bootstrap CI); "
+                     f"primary: {st['primary'] or 'none'}; {st['n_comparisons']} comparisons:")
+        for c in st["comparisons"]:
+            ci = f"[{c['ci95'][0]:+.3f}, {c['ci95'][1]:+.3f}]" if c["ci95"] else "n/a"
+            lines.append(f"  {'PRIMARY ' if c['role'] == 'primary' else ''}{c['b']:<20} {c['metric']:<18} "
+                         f"{c['mean_diff']:+.3f} {ci}  federated better in {c['n_a_better']}/{c['n_pairs']}")
     return "\n".join(lines)
 
 

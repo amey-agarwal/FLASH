@@ -174,11 +174,11 @@ def test_grid_continues_after_a_failed_run(tmp_path, repo, monkeypatch, capsys):
     real = cli.run_and_write
     calls = []
 
-    def flaky(cfg, seed):
+    def flaky(cfg, seed, draw=0):
         calls.append(cfg.name)
         if cfg.train.epochs == 1:
             raise RuntimeError("simulated stall")
-        return real(cfg, seed)
+        return real(cfg, seed, draw)
 
     monkeypatch.setattr(cli, "run_and_write", flaky)
     path = _sweep(tmp_path, repo, {"train.epochs": [1, 2]})

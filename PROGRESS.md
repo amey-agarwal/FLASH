@@ -2,9 +2,11 @@
 
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
-**Phase 11 (dataset registry + provenance domain): built, AT THE GATE but cannot close (2026-11-05).
-Tier A passes; `src/` changed, so the gate needs Tier B, which waits for the Phase 10 freeze (R10).
-Not committed.**
+**Phase 12 (evaluation and statistics): code built, STOPPED before the real-data run (2026-11-05).
+The pre-registration `prereg/p12-wesad-redraws.md` must be committed before the WESAD redraw run
+(CLAUDE2.md rule 9). Not committed.**
+**Phase 11 (dataset registry + provenance domain): committed `d3cb42a` (branch `agency-build`, not
+yet pushed). Its gate waits for Tier B, which waits for the Phase 10 freeze (R10).**
 **Phase 10 (reproducibility lock, CLAUDE2.md): COMPLETE (2026-11-05). Committed on branch
 `agency-build` (`121838e`), tagged `v0.6-golden`. The G4b amendment (below) is not committed yet
 and needs the new tag `v0.6.1-golden`. Tier A passes; Tier B is pending clean-commit cluster runs
@@ -13,6 +15,106 @@ Phases 0–6 are committed (Phase 6 in `b99ef93`). Long commands run under `caff
 **GPU cluster (PACE ICE):** shakedown DONE 2026-10-29. **Clean-commit batch started
 2026-11-04 at `9bd7753`:** attack settings frozen, prep job passed; `p5epsc` and the poster
 configs are next (below).
+
+---
+
+## Phase 12 — Evaluation and statistics upgrade — code built; real run pending the pre-registration commit (2026-11-05)
+
+**Not committed.** Suggested message:
+`feat(eval): phase 12 ensemble_of_locals arm, holdout redraws, paired bootstrap statistics, per-group evaluation`.
+Commit `prereg/p12-wesad-redraws.md` with it (or before it). Then run the experiment from that
+clean commit.
+
+### Session start
+Golden Tier A before any edit: `tests/test_golden.py` 9 passed; `ids` and `smoke` match the lock.
+
+### Built
+- **`ensemble_of_locals` arm** (`baselines/ensemble.py`): the unweighted mean of the local models'
+  predicted probabilities on the held-out set, with no weight exchange.
+  - It reuses the local_only models when that arm runs, and otherwise trains the very same models
+    (same seeds and scalers).
+  - Tested: adding it leaves the centralized and local_only arms unchanged.
+  - Under DP each local model keeps its own budget; averaging is post-processing, and the
+    accounting is reported.
+  - It is also scored in silo fairness.
+- **Holdout redraws:** `evaluation.holdout_draws` (default 1).
+  - Draw 0 is exactly the existing holdout stream. Draw d > 0 has its own fixed stream,
+    independent of the run seed.
+  - Each (seed, draw) is one run, with run id `<name>-seed<s>-draw<d>-<hash>` when draws > 1.
+  - `fedastro run/inspect --draw d`; `sweep` and `grid` iterate seeds × draws.
+  - `manifest.run_keys`.
+- **Paired statistics** (`metrics/stats.py`): federated − {local_only (silo mean),
+  ensemble_of_locals, centralized} × 4 metrics, paired per run. Each has a mean difference, a
+  hierarchical bootstrap CI (`aggregate.bootstrap_ci`, seeds then draws), `n_pairs`, `n_seeds`
+  and `n_a_better`.
+  - Each comparison's role is `primary` (from `evaluation.primary`) or `exploratory`, and the
+    number of comparisons is reported.
+  - Written as the `stats` block of the **sweep summary** (`<name>-<hash>-summary.json`) and
+    printed by `fedastro sweep/summarize`.
+- **Fairness, first-class:** for every arm the summary adds `worst_silo` (value, plus which silo
+  was worst in how many runs) and `gap` (best − worst = the existing spread). `run_report.py` has
+  a Silo fairness section.
+- **Held-out-group evaluation** (`evaluation.py`): with `holdout_groups`, every arm's final model
+  is scored on each whole held-out group and on the held-out individuals of the training groups.
+  - local_only is the mean over silos.
+  - Written to `result.evaluation.per_holdout_group` and `held_out_individuals`, and the
+    ensemble's to `arms.ensemble_of_locals.per_holdout_group`.
+  - Tested: the per-group numbers recombine to the arm's overall accuracy.
+- **`result.evaluation`** = {holdout_draw, holdout_draws, per_holdout_group,
+  held_out_individuals}. It is present only with redraws or held-out groups.
+- **`run_report.py`:**
+  - runs labelled by seed and draw;
+  - integrity checks distinct (seed, draw) and the same held-out subjects within each draw;
+  - the ensemble as a fourth series (`--series-4`);
+  - sections for paired differences (read from the sweep summary next to the runs), silo
+    fairness and held-out groups.
+  - Checked on the redraw smoke, the grouped smoke and the old `ce31e25dda` runs.
+- **Configs:**
+  - `experiments/smoke_eval.yaml` (synthetic; 4 arms; 2 seeds × 2 draws; primary set).
+  - `experiments/wesad_by_subject_redraws.yaml` (the pre-registered run; hash `362a9b9ba3`).
+- **Pre-registration:** `prereg/p12-wesad-redraws.md` (below).
+- **Tests:** `tests/test_evaluation.py`, 16 tests, plus one assertion added to the grouped
+  end-to-end test.
+
+### Decisions (review these)
+1. **The `stats` block lives in the sweep summary, not in `result.json`.** A pair is one
+   (seed, draw) run, so a CI over seeds × draws exists only across runs. The summary is the
+   multi-run artifact; `run_report.py` reads it from next to the runs.
+2. **Worst silo and gap are summary/report metrics, not new `result.json` fields.** Each result
+   already stores per-silo fairness values, min and spread, so nothing is lost, and the smoke
+   lock stays unchanged. Alternative: copy them into `result.fairness` (needs a smoke-lock
+   update with approval).
+3. **Ensemble is unweighted**, like the local_only mean: each silo is one stakeholder.
+   Alternative: weight by n_train.
+4. **Group redraws are deferred to Phase 13.** `holdout_draws > 1` with `holdout_groups` is
+   rejected by validation. Which groups may rotate into the held-out set depends on the dataset
+   and its agency mapping, so it is designed with them. This is a scope flag: CLAUDE2.md says
+   "subjects or groups".
+5. **`h1.n_seeds` keeps its name but counts runs.** That is equal to seeds without redraws, and
+   the printouts now say "runs".
+6. **Proposed primary comparison: federated − local_only, macro-F1** (class imbalance), with
+   success = CI lower bound > 0. Key secondary: federated − ensemble_of_locals, macro-F1. **The
+   user may change these before committing the pre-registration.** After the commit they are
+   fixed.
+
+### Pre-registered WESAD run (not yet run)
+- `prereg/p12-wesad-redraws.md`: 5 seeds × 3 draws = 15 runs.
+- Held-out subjects by draw (computed from subject ids and the fixed holdout stream before any
+  run): **0: 13, 16, 17** (the G1 holdout, 212 windows); **1: 2, 14, 15** (207); **2: 6, 7, 9**
+  (207).
+- Disclosed in the pre-registration: draw 0's federated, local-only and centralized outcomes are
+  already known (G1); draws 1–2 and the ensemble are not.
+- Run on the laptop from the clean commit:
+  `caffeinate -i uv run --frozen fedastro sweep configs/experiments/wesad_by_subject_redraws.yaml`
+  (about 15 × 40 s).
+
+### Acceptance results
+| Check | Result |
+|---|---|
+| Golden Tier A unchanged (new blocks default off) | **Yes.** `make test` (laptop, 2026-11-05): **218 passed, 1 skipped (CUDA), 1 warning**, 8 min 09 s. `golden.py ids`: every locked run id unchanged (additions: `smoke_eval`, `wesad_by_subject_redraws`); the smoke result is byte-identical. The first full run had **1 failure and 3 errors**, both recorded here: (a) `test_grid_continues_after_a_failed_run` stubbed `run_and_write(cfg, seed)`, which now takes `draw`; the stub was updated (the behaviour under test is unchanged). (b) The 3 `test_privacy.py` DP fixtures hit a Ray `ActorDiedError` in the very first Flower exchange (`query.stats`), before any changed code ran. Re-run alone: all 31 pass; the full re-run is clean. Treated as a transient Ray worker crash, like the 2026-10-26 startup hang |
+| Run once on WESAD by-subject, 5 seeds × 3 draws | **Pending:** waits for the pre-registration commit |
+| H1 vs the ensemble and the redraws, reported honestly | **Pending:** after the run, against the pre-registration |
+| Tier B (`src/` changed) | **Blocked**, as for Phase 11 (R10) |
 
 ---
 

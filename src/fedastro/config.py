@@ -35,7 +35,10 @@ WESAD_DEVICES = ("chest", "wrist")
 ARCHS = ("mlp", "cnn1d")
 OPTIMIZERS = ("adam", "sgd")
 CLASS_WEIGHTING = ("none", "balanced")
-ARMS = ("centralized", "local_only", "federated")
+ARMS = ("centralized", "local_only", "federated", "ensemble_of_locals")
+# Paired comparisons (metrics/stats.py): federated minus each of these.
+COMPARATORS = ("local_only", "ensemble_of_locals", "centralized")
+STAT_METRICS = ("accuracy", "balanced_accuracy", "macro_f1", "auc")  # = metrics.classification.METRICS
 FL_STRATEGIES = ("fedavg", "fedprox", "fedbuff")
 SYNC_STRATEGIES = ("fedavg", "fedprox")
 REPRESENTATIONS = ("features", "sequence")
@@ -461,6 +464,35 @@ class CommsConfig:
 
 
 @dataclass(frozen=True)
+class EvaluationConfig:
+    """Phase 12 evaluation options. At their defaults the whole block is left out of the
+    run id, so every earlier run id is unchanged.
+
+    holdout_draws: number of held-out subject sets. Draw 0 is the existing holdout (from
+      partition.holdout_seed); draw d > 0 uses its own fixed rng stream. Each (seed, draw)
+      is one run, with run id ``<name>-seed<s>-draw<d>-<hash>`` when holdout_draws > 1.
+    primary: the pre-registered primary comparison, ``federated-<comparator>:<metric>``
+      (CLAUDE2.md rule 12). Empty = every comparison is exploratory."""
+
+    holdout_draws: int = 1
+    primary: str = ""
+
+    def validate(self) -> None:
+        if self.holdout_draws < 1:
+            raise ConfigError("evaluation.holdout_draws must be >= 1")
+        if self.primary:
+            pair, _, metric = self.primary.partition(":")
+            a, _, b = pair.partition("-")
+            if a != "federated" or b not in COMPARATORS or metric not in STAT_METRICS:
+                raise ConfigError(f"evaluation.primary must be 'federated-<{'|'.join(COMPARATORS)}>:"
+                                  f"<{'|'.join(STAT_METRICS)}>', got {self.primary!r}")
+
+    @property
+    def is_default(self) -> bool:
+        return self.holdout_draws == 1 and not self.primary
+
+
+@dataclass(frozen=True)
 class ResourcesConfig:
     """Per-client Ray resources for the simulation engine. Execution detail only: it
     changes speed, not results, so it is excluded from the run id."""
@@ -489,6 +521,7 @@ class ExperimentConfig:
     fl: FLConfig = field(default_factory=FLConfig)
     privacy: PrivacyConfig = field(default_factory=PrivacyConfig)
     comms: CommsConfig = field(default_factory=CommsConfig)
+    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
     resources: ResourcesConfig = field(default_factory=ResourcesConfig)
     notes: str = ""
     # Live demo only: sleep simulated link time x this factor (0 = never sleep).
@@ -512,7 +545,18 @@ class ExperimentConfig:
         self.fl.validate()
         self.privacy.validate()
         self.comms.validate()
+        self.evaluation.validate()
         self.resources.validate()
+        if self.evaluation.holdout_draws > 1 and self.partition.holdout_groups:
+            # Which groups may rotate into the held-out set depends on the dataset and its
+            # agency mapping, so group redraws are designed with it (Phase 13).
+            raise ConfigError("evaluation.holdout_draws > 1 re-draws held-out subjects only; "
+                              "it cannot be combined with partition.holdout_groups yet")
+        if self.evaluation.primary:
+            comparator = self.evaluation.primary.split(":")[0].split("-", 1)[1]
+            if "federated" not in self.arms or comparator not in self.arms:
+                raise ConfigError(f"evaluation.primary {self.evaluation.primary!r} needs arms "
+                                  f"'federated' and {comparator!r}")
         if self.comms.dark.silo and self.comms.dark.silo not in [x.name for x in self.topology.silos]:
             raise ConfigError(f"comms.dark.silo {self.comms.dark.silo!r} is not a silo of the topology")
         if self.comms.dark.from_round > self.fl.rounds:
@@ -589,6 +633,8 @@ class ExperimentConfig:
             d["partition"].pop("group_map")
         if not self.partition.holdout_groups:
             d["partition"].pop("holdout_groups")
+        if self.evaluation.is_default:  # Phase 12 block, same rule
+            d.pop("evaluation")
         if self.fl.strategy != "fedprox":
             d["fl"].pop("proximal_mu")
         if self.fl.strategy != "fedbuff":

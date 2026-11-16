@@ -18,7 +18,10 @@ from fedastro.models.model import count_parameters
 from fedastro.training import derive_seed, train_local
 
 
-def run_centralized(fed: Federation, cfg: ExperimentConfig, seed: int, device: str) -> dict[str, Any]:
+def run_centralized(fed: Federation, cfg: ExperimentConfig, seed: int, device: str,
+                    capture: dict[str, Any] | None = None) -> dict[str, Any]:
+    """If ``capture`` is a dict it receives the trained ``model`` and its ``scaler``
+    (for per-group evaluation). The returned arm is the same either way."""
     X, y = concat([s.data for s in fed.silos.values()])
     n_classes = len(fed.holdout.class_names)
     scaler = Standardizer.fit(X)
@@ -31,6 +34,8 @@ def run_centralized(fed: Federation, cfg: ExperimentConfig, seed: int, device: s
     )
     final = {k: v for k, v in history[-1].items() if k not in ("epoch", "train_loss")}
     out = {"final": final, "history": history, "n_train": len(y), "n_params": count_parameters(model)}
+    if capture is not None:
+        capture.update(model=model, scaler=scaler)
     if dp is not None:
         from fedastro.privacy.dp import records_per_subject
 
