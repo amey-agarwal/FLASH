@@ -91,7 +91,9 @@ result): 129 versions offered, 47 rejected. Pooled per-node test accuracy: local
    the node received).
 
 ### Tests
-PLACEHOLDER_FULL_SUITE
+Full suite including slow tests (`pytest -m ""`): **336 passed, 1 skipped, 0 failed** (exit 0;
+337 collected). Warnings are sklearn's "y_pred contains classes not in y_true" from existing
+metric code on tiny test sets.
 
 ### Deferrals / open questions
 - Whether the H9/H10 headline uses trained (`regional`, `global`) or deployed (`deployed_*`)
