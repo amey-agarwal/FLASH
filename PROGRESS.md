@@ -4,16 +4,116 @@ Handoff log between sessions. Newest phase first. Assume no memory of prior sess
 
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
 removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`) and H2 (`9590007`) are
-committed. Phase H3 is at the gate (below). Next: Phase H4 (simulated secure aggregation), in
-plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
+committed, and H3 (`836bad2`). Phase H4 is at the gate (below). Next: Phase H5 (on-the-fly model
+updates and terminal peek), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H3 — Hierarchical FL — AT THE GATE (2026-11-17)
+## Phase H4 — Simulated secure aggregation — AT THE GATE (2026-11-17)
 
 **Not committed.** Suggested message:
-`feat(fl): phase H3 hierarchical FL, threshold fallback, disagreement metrics`.
+`feat(fl): phase H4 simulated pairwise-mask secure aggregation`.
+
+**A protocol SIMULATION, not cryptography.** Masks come from a seeded PRG (`derive_seed`); there
+is no key agreement, encryption or secret sharing, and anyone with the run seed can unmask.
+What is modelled is the data flow (the aggregator receives only masked vectors) and the cost
+(extra messages in bytes and simulated time). No formal privacy guarantee; the final model can
+still leak through membership inference (CLAUDE.md §2).
+
+### Built
+- **`fl/secagg.py`:** pairwise masks (Bonawitz et al. 2017 without the self-mask) in the ring
+  Z_(2^64). Each member uploads `encode(n * w)` plus its count `n`, both masked; masks cancel
+  exactly in the sum; the only difference from FedAvg is fixed-point quantisation (24 fractional
+  bits). Recovery rebuilds a dropped member's masks with the survivors. Below the group minimum,
+  nothing is unmasked. An overflow bound check raises instead of wrapping silently.
+- **Regional level:** the Flower client masks its own update (`secagg-group` in the train
+  config), so the aggregator process never receives an unmasked node update; `_Ctx.train`
+  rejects any unmasked reply. Group minimum = `min_participants`.
+- **Global level:** each regional aggregator masks its regional model (weighted by region
+  examples) before the merge. Group minimum = `secagg.global_min_group` (2).
+- **Per aggregation, modelled** (decision 3): advertise keys (round trip) -> share keys (round
+  trip) -> masked upload (the regional model download carries the forwarded shares; at the
+  global level the shares need one extra down leg) -> recovery round trip only if a member
+  dropped after masking. Message sizes are named scenario constants (64 B request, 64 B keys,
+  96 B share per peer, 8 B per masked parameter).
+- **Result:** `result.secagg` gains levels, key_agreement, frac_bits, min_group, message_bytes,
+  `per_round` (per region and global: group, dropped, recovered, overhead bytes and simulated
+  seconds) and a note. `overhead_sim_s` is null with comms off (schema accepts null: rule 10).
+  Region `bytes` and `global_bytes` include the overhead. Events `secagg_recovery` and
+  `secagg_group_too_small`.
+- **Config:** `secagg` block (hierarchical arm only; out of the run id unless enabled, so every
+  earlier run id is unchanged): `enabled`, `levels`, `key_agreement` (`per_round` only),
+  `global_min_group`, `frac_bits`, scripted `dropout` (node or region -> rounds).
+- `experiments/smoke_hier_secagg.yaml` (synthetic, comms on, LOS off, two scripted dropouts);
+  `sweeps/secagg_mars_presets.yaml` (Mars preset x secagg off/on, no dropouts).
+- **Tests:** `tests/test_secagg.py` (17).
+
+### Acceptance
+| Check | Result |
+|---|---|
+| Aggregates with secagg on equal off within float tolerance | Primitive: masks cancel exactly; aggregate equals FedAvg at 1e-6 for groups of 2-12 and after recovery. Schedule: every regional and global aggregate equal at 1e-6 with comms off and on (about 1e-10 seen). Through Flower: the one-region hierarchy with secagg still matches flat FedAvg (final accuracy and macro-F1 within 1e-3). |
+| No unmasked update stored or logged | The aggregator only receives uint64 masked vectors (spy on `unmask_sum`; `_Ctx.train` refuses unmasked replies); no array in the schedule output equals any node's update. |
+| Overhead per round and per Mars preset | `result.secagg.per_round`; preset sweep below. |
+
+Preset sweep (`fedastro grid configs/sweeps/secagg_mars_presets.yaml`, **SYNTHETIC** smoke data,
+seed 0, 6 rounds, 3 merges, no dropouts, LOS off; simulated seconds):
+
+| Mars preset | sim end, off | sim end, on | overhead_sim_s | bytes off | bytes on |
+|---|---|---|---|---|---|
+| near (182 s) | 1111.1 | 3844.7 | 2734.8 | 2,185,800 | 3,395,076 |
+| mean (751 s) | 4525.1 | 15793.7 | 11269.8 | 2,185,800 | 3,395,076 |
+| far (1337 s) | 8041.1 | 28099.7 | 20059.8 | 2,185,800 | 3,395,076 |
+
+Final global and regional macro-F1 are identical on and off (0.6452 / 0.75) at every preset.
+The time overhead is almost all the Mars merge: each merge adds five one-way light-times (two key
+round trips plus the share leg), so secagg roughly triples to quadruples the simulated run time
+at Mars distance. Bytes rise 55%, mostly from the 8-byte masked words (vs 4-byte float32).
+
+### Decisions (user approved 2026-11-17, "approve as recommended")
+1. Fixed-point ring encoding (uint64, 24 fractional bits), not float masks.
+2. Members mask `n * w` and `n`, so the aggregator learns only the totals.
+3. Per-round key agreement (two round trips), recovery as one extra round trip.
+4. Message sizes as named scenario constants; masked upload is 8 B per parameter.
+5. Regional group minimum = `min_participants`; global = `global_min_group` (2); below it the
+   merge is skipped and logged, which can change training compared with secagg off.
+6. Group = members reached at the start of the aggregation; a dropout is a member that joined
+   and then failed to upload.
+7. Hierarchical arm only; the flat federated arm is untouched.
+8. Overhead = extra protocol steps on the critical path, per round; per preset via the sweep.
+
+### Decisions made while building (review these)
+1. **No regional recovery is possible on the CLAUDE.md topologies.** Every region has exactly
+   `min_participants` nodes (cinc15: 5 of 5; wesad12: 4 of 4), so any dropout after masking
+   leaves too few survivors and the region falls back without unmasking. Recovery only happens at
+   the global level (3 regions, minimum 2). Tested with `min_participants` lowered to 4.
+2. **The key exchange happens inside `region_deadline_s`** (the deadline counts from round
+   start). On the short node links it costs under 1 simulated second.
+3. **The aggregator stops waiting for keys once the last member that will answer has answered**
+   (an oracle timeout). A real deployment needs a timeout there, which would only add time.
+4. **Scripted secagg dropouts skip the dropped node's training** (as H3 does for discarded
+   updates); the result is the same.
+5. `secagg` settings with `enabled: false` are ignored, not rejected, so a sweep can switch it
+   off without editing the base config.
+
+### Open questions / deferrals
+- The self-mask and real Shamir thresholds are not modelled (the pairwise-only variant is what
+  needs recovery on dropout). Stated in the module docstring.
+- The flat federated arm has no secagg; add it only if a flat comparison needs it.
+
+### Tests
+`pytest -m "slow or not slow"`: **321 passed, 1 failed, 1 skipped (CUDA), 10 warnings, 20 min 23 s**.
+The failure was `test_hierarchical_run_is_byte_identical`. The second run of the H3 smoke config
+crashed inside the unchanged flat federated arm with Flower's "No heartbeat received from the run"
+(a Ray simulation infrastructure error, not a result difference). Rerun on its own, together with
+the H3 smoke tests: 3 passed, and the hierarchical run is byte-identical. The warnings are the
+known sklearn notices from tiny synthetic node test sets.
+
+---
+
+## Phase H3 — Hierarchical FL — COMMITTED `836bad2` (2026-11-17)
+
+Committed as `836bad2` (`feat(fl): phase H3 hierarchical FL, threshold fallback, disagreement metrics`).
 
 ### Built
 - **WESAD validation tail fix (first, user approved 2026-11-17).** Checked on real WESAD at the

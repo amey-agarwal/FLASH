@@ -1,0 +1,13 @@
+# Phase H4: secure-aggregation overhead (bytes, SIMULATED seconds) per Mars distance preset,
+# secagg off vs on, on the SYNTHETIC smoke config. Only the Mars region's link to the global
+# aggregator moves between presets (near 182 s, mean 751 s, far 1337 s one way). No scripted
+# dropouts, so on and off differ only by the protocol's own messages.
+# A mechanism check of the protocol cost, not a result about any dataset.
+name: h4secagg
+base: ../experiments/smoke_hier_secagg.yaml
+seeds: [0]
+fixed:
+  secagg.dropout: {leo_nasa: [], moon: []}  # the base config's scripted dropouts, cleared
+axes:
+  comms.preset: [mars_near, mars_mean, mars_far]
+  secagg.enabled: [false, true]

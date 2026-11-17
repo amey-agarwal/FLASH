@@ -206,7 +206,8 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
 
     result["fairness"] = fairness_report(result, list(bundle.class_names))
     if hier:
-        from fedastro.fl.hierarchy import arm_summary, comms_section, evaluate_hierarchy, run_hierarchical
+        from fedastro.fl.hierarchy import (arm_summary, comms_section, evaluate_hierarchy, run_hierarchical,
+                                           secagg_section)
 
         device = capture["device"]
         run = run_hierarchical(hfed, cfg, seed, device)
@@ -222,6 +223,8 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
                                "per_node": metrics["per_node"], "per_region": metrics["per_region"],
                                "global": metrics["global"], "comms": comms_section(cfg, run)}
         result["disagreement"] = metrics["disagreement"]
+        if (sa := secagg_section(cfg, run)) is not None:
+            result["secagg"] = sa
     notes = []
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
@@ -235,6 +238,9 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
         notes.append(f"Hierarchical arm: regional FedAvg every round when >= {cfg.hierarchy.min_participants} "
                      f"nodes report (else fallback to the latest global model), global merge every "
                      f"{cfg.hier_fl.global_every} rounds. Disagreement is a flag, not an independent opinion.")
+        if cfg.secagg.enabled:
+            notes.append("SIMULATED secure aggregation (seeded-PRG pairwise masks, not cryptographically "
+                         "secure; no formal privacy guarantee).")
         if cfg.comms.enabled:
             notes.append("sim_wallclock_s is SIMULATED time, not real time.")
     if cfg.notes:

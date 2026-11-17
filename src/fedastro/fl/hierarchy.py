@@ -56,6 +56,7 @@ from fedastro.config import ExperimentConfig, HierarchyConfig, LinkConfig, LOSPr
 from fedastro.data.base import DatasetBundle
 from fedastro.data.partition import HierFederation
 from fedastro.data.preprocess import Standardizer
+from fedastro.fl import secagg
 from fedastro.fl.client import get_weights, make_client_app, set_weights
 from fedastro.fl.comms import COMMS_ID, INF, Link, compute_s, los_events, resolve_latency
 from fedastro.fl.server import _opt_float, federated_scaler
@@ -136,11 +137,15 @@ class HierSim:
             self.global_links[region.name] = link
 
     def node_round_trip(self, node: str, t: float, nbytes: int) -> tuple[float, float]:
+        return self.node_round_trip_sized(node, t, nbytes, nbytes)
+
+    def node_round_trip_sized(self, node: str, t: float, down_bytes: int, up_bytes: int) -> tuple[float, float]:
+        """Model down, local training, update up: (arrival at the node, back at the aggregator)."""
         link = self.node_links[node]
-        down = link.transfer(t, nbytes, "down")
+        down = link.transfer(t, down_bytes, "down")
         if down == INF:
             return INF, INF
-        return down, link.transfer(down + compute_s(self.cfg, self.n_train[node]), nbytes, "up")
+        return down, link.transfer(down + compute_s(self.cfg, self.n_train[node]), up_bytes, "up")
 
     def setup_s(self, stats_bytes: int, scaler_bytes: int) -> float:
         """Stats request -> reply, then scaler -> ack, over every node link."""
@@ -163,11 +168,24 @@ class _Ctx:
     names: list[str]
     timeout: float
 
-    def train(self, dispatch: dict[int, list[np.ndarray]], rnd: int) -> dict[int, ClientUpdate]:
-        """Train the listed nodes, each from its own (regional) weights, in one exchange."""
+    frac_bits: int = 24
+
+    def train(self, dispatch: dict[int, list[np.ndarray]], rnd: int,
+              groups: dict[int, list[int]] | None = None) -> dict[int, Any]:
+        """Train the listed nodes, each from its own (regional) weights, in one exchange.
+        With ``groups`` (simulated secure aggregation) each node masks its update before
+        replying, and only the masked vectors are returned: no unmasked node update ever
+        reaches this process."""
         if not dispatch:
             return {}
-        messages = [Message(RecordDict({"arrays": ArrayRecord(w), "config": ConfigRecord({"server-round": rnd})}),
+
+        def config(i):
+            c = {"server-round": rnd}
+            if groups is not None:
+                c.update({"secagg-group": [int(g) for g in groups[i]], "secagg-frac-bits": self.frac_bits})
+            return ConfigRecord(c)
+
+        messages = [Message(RecordDict({"arrays": ArrayRecord(w), "config": config(i)}),
                             dst_node_id=self.nodes[i], message_type=MessageType.TRAIN) for i, w in dispatch.items()]
         replies = list(self.grid.send_and_receive(messages, timeout=self.timeout))
         errors = [r for r in replies if r.has_error()]
@@ -178,17 +196,146 @@ class _Ctx:
         for r in replies:
             m = r.content["metrics"]
             idx = int(m["silo_index"])
+            if groups is not None:
+                (vec,) = r.content["arrays"].to_numpy_ndarrays()
+                if vec.dtype != np.uint64:
+                    raise RuntimeError(f"secagg: node {idx} replied without masking")
+                out[idx] = vec
+                continue
             out[idx] = ClientUpdate(silo_index=idx, silo=self.names[idx], arrays=r.content["arrays"].to_numpy_ndarrays(),
                                     num_examples=int(m["num-examples"]), train_loss=_opt_float(m, "train_loss"))
         return out
 
 
-def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train: dict[str, int],
-               sim: HierSim, t0: float, score) -> dict[str, Any]:
-    """The regional/global schedule. ``train(dispatch, rnd)`` trains nodes (by index) from
-    the given weights; ``score(weights, region | None)`` gives diagnostic metrics. Kept free
-    of Flower so the schedule itself is unit-testable."""
+@dataclass
+class _Plan:
+    """One region's round, decided before training."""
+
+    parts: list[int]  # nodes whose update reaches the regional aggregator in time
+    scripted: list[int]  # scripted offline
+    fallback: bool
+    nbytes: int  # every byte of the round on the node links (secagg overhead included)
+    reason: str = ""  # fallback reason
+    group: list[int] | None = None  # secagg mask group (None = secagg off at this level)
+    secagg: dict[str, Any] | None = None
+
+
+def _rt(link, t: float, down_bytes: int, up_bytes: int, pause: float = 0.0) -> float:
+    """Aggregator -> member -> aggregator; arrival back at the aggregator (or INF)."""
+    down = link.transfer(t, down_bytes, "down")
+    return INF if down == INF else link.transfer(down + pause, up_bytes, "up")
+
+
+def _key_agreement(links: dict[int, Any], members: list[int], t: float, limit: float) -> tuple[list[int], float]:
+    """Advertise keys, then share keys (two round trips, secagg steps 1-2). Returns the mask
+    group (members that completed both by ``limit``) and the time the group is formed. The
+    aggregator moves on once the last member that will answer has answered (an oracle
+    timeout: a real deployment needs a timeout here, which would only add time)."""
+    if links is None:
+        return list(members), t
+    k1 = {i: _rt(links[i], t, secagg.REQUEST_BYTES, secagg.KEY_BYTES) for i in members}
+    joined = [i for i in members if k1[i] <= limit]
+    t1 = max([k1[i] for i in joined], default=t)
+    g = len(joined)
+    k2 = {i: _rt(links[i], t1, secagg.KEY_BYTES * g, secagg.SHARE_BYTES * (g - 1)) for i in joined}
+    group = [i for i in joined if k2[i] <= limit]
+    return group, max([k2[i] for i in group], default=t1)
+
+
+def _recovery(links: dict[int, Any] | None, survivors: list[int], n_dropped: int, t: float) -> tuple[list[int], float]:
+    """Secagg step 4: survivors send their shares of the dropped members' seeds."""
+    if links is None:
+        return list(survivors), t
+    back = {i: _rt(links[i], t, secagg.REQUEST_BYTES, secagg.SHARE_BYTES * n_dropped) for i in survivors}
+    ok = [i for i in survivors if back[i] < INF]
+    return ok, max([back[i] for i in ok], default=t)
+
+
+def _plan_plain(cfg, sim, names, idxs, scripted, t, payload) -> tuple[_Plan, float]:
     h, hf = cfg.hierarchy, cfg.hier_fl
+    end = t
+    if sim.on:
+        trips = {i: sim.node_round_trip(names[i], t, payload) for i in idxs if i not in scripted}
+        limit = t + hf.region_deadline_s
+        parts = [i for i, (_, up) in trips.items() if up <= limit]
+        delivered = sum(down < INF for down, _ in trips.values())
+        end = max(trips[i][1] for i in parts) if len(parts) == len(idxs) else limit
+    else:
+        parts = [i for i in idxs if i not in scripted]
+        delivered = len(parts)
+    fallback = len(parts) < h.min_participants
+    reason = (f"{len(parts)} of {len(idxs)} nodes reported, fewer than min_participants = "
+              f"{h.min_participants}; the region uses its latest global model")
+    return _Plan(parts, scripted, fallback, payload * (delivered + len(parts)), reason), end
+
+
+def _plan_secagg(cfg, sim, names, idxs, scripted, t, rnd, weights) -> tuple[_Plan, float]:
+    """A regional round under simulated secure aggregation (module docstring of fl/secagg.py)."""
+    h, hf, sa = cfg.hierarchy, cfg.hier_fl, cfg.secagg
+    payload, masked = payload_bytes(weights), secagg.masked_bytes(weights)
+    cand = [i for i in idxs if i not in scripted]
+    drops = {i for i in cand if rnd in sa.dropout.get(names[i], ())}
+    links = {i: sim.node_links[names[i]] for i in cand} if sim.on else None
+    limit = t + hf.region_deadline_s if sim.on else INF
+    group, t_group = _key_agreement(links, cand, t, limit)
+    g = len(group)
+    nbytes = secagg.key_bytes(g, len(cand))
+    info = {"group": [names[i] for i in group], "dropped": [], "recovered": [], "recovery": False}
+    min_p = h.min_participants
+    if g < min_p:
+        reason = (f"mask group of {g} of {len(idxs)} nodes, fewer than min_participants = {min_p}; "
+                  f"no masked round; the region uses its latest global model")
+        info.update(overhead_bytes=nbytes, overhead_sim_s=(t_group - t) if sim.on else None)
+        return _Plan([], scripted, True, nbytes, reason, group, info), t_group
+    end = t_group
+    if sim.on:  # model + forwarded shares down, local training, masked update up
+        trips = {i: sim.node_round_trip_sized(names[i], t_group, payload + secagg.SHARE_BYTES * (g - 1), masked)
+                 for i in group}
+        delivered = sum(down < INF for down, _ in trips.values())
+        parts = [i for i in group if i not in drops and trips[i][1] <= limit]
+        end = max(trips[i][1] for i in parts) if len(parts) == len(idxs) else limit
+    else:
+        delivered = g
+        parts = [i for i in group if i not in drops]
+    base = payload * (delivered + len(parts))
+    nbytes += base + len(parts) * (masked - payload)
+    dropped = [i for i in group if i not in parts]
+    fallback = len(parts) < min_p
+    reason = (f"{len(parts)} of {len(idxs)} nodes reported, fewer than min_participants = {min_p}; "
+              f"the region uses its latest global model")
+    rec_s = 0.0
+    if dropped and not fallback:
+        answered, rec_end = _recovery(links, parts, len(dropped), end)
+        nbytes += secagg.recovery_bytes(len(parts), len(dropped))
+        rec_s, end = rec_end - end, rec_end
+        info.update(recovery=True, dropped=[names[i] for i in dropped])
+        if len(answered) < min_p:
+            fallback = True
+            reason = (f"dropout recovery: {len(answered)} survivors answered, fewer than "
+                      f"min_participants = {min_p}; nothing unmasked; the region uses its latest global model")
+        else:
+            info["recovered"] = [names[i] for i in dropped]
+    elif dropped:
+        info["dropped"] = [names[i] for i in dropped]
+    if sim.on:
+        extra_tx = (masked - payload + secagg.SHARE_BYTES * (g - 1)) * 8.0 / cfg.comms.bandwidth_bps
+        info["overhead_sim_s"] = (t_group - t) + rec_s + extra_tx
+    else:
+        info["overhead_sim_s"] = None
+    info["overhead_bytes"] = nbytes - base
+    return _Plan(parts, scripted, fallback, nbytes, reason, group, info), end
+
+
+def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train: dict[str, int],
+               sim: HierSim, t0: float, score, seed: int = 0) -> dict[str, Any]:
+    """The regional/global schedule. ``train(dispatch, rnd)`` trains nodes (by index) from
+    the given weights and returns their updates; with secure aggregation at the regional
+    level it is called as ``train(dispatch, rnd, groups=...)`` and returns each node's masked
+    vector instead (``fl/secagg.mask_update``, computed on the node). ``score(weights, region
+    | None)`` gives diagnostic metrics. Kept free of Flower so the schedule itself is
+    unit-testable."""
+    h, hf, sa = cfg.hierarchy, cfg.hier_fl, cfg.secagg
+    sa_regional = sa.enabled and "regional" in sa.levels
     strategy = build_strategy(cfg.fl)
     names = [n.name for n in h.nodes]
     region_idx = {r.name: [names.index(n.name) for n in r.nodes] for r in h.regions}
@@ -203,47 +350,53 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
     n_merges = 0
     for rnd in range(1, cfg.fl.rounds + 1):
         rec: dict[str, Any] = {"round": rnd, "regions": {}, "global_aggregated": False}
-        plan, dispatch, t_end = {}, {}, t
+        plan, dispatch, groups, t_end = {}, {}, {}, t
         for region in h.regions:
             idxs = region_idx[region.name]
             scripted = [i for i in idxs if rnd in hf.offline.get(names[i], ())]
-            if sim.on:
-                trips = {i: sim.node_round_trip(names[i], t, payload) for i in idxs if i not in scripted}
-                limit = t + hf.region_deadline_s
-                parts = [i for i, (_, up) in trips.items() if up <= limit]
-                delivered = sum(down < INF for down, _ in trips.values())
-                end = max(trips[i][1] for i in parts) if len(parts) == len(idxs) else limit
-                t_end = max(t_end, end)
+            if sa_regional:
+                p, end = _plan_secagg(cfg, sim, names, idxs, scripted, t, rnd, weights)
             else:
-                parts = [i for i in idxs if i not in scripted]
-                delivered = len(parts)
-            fallback = len(parts) < h.min_participants
-            plan[region.name] = (parts, scripted, fallback, payload * (delivered + len(parts)))
-            if not fallback:
-                dispatch.update({i: regional[region.name] for i in parts})
-        updates = train(dispatch, rnd)
+                p, end = _plan_plain(cfg, sim, names, idxs, scripted, t, payload)
+            t_end = max(t_end, end)
+            plan[region.name] = p
+            if not p.fallback:
+                dispatch.update({i: regional[region.name] for i in p.parts})
+                if sa_regional:
+                    groups.update({i: p.group for i in p.parts})
+        updates = train(dispatch, rnd, groups=groups) if sa_regional else train(dispatch, rnd)
         for region in h.regions:
-            parts, scripted, fallback, nbytes = plan[region.name]
-            missed = [names[i] for i in region_idx[region.name] if i not in parts and i not in scripted]
-            if fallback:
+            p = plan[region.name]
+            missed = [names[i] for i in region_idx[region.name] if i not in p.parts and i not in p.scripted]
+            if p.fallback:
                 regional[region.name] = received[region.name]
                 fresh[region.name] = False
-                events.append({"round": rnd, "region": region.name, "kind": "fallback",
-                               "reason": f"{len(parts)} of {len(region_idx[region.name])} nodes reported, "
-                                         f"fewer than min_participants = {h.min_participants}; "
-                                         f"the region uses its latest global model"})
-            else:
-                regional[region.name] = strategy.aggregate([updates[i] for i in parts])
+                events.append({"round": rnd, "region": region.name, "kind": "fallback", "reason": p.reason})
+            elif sa_regional:
+                out = secagg.unmask_sum({i: updates[i] for i in p.parts}, p.group, seed, "regional", rnd,
+                                        sa.frac_bits, regional[region.name], h.min_participants)
+                regional[region.name] = out.weights
                 fresh[region.name] = True
+            else:
+                regional[region.name] = strategy.aggregate([updates[i] for i in p.parts])
+                fresh[region.name] = True
+            if p.secagg is not None and p.secagg["recovery"]:
+                events.append({"round": rnd, "region": region.name, "kind": "secagg_recovery",
+                               "reason": f"dropout after masking: {', '.join(p.secagg['dropped'])}; "
+                                         f"survivors sent their shares, masks rebuilt"
+                                         + ("" if p.secagg["recovered"] else "; too few answered")})
             last_regional[region.name] = regional[region.name]
             rec["regions"][region.name] = {
-                "participants": [names[i] for i in parts], "offline": [names[i] for i in scripted],
-                "missed_deadline": missed, "fallback": fallback, "bytes": nbytes,
+                "participants": [names[i] for i in p.parts], "offline": [names[i] for i in p.scripted],
+                "missed_deadline": missed, "fallback": p.fallback, "bytes": p.nbytes,
                 "regional": _brief(score(regional[region.name], region.name)),
             }
+            if p.secagg is not None:
+                rec["regions"][region.name]["secagg"] = p.secagg
         rec["global"] = None
         if rnd % hf.global_every == 0:
-            t_end = _merge(cfg, rnd, rec, events, regional, received, fresh, region_examples, sim, t_end, payload)
+            t_end = _merge(cfg, rnd, rec, events, regional, received, fresh, region_examples, sim, t_end,
+                           payload, seed)
             if rec["global_aggregated"]:
                 n_merges += 1
                 global_w = rec.pop("_weights")
@@ -255,15 +408,88 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
             "n_merges": n_merges, "sim_end_s": t if sim.on else None}
 
 
-def _merge(cfg, rnd, rec, events, regional, received, fresh, region_examples, sim, t, payload) -> float:
+def _merge_members_secagg(cfg, rnd, rec, events, regions, eligible, regional, region_examples, sim, t,
+                          payload, seed) -> tuple[list[str], float, list[np.ndarray] | None, int]:
+    """The global merge under simulated secure aggregation: key agreement over the
+    regional-to-global links, masked regional models up, recovery if one is missing.
+    Returns (merged regions, time, merged weights or None, bytes)."""
+    hf, sa = cfg.hier_fl, cfg.secagg
+    template = regional[regions[0]]
+    masked_b = secagg.masked_bytes(template)
+    ids = {r: regions.index(r) for r in regions}
+    members = [ids[r] for r in eligible]
+    links = {ids[r]: sim.global_links[r] for r in eligible} if sim.on else None
+    limit = t + hf.global_deadline_s if (sim.on and hf.global_deadline_s) else INF
+    group, t_group = _key_agreement(links, members, t, limit)
+    g = len(group)
+    nbytes = secagg.key_bytes(g, len(members))
+    info: dict[str, Any] = {"group": [regions[i] for i in group], "dropped": [], "recovered": [],
+                            "recovery": False}
+    rec["global_secagg"] = info
+    drops = {ids[r] for r in eligible if rnd in sa.dropout.get(r, ())}
+    if g < sa.global_min_group:
+        info.update(overhead_bytes=nbytes, overhead_sim_s=(t_group - t) if sim.on else None)
+        events.append({"round": rnd, "region": None, "kind": "secagg_group_too_small",
+                       "reason": f"global mask group of {g}, fewer than secagg.global_min_group = "
+                                 f"{sa.global_min_group}; no global merge this round"})
+        return [], t_group, None, nbytes
+    if sim.on:  # shares down to each regional aggregator, masked model up
+        up = {i: _rt(links[i], t_group, secagg.SHARE_BYTES * (g - 1), masked_b) for i in group}
+        parts = [i for i in group if i not in drops and up[i] <= limit]
+        t_up = max([up[i] for i in parts], default=t_group)
+    else:
+        parts, t_up = [i for i in group if i not in drops], t
+    nbytes += secagg.SHARE_BYTES * (g - 1) * g + masked_b * len(parts)
+    dropped = [i for i in group if i not in parts]
+    rec_s = 0.0
+    ok = len(parts) >= sa.global_min_group
+    if dropped and ok:
+        answered, rec_end = _recovery(links, parts, len(dropped), t_up)
+        nbytes += secagg.recovery_bytes(len(parts), len(dropped))
+        rec_s, t_up = rec_end - t_up, rec_end
+        info.update(recovery=True, dropped=[regions[i] for i in dropped])
+        ok = len(answered) >= sa.global_min_group
+        if ok:
+            info["recovered"] = [regions[i] for i in dropped]
+        events.append({"round": rnd, "region": None, "kind": "secagg_recovery",
+                       "reason": f"global level: dropout after masking: {', '.join(info['dropped'])}; "
+                                 f"survivors sent their shares" + ("" if ok else "; too few answered")})
+    elif dropped:
+        info["dropped"] = [regions[i] for i in dropped]
+    info["overhead_bytes"] = nbytes - payload * len(parts)
+    if sim.on:
+        info["overhead_sim_s"] = (t_group - t) + rec_s + (
+            max(sim.global_links[regions[i]].one_way_s for i in group)
+            + (masked_b - payload + secagg.SHARE_BYTES * (g - 1)) * 8.0 / cfg.comms.bandwidth_bps)
+    else:
+        info["overhead_sim_s"] = None
+    if not ok:
+        events.append({"round": rnd, "region": None, "kind": "secagg_group_too_small",
+                       "reason": f"{len(parts)} masked regional models arrived, fewer than "
+                                 f"secagg.global_min_group = {sa.global_min_group}; no global merge this round"})
+        return [], t_up, None, nbytes
+    masked = {i: secagg.mask_update(regional[regions[i]], region_examples[regions[i]], i, group, seed,
+                                    "global", rnd, sa.frac_bits) for i in parts}
+    out = secagg.unmask_sum(masked, group, seed, "global", rnd, sa.frac_bits, template, sa.global_min_group)
+    return [regions[i] for i in parts], t_up, out.weights, nbytes
+
+
+def _merge(cfg, rnd, rec, events, regional, received, fresh, region_examples, sim, t, payload,
+           seed: int = 0) -> float:
     """One global merge at simulated time ``t``; returns the time it completes."""
-    h, hf = cfg.hierarchy, cfg.hier_fl
+    h, hf, sa = cfg.hierarchy, cfg.hier_fl, cfg.secagg
     regions = [r.name for r in h.regions]
     cut = [r for r in regions if rnd in hf.region_offline.get(r, ())]
     stale = [r for r in regions if not fresh[r] and r not in cut]
     up = {r: INF for r in cut + stale}
     t_done, nbytes = t, 0
-    if sim.on:
+    merged_w = None
+    if sa.enabled and "global" in sa.levels:
+        eligible = [r for r in regions if r not in cut and r not in stale]
+        merged, t, merged_w, nbytes = _merge_members_secagg(cfg, rnd, rec, events, regions, eligible, regional,
+                                                            region_examples, sim, t, payload, seed)
+        t_done = t
+    elif sim.on:
         for r in regions:
             if r not in cut and r not in stale:
                 up[r] = sim.global_links[r].transfer(t, payload, "up")
@@ -277,6 +503,7 @@ def _merge(cfg, rnd, rec, events, regional, received, fresh, region_examples, si
         if r not in merged:
             why = ("scripted loss of signal" if r in cut else
                    "no regional update since its last global model" if r in stale else
+                   "secure-aggregation dropout after masking" if r in rec.get("global_secagg", {}).get("dropped", ()) else
                    "its model did not reach the global aggregator in time")
             events.append({"round": rnd, "region": r, "kind": "merge_skipped",
                            "reason": f"left out of the global merge ({why}); keeps its regional model"})
@@ -285,13 +512,15 @@ def _merge(cfg, rnd, rec, events, regional, received, fresh, region_examples, si
         rec["global_bytes"] = nbytes
         return t
     rec["global_aggregated"] = True
-    merged_w = FedAvg().aggregate([
-        ClientUpdate(silo_index=regions.index(r), silo=r, arrays=regional[r],
-                     num_examples=region_examples[r], train_loss=None) for r in merged])
+    secure = merged_w is not None  # already the unmasked sum (simulated secure aggregation)
+    if not secure:
+        merged_w = FedAvg().aggregate([
+            ClientUpdate(silo_index=regions.index(r), silo=r, arrays=regional[r],
+                         num_examples=region_examples[r], train_loss=None) for r in merged])
     rec["_weights"] = merged_w
     got = [r for r in regions if r not in cut]  # stale regions still receive the new global
     if sim.on:
-        t_merge = max(up[r] for r in merged)
+        t_merge = t if secure else max(up[r] for r in merged)
         limit = t_merge + hf.global_deadline_s if hf.global_deadline_s else INF
         down = {r: sim.global_links[r].transfer(t_merge, payload, "down") for r in regions if r not in cut}
         got = [r for r, a in down.items() if a < INF and a <= limit]
@@ -342,8 +571,8 @@ def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, devi
                     return evaluate(pooled.y, predict_proba(model, X_pool, device))
                 return evaluate(tests[region].y, predict_proba(model, X_test[region], device))
 
-            ctx = _Ctx(grid, setup.ordered_nodes, names, cfg.fl.timeout_s)
-            sched = run_rounds(cfg, ctx.train, weights, n_train, sim, t0, score)
+            ctx = _Ctx(grid, setup.ordered_nodes, names, cfg.fl.timeout_s, cfg.secagg.frac_bits)
+            sched = run_rounds(cfg, ctx.train, weights, n_train, sim, t0, score, seed=seed)
             out.update(sched, scaler=setup.scaler, payload_bytes=payload_bytes(weights),
                        setup_bytes=setup.setup_bytes, setup_sim_s=t0 if sim.on else None,
                        n_params=count_parameters(model), sim=sim)
@@ -458,3 +687,41 @@ def comms_section(cfg: ExperimentConfig, run: dict[str, Any]) -> dict[str, Any] 
 
 __all__ = ["run_hierarchical", "run_rounds", "evaluate_hierarchy", "arm_summary", "pooled_test_set",
            "region_test_sets", "HierSim", "comms_section"]
+
+
+def secagg_section(cfg: ExperimentConfig, run: dict[str, Any]) -> dict[str, Any] | None:
+    """``result.secagg`` for a run with simulated secure aggregation (None = keep the
+    disabled default). Per round: each region's and the global merge's mask group, dropouts,
+    recoveries and overhead. A round's overhead time is the largest regional overhead plus
+    the global merge's: regions run in parallel, the merge after them."""
+    sa = cfg.secagg
+    if not sa.enabled:
+        return None
+    on = cfg.comms.enabled
+    per_round, total_b, total_s, recoveries = [], 0, 0.0, 0
+    for rec in run["rounds"]:
+        regions = {r: reg["secagg"] for r, reg in rec["regions"].items() if "secagg" in reg}
+        glob = rec.get("global_secagg")
+        parts = list(regions.values()) + ([glob] if glob else [])
+        nbytes = sum(p["overhead_bytes"] for p in parts)
+        sim_s = None
+        if on:
+            sim_s = max([p["overhead_sim_s"] for p in regions.values()], default=0.0) + \
+                (glob["overhead_sim_s"] if glob else 0.0)
+            total_s += sim_s
+        total_b += nbytes
+        recoveries += sum(p["recovery"] for p in parts)
+        per_round.append({"round": rec["round"], "overhead_bytes": nbytes, "overhead_sim_s": sim_s,
+                          "regions": regions, "global": glob})
+    return {
+        "enabled": True, "simulated": True,
+        "levels": list(sa.levels), "key_agreement": sa.key_agreement, "frac_bits": sa.frac_bits,
+        "min_group": {"regional": cfg.hierarchy.min_participants, "global": sa.global_min_group},
+        "message_bytes": {"request": secagg.REQUEST_BYTES, "keys": secagg.KEY_BYTES,
+                          "share_per_peer": secagg.SHARE_BYTES, "masked_word": secagg.WORD_BYTES},
+        "overhead_bytes": int(total_b), "overhead_sim_s": total_s if on else None,
+        "dropout_recoveries": int(recoveries), "per_round": per_round,
+        "note": ("SIMULATED secure aggregation: pairwise masks from a seeded PRG, no real key agreement "
+                 "or secret sharing; not cryptographically secure. Message sizes are scenario assumptions. "
+                 "No formal privacy guarantee; the final model can still leak (membership inference)."),
+    }

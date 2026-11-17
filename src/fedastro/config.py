@@ -401,6 +401,46 @@ class HierFLConfig:
         return self == HierFLConfig()
 
 
+SECAGG_LEVELS = ("regional", "global")
+
+
+@dataclass(frozen=True)
+class SecAggConfig:
+    """Simulated pairwise-mask secure aggregation (fl/secagg.py) for the hierarchical arm.
+    A protocol SIMULATION: masks from a seeded PRG, not cryptographically secure."""
+
+    enabled: bool = False
+    levels: tuple[str, ...] = SECAGG_LEVELS  # where it applies
+    # Keys (and so masks) agreed afresh for every aggregation, as in the standard protocol.
+    key_agreement: str = "per_round"
+    # The global merge runs only if at least this many regions are in its mask group (with
+    # one, the "sum" is that region's model). The regional minimum is min_participants.
+    global_min_group: int = 2
+    frac_bits: int = 24  # fixed-point fractional bits of the ring encoding
+    # Scripted dropout after the masks are set: node (regional level) or region (global
+    # level) -> rounds in which it joins the mask group, then its masked upload never
+    # arrives, so the survivors run the recovery step.
+    dropout: dict[str, tuple[int, ...]] = field(default_factory=dict)
+
+    def validate(self) -> None:
+        if not self.levels or any(lv not in SECAGG_LEVELS for lv in self.levels) \
+                or len(set(self.levels)) != len(self.levels):
+            raise ConfigError(f"secagg.levels must be distinct entries from {SECAGG_LEVELS}")
+        if self.key_agreement != "per_round":
+            raise ConfigError("secagg.key_agreement must be 'per_round'")
+        if self.global_min_group < 2:
+            raise ConfigError("secagg.global_min_group must be >= 2 (one member's sum is its own model)")
+        if not 8 <= self.frac_bits <= 40:
+            raise ConfigError("secagg.frac_bits must be in [8, 40]")
+        for k, rounds in self.dropout.items():
+            if any(r < 1 for r in rounds) or len(set(rounds)) != len(rounds):
+                raise ConfigError(f"secagg.dropout.{k}: rounds must be distinct and >= 1")
+
+    @property
+    def is_default(self) -> bool:
+        return self == SecAggConfig()
+
+
 @dataclass(frozen=True)
 class PartitionConfig:
     method: str = "by_subject"
@@ -773,6 +813,7 @@ class ExperimentConfig:
     hierarchy: HierarchyConfig | None = None
     shift: ShiftConfig = field(default_factory=ShiftConfig)  # needs a hierarchy; default off
     hier_fl: HierFLConfig = field(default_factory=HierFLConfig)  # the hierarchical arm only
+    secagg: SecAggConfig = field(default_factory=SecAggConfig)  # the hierarchical arm only
     # Live demo only: sleep simulated link time x this factor (0 = never sleep).
     # Execution detail, excluded from the run id.
     real_sleep_scale: float = 0.0
@@ -798,6 +839,7 @@ class ExperimentConfig:
         self.resources.validate()
         self.shift.validate()
         self.hier_fl.validate()
+        self.secagg.validate()
         hier = self.hierarchy
         self._validate_hierarchical_arm()
         if self.shift.enabled and hier is None:
@@ -901,7 +943,17 @@ class ExperimentConfig:
         if "hierarchical" not in self.arms:
             if not hf.is_default:
                 raise ConfigError("hier_fl is only meaningful with the 'hierarchical' arm")
+            if not self.secagg.is_default:
+                raise ConfigError("secagg is only implemented for the 'hierarchical' arm")
             return
+        sa = self.secagg  # with enabled false its settings are ignored (and not in the run id)
+        if sa.enabled:
+            known = {n.name for n in h.nodes} | {r.name for r in h.regions} if h is not None else set()
+            unknown = sorted(set(sa.dropout) - known)
+            if unknown:
+                raise ConfigError(f"secagg.dropout names unknown nodes or regions {unknown}")
+            if any(r > self.fl.rounds for rounds in sa.dropout.values() for r in rounds):
+                raise ConfigError("secagg.dropout: rounds must be <= fl.rounds")
         if h is None:
             raise ConfigError("the 'hierarchical' arm needs a hierarchy")
         if "local_only" not in self.arms:
@@ -957,6 +1009,8 @@ class ExperimentConfig:
             d.pop("shift")
         if "hierarchical" not in self.arms:  # Phase H3 block, same rule
             d.pop("hier_fl")
+        if not self.secagg.enabled:  # Phase H4 block, same rule
+            d.pop("secagg")
         if not self.partition.group_map:
             d["partition"].pop("group_map")
         if not self.partition.holdout_groups:

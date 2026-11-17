@@ -130,7 +130,7 @@ _REQUIRED_V2: list[tuple[str, tuple]] = [
     ("secagg.enabled", (bool,)),
     ("secagg.simulated", (bool,)),
     ("secagg.overhead_bytes", (int,)),
-    ("secagg.overhead_sim_s", _NUM),
+    ("secagg.overhead_sim_s", (*_NUM, _NULL)),  # null with comms off (rule 10)
     ("secagg.dropout_recoveries", (int,)),
     ("updates", (dict,)),
     ("updates.tolerance", (*_NUM, _NULL)),

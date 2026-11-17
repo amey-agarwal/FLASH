@@ -5,7 +5,9 @@ Handlers (message types):
   squares) of the local training data. No raw data leaves the silo.
 - ``query.set_scaler``: receive the global scaler; kept in the node's context state.
 - ``train``: receive global weights, run the shared ``train_local`` for
-  ``fl.local_epochs``, return the updated weights and example count.
+  ``fl.local_epochs``, return the updated weights and example count. With a
+  ``secagg-group`` in the config (simulated secure aggregation, Phase H4), return only the
+  pairwise-masked update instead.
 - ``evaluate``: score the received global weights on the silo's own training data.
 
 Flower 1.23's Message API replaces the older NumPyClient get_parameters/fit/evaluate
@@ -25,6 +27,7 @@ from fedastro.baselines.common import ARM_IDS, dp_plan, init_model
 from fedastro.config import ExperimentConfig
 from fedastro.data.base import DatasetBundle
 from fedastro.data.preprocess import Standardizer, Stats
+from fedastro.fl.secagg import mask_update
 from fedastro.fl.strategy import client_proximal_mu
 from fedastro.metrics.classification import evaluate
 from fedastro.training import derive_seed, predict_proba, train_local
@@ -96,6 +99,14 @@ def make_client_app(silos: list[DatasetBundle], cfg: ExperimentConfig, seed: int
             device=device, epochs=cfg.fl.local_epochs,
             proximal_mu=client_proximal_mu(cfg.fl), dp=dp,
         )
+        if "secagg-group" in msg.content["config"]:
+            # Simulated secure aggregation (Phase H4): the update is masked here, on the node;
+            # the aggregator receives only the masked vector (count included, masked too).
+            group = [int(g) for g in msg.content["config"]["secagg-group"]]
+            vec = mask_update(get_weights(model), len(data), idx, group, seed, "regional", server_round,
+                              int(msg.content["config"]["secagg-frac-bits"]))
+            content = RecordDict({"arrays": ArrayRecord([vec]), "metrics": MetricRecord({"silo_index": idx})})
+            return Message(content, reply_to=msg)
         metrics = {"silo_index": idx, "num-examples": len(data), "train_loss": history[-1]["train_loss"]}
         if dp is not None:
             metrics["epsilon"] = dp.epsilon_after(server_round * cfg.fl.local_epochs)
