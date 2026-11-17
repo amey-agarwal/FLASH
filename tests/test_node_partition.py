@@ -19,13 +19,13 @@ REPO = Path(__file__).resolve().parents[1]
 @pytest.fixture(scope="module")
 def cinc():
     cfg = load_config(REPO / "configs" / "experiments" / "smoke_hier.yaml")
-    return cfg, *build_hier_federation(cfg, 0)
+    return cfg, *build_hier_federation(cfg, 0)[:2]
 
 
 @pytest.fixture(scope="module")
 def wes():
     cfg = load_config(REPO / "configs" / "experiments" / "smoke_hier_wesad12.yaml")
-    return cfg, *build_hier_federation(cfg, 0)
+    return cfg, *build_hier_federation(cfg, 0)[:2]
 
 
 def _patients(split: NodeSplit) -> dict[str, set[int]]:
@@ -73,12 +73,12 @@ def test_split_fractions_are_about_70_10_20_of_patients(cinc):
 
 def test_by_source_partition_is_frozen_across_run_seeds_and_follows_holdout_seed(cinc):
     cfg, _, fed = cinc
-    _, other = build_hier_federation(cfg, 1)
+    _, other = build_hier_federation(cfg, 1)[:2]
     # Synthetic data is regenerated per seed, but subject ids are stable: same assignment.
     for name in fed.nodes:
         assert _patients(fed.nodes[name]) == _patients(other.nodes[name])
     moved = dataclasses.replace(cfg, partition=dataclasses.replace(cfg.partition, holdout_seed=1))
-    _, third = build_hier_federation(moved, 0)
+    _, third = build_hier_federation(moved, 0)[:2]
     assert any(_patients(fed.nodes[n]) != _patients(third.nodes[n]) for n in fed.nodes)
 
 
@@ -88,7 +88,7 @@ def test_quantity_skew_comes_from_the_dirichlet_shares(cinc):
     nasa = [sizes[n] for n in ("leo_nasa", "moon_nasa", "mars_nasa")]
     assert sum(nasa) == 30 and len(set(nasa)) > 1  # one source, unequal region shares
     near_equal = dataclasses.replace(cfg, hierarchy=dataclasses.replace(cfg.hierarchy, quantity_alpha=1e6))
-    _, even = build_hier_federation(near_equal, 0)
+    _, even = build_hier_federation(near_equal, 0)[:2]
     assert [sum(len(v) for v in _patients(even.nodes[n]).values())
             for n in ("leo_nasa", "moon_nasa", "mars_nasa")] == [10, 10, 10]
 
@@ -148,10 +148,10 @@ def test_holdout_is_the_flat_holdout_and_node_assignment_follows_the_run_seed(we
     bundle = load_dataset(cfg, 0)
     _, flat_holdout = holdout_split(bundle, 3, np.random.default_rng([0, _HOLDOUT_STREAM]))
     assert fed.holdout.subjects == flat_holdout.subjects
-    _, other = build_hier_federation(cfg, 1)
+    _, other = build_hier_federation(cfg, 1)[:2]
     assert other.holdout.subjects == fed.holdout.subjects  # test set never depends on the run seed
     assert [s.train.subjects for s in other.nodes.values()] != [s.train.subjects for s in fed.nodes.values()]
-    _, again = build_hier_federation(cfg, 0)
+    _, again = build_hier_federation(cfg, 0)[:2]
     assert [s.train.subjects for s in again.nodes.values()] == [s.train.subjects for s in fed.nodes.values()]
 
 

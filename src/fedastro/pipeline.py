@@ -39,15 +39,20 @@ def build_federation(cfg: ExperimentConfig, seed: int, draw: int = 0) -> tuple[D
     return bundle, fed
 
 
-def build_hier_federation(cfg: ExperimentConfig, seed: int) -> tuple[DatasetBundle, HierFederation]:
-    """Per-node train / validation / test data for a hierarchical topology."""
+def build_hier_federation(cfg: ExperimentConfig, seed: int) -> tuple[DatasetBundle, HierFederation, dict[str, Any]]:
+    """Per-node train / validation / test data for a hierarchical topology, with the
+    SIMULATED location shift applied when configured. Returns (unshifted bundle, federation,
+    the result's ``shift`` section)."""
+    from fedastro.data.shift import apply_shift
+
     if cfg.hierarchy is None:
         raise ValueError("build_hier_federation needs a config with a hierarchy")
     rng = seed_everything(seed)
     bundle = load_dataset(cfg, seed)
     fed = make_hier_federation(bundle, cfg.hierarchy, rng, cfg.partition.holdout_subjects,
                                cfg.partition.holdout_seed)
-    return bundle, fed
+    fed, shift = apply_shift(fed, cfg.hierarchy, cfg.shift)
+    return bundle, fed, shift
 
 
 def topology_section(cfg: ExperimentConfig) -> dict[str, Any]:

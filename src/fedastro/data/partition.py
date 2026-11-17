@@ -45,7 +45,7 @@ Invariant: no patient appears in two nodes, and (by_source) none in two splits.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -332,10 +332,17 @@ class HierFederation:
     nodes: dict[str, NodeSplit]
     holdout: DatasetBundle | None  # shared test set (one_subject_per_node), else None
     unused_sources: tuple[str, ...] = ()  # by_source: dataset groups no node draws from
+    # Shared test set under a simulated location shift (data/shift.py): each region's own
+    # shifted copy of ``holdout``. Empty without a shift.
+    region_holdout: dict[str, DatasetBundle] = field(default_factory=dict)
 
     def test_of(self, node: str) -> DatasetBundle:
+        """The data a node is tested on: its own test split, or the shared held-out set
+        (as its region sees it)."""
         split = self.nodes[node]
-        return self.holdout if split.test is None else split.test
+        if split.test is not None:
+            return split.test
+        return self.region_holdout.get(split.region, self.holdout)
 
 
 def make_hier_federation(

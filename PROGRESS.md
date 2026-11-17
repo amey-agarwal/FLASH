@@ -3,17 +3,107 @@
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
-removed; its Phases 13–18 are dropped. Phase H0 is committed (`881045d`). Phase H1 is at the gate
-(below). Next: Phase H2 (location-shift simulation), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
+removed; its Phases 13–18 are dropped. Phases H0 (`881045d`) and H1 (`f3eac96`) are committed. Phase H2 is
+at the gate (below). Next: Phase H3 (hierarchical FL), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H1 — Hierarchical topology config — AT THE GATE (2026-11-16)
+## Phase H2 — Location-shift simulation — AT THE GATE (2026-11-17)
 
 **Not committed.** Suggested message:
-`feat(config): phase H1 hierarchical topologies, per-node splits, result schema 2`.
-The commit also carries the `prereg/` deletion (user decision 2026-11-16).
+`feat(data): phase H2 simulated location shift (covariate and concept), PREREG section 3`.
+
+**The shift is SIMULATED.** WESAD, CinC and OSD-435 contain no location-dependent physiology.
+The shift directions are arbitrary seeded vectors, not measured and not modelled physiology.
+Every result that uses the shift carries `shift.provenance: SIMULATED` (enforced by the schema).
+
+### Built
+- **`data/shift.py`:** per region, on the selected features (channels, for sequences):
+  `x' = mean + (x - mean) * gain + offset + class_offset[y]`.
+  - **Covariate** part: region offset (`a * std * u`, u unit-RMS) and gain (`exp(0.2 * a * g)`).
+  - **Concept** part: class-conditional offset (`a * std * v_k`, zero-sum over classes), which
+    changes the feature-label relationship and which standardisation cannot undo.
+  - `a` = `shift.magnitude` x region strength; `mean`, `std` are those of the pooled unshifted
+    training data of all nodes, so magnitudes are in training-std units.
+  - The same transformation is applied to a region's train, validation and test data.
+  - All draws come from `shift.seed`, never the run seed, and are made for every region in
+    topology order, so changing a strength or the magnitude never moves another region's
+    directions.
+  - `a = 0` returns the data untouched.
+- **Config:** `shift` block (`enabled`, `kind` covariate / concept / both, `magnitude`, `seed`,
+  `feature_fraction` 0.5, optional `features`, optional `region_strength`). Default off; left
+  out of the run id when off. It needs a hierarchy. By default the first region of the topology
+  (LEO) is the unshifted reference and the others have strength 1.
+- **Shared test set (WESAD):** `HierFederation.region_holdout` holds each region's shifted copy
+  of the held-out set; `test_of(node)` returns the node's region's copy.
+- **Reporting:** `build_hier_federation` now returns `(bundle, federation, shift_section)`. The
+  section has the kind, magnitude, seed, selected features, reference region and, per region,
+  the distance from the reference region's training data **before and after** the shift
+  (standardised mean difference, mean per-feature Wasserstein-1, and the within-class mean
+  difference), in training-std units. `fedastro inspect` prints it. It is written into
+  `result.shift` when hierarchical runs exist (H3).
+- **Configs:** `experiments/smoke_hier_shift.yaml` (cinc15), `smoke_hier_shift_wesad12.yaml`.
+- **`PREREG.md` §3 frozen:** design, kinds, grid {0, 0.5, 1, 2}, primary = `both` at 1.0.
+- **Tests:** `tests/test_shift.py`, 15 tests.
+
+### Decisions (user approved 2026-11-17, "approve as recommended")
+1. Design B: covariate + class-conditional concept shift, separately switchable.
+2. LEO unshifted; Moon and Mars shifted in different seeded directions.
+3. Magnitudes in pooled training-std units; grid {0, 0.5, 1, 2}, primary 1.0, frozen in PREREG §3.
+4. A seeded random half of the features shifts (optional explicit list).
+5. Distances: standardised mean difference and mean per-feature Wasserstein, against LEO.
+6. WESAD: each region is tested on its own shifted copy of the shared held-out set.
+
+### Decisions made while building (review these)
+1. **Gain rate 0.2** (`GAIN_RATE`): at magnitude 1 a selected feature's spread changes by up to
+   about 22%. The gain acts around the pooled training mean, not around zero, so features with
+   a large raw mean (e.g. temperature) do not get an outsized offset from it.
+2. **The magnitude-0 control is its own run id** (`shift.enabled: true, magnitude: 0`), distinct
+   from a config with no shift block, though its data is bit-identical.
+3. **A third distance was added, the within-class mean difference.** The concept part sums to
+   zero over classes, so with balanced classes it barely shows in the marginal distances (see
+   the table); the within-class distance shows it.
+4. `Provenance` of the dataset is unchanged by the shift (it still describes the source data).
+   The shift is recorded in the result's `shift` section.
+
+### Acceptance results
+| Check | Result |
+|---|---|
+| Magnitude 0 is bit-identical to no shift | **Yes**, for all three kinds, every node and split, and the shared-holdout topology (`test_magnitude_zero_is_bit_identical_*`, byte comparison of X, y and subject ids) |
+| Shifted regions show a measurable distance from unshifted ones | **Yes** (table below; tested with a margin of 0.1 on all three distances, and monotone in the magnitude) |
+| Documented as simulated in code and here | **Yes**: module docstring, config docstring, the `shift` section's `provenance` and `note`, the configs, PREREG §3 and this entry |
+| `pytest` | `caffeinate -i uv run --frozen pytest -m "slow or not slow"` (laptop, 2026-11-17): **286 passed, 1 skipped (CUDA), 1 warning** (the known sklearn notice), 14 min 00 s. That is 271 earlier + 15 new. Golden run ids unchanged; the smoke result is byte-identical; all 5 flat WESAD regression seeds reproduce |
+
+Distances from LEO's training data on `smoke_hier_shift.yaml` (SYNTHETIC data, seed 0), in
+training-std units, as `Wasserstein mean / within-class mean difference`. Magnitude 0 is the
+natural difference between the regions' (synthetic) patients.
+| kind | magnitude | Moon | Mars |
+|---|---|---|---|
+| any | 0 | 0.172 / 0.171 | 0.248 / 0.241 |
+| covariate | 0.5 | 0.306 / 0.299 | 0.431 / 0.425 |
+| covariate | 1 | 0.528 / 0.524 | 0.616 / 0.610 |
+| covariate | 2 | 0.978 / 0.974 | 0.987 / 0.981 |
+| concept | 0.5 | 0.180 / 0.306 | 0.248 / 0.348 |
+| concept | 1 | 0.285 / 0.509 | 0.269 / 0.534 |
+| concept | 2 | 0.659 / 0.915 | 0.539 / 0.936 |
+| both | 0.5 | 0.308 / 0.369 | 0.430 / 0.483 |
+| both | 1 | 0.532 / 0.641 | 0.629 / 0.767 |
+| both | 2 | 0.987 / 1.190 | 1.128 / 1.345 |
+
+### For Phase H3 (open)
+- **Which scaler do the regional and global models use?** Every arm standardises its inputs,
+  and a per-region scaler would undo most of the covariate part for the regional model. This
+  decides how much of H2 rests on the concept part; it is an H3 design decision for the user.
+- The WESAD validation-tail class mix is still to be checked on real data (H1 caveat).
+
+---
+
+## Phase H1 — Hierarchical topology config — COMPLETE (2026-11-16), committed `f3eac96`
+
+Committed as
+`feat(config): phase H1 hierarchical topologies, per-node splits, result schema 2`,
+together with the `prereg/` deletion (user decision 2026-11-16).
 
 ### Built
 - **Config (`config.py`):** `HierarchyConfig` with regions (`RegionConfig`), nodes (`NodeConfig`:

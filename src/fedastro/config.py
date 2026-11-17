@@ -55,6 +55,7 @@ LOS_KINDS = ("none", "poisson", "periodic")
 # "one_subject_per_node": one training subject per node; validation is the time-ordered
 #   tail of that subject; the test set is the shared held-out subjects.
 HIER_PARTITIONS = ("by_source", "one_subject_per_node")
+SHIFT_KINDS = ("covariate", "concept", "both")
 COMMS_PRESETS = ("earth", "moon", "mars_near", "mars_mean", "mars_far")
 ATTACK_STATES = ("init", "final")
 ATTACK_LABEL_MODES = ("known", "inferred")
@@ -320,6 +321,38 @@ class HierarchyConfig:
                     los_profile=r.node_link.los_profile,
                     latency_presets_s={k: base + v for k, v in r.global_link.latency_presets_s.items()}))
         return TopologyConfig(name=self.name, silos=tuple(silos))
+
+
+@dataclass(frozen=True)
+class ShiftConfig:
+    """SIMULATED location shift (data/shift.py): a region-dependent transformation of the
+    inputs, so that regions differ. No dataset here has a measured location shift."""
+
+    enabled: bool = False
+    kind: str = "both"  # covariate (offset + scale), concept (class-conditional offset), both
+    # In units of a feature's pooled training standard deviation. 0 = the control: the data
+    # is bit-identical to no shift.
+    magnitude: float = 0.0
+    seed: int = 0  # directions and selected features; never the run seed
+    feature_fraction: float = 0.5  # share of features (channels, for sequences) that shift
+    features: tuple[int, ...] = ()  # explicit feature indices; overrides feature_fraction
+    # region -> multiplier of the magnitude. Regions not named: the first region of the
+    # topology is the unshifted reference (0), the others 1.
+    region_strength: dict[str, float] = field(default_factory=dict)
+
+    def validate(self) -> None:
+        if self.kind not in SHIFT_KINDS:
+            raise ConfigError(f"shift.kind must be one of {SHIFT_KINDS}")
+        if self.magnitude < 0:
+            raise ConfigError("shift.magnitude must be >= 0")
+        if self.seed < 0:
+            raise ConfigError("shift.seed must be >= 0")
+        if not 0 < self.feature_fraction <= 1:
+            raise ConfigError("shift.feature_fraction must be in (0, 1]")
+        if any(i < 0 for i in self.features) or len(set(self.features)) != len(self.features):
+            raise ConfigError("shift.features must be distinct non-negative indices")
+        if any(v < 0 for v in self.region_strength.values()):
+            raise ConfigError("shift.region_strength values must be >= 0")
 
 
 @dataclass(frozen=True)
@@ -692,6 +725,7 @@ class ExperimentConfig:
     # Hierarchical topology (configs/topologies/), or None = flat. Set by load_config from
     # the ``hierarchy`` key; left out of the run id when None.
     hierarchy: HierarchyConfig | None = None
+    shift: ShiftConfig = field(default_factory=ShiftConfig)  # needs a hierarchy; default off
     # Live demo only: sleep simulated link time x this factor (0 = never sleep).
     # Execution detail, excluded from the run id.
     real_sleep_scale: float = 0.0
@@ -715,7 +749,14 @@ class ExperimentConfig:
         self.comms.validate()
         self.evaluation.validate()
         self.resources.validate()
+        self.shift.validate()
         hier = self.hierarchy
+        if self.shift.enabled and hier is None:
+            raise ConfigError("shift.enabled needs a hierarchy: the shift is defined per region")
+        if hier is not None:
+            unknown = sorted(set(self.shift.region_strength) - {r.name for r in hier.regions})
+            if unknown:
+                raise ConfigError(f"shift.region_strength names unknown regions {unknown}")
         by_source = hier is not None and hier.partition == "by_source"
         if self.partition.holdout_subjects < 1 and not self.partition.holdout_groups and not by_source:
             raise ConfigError("partition.holdout_subjects must be >= 1 (>= 0 with holdout_groups)")
@@ -829,6 +870,8 @@ class ExperimentConfig:
             d["data"]["synthetic"].pop("group_names")
         if self.hierarchy is None:  # Phase H1 block, same rule
             d.pop("hierarchy")
+        if not self.shift.enabled:  # Phase H2 block, same rule
+            d.pop("shift")
         if not self.partition.group_map:
             d["partition"].pop("group_map")
         if not self.partition.holdout_groups:

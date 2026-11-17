@@ -154,12 +154,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.command != "inspect":
             print(f"config error: {HIER_RUN_MESSAGE}", file=sys.stderr)
             return 2
-        bundle, hfed = build_hier_federation(cfg, cfg.seed)
+        bundle, hfed, shift = build_hier_federation(cfg, cfg.seed)
         p, h = bundle.provenance, cfg.hierarchy
         print(f"dataset={p.dataset} kind={p.kind} version={p.version}")
         print(f"hierarchy={h.name} partition={h.partition} min_participants={h.min_participants} "
               f"seed={cfg.seed} (region, agency and node names are scenario labels)")
         print(format_node_table(hfed, bundle.class_names))
+        from fedastro.data.shift import format_shift_table
+
+        print(format_shift_table(shift))
         return 0
     if args.command == "inspect":
         bundle, fed = build_federation(cfg, cfg.seed, args.draw)

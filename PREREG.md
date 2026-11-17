@@ -1,6 +1,7 @@
 # PREREG — pre-registration for the `hier-fl` branch
 
-**Status: SKELETON (Phase H0, 2026-11-15). Nothing below is frozen yet.**
+**Status: IN PROGRESS. Frozen so far: §1 hypotheses (wording from CLAUDE.md), §3 location shift.
+The other sections are still placeholders.**
 Each section is filled in and frozen (committed) by the phase named in it, **before** any
 result-producing run that it covers (CLAUDE.md rule 9 and §7). After a section is frozen, any
 change to it is a deviation and is listed in the Deviations section and in `PROGRESS.md`.
@@ -39,10 +40,30 @@ PLACEHOLDER_ — frozen before the first result-producing run (Phase H9 at the l
 - Statistics: at least 5 seeds, mean ± std, hierarchical bootstrap 95% CI
   (`metrics/aggregate.py`).
 
-## 3. Location shift (Phase H2)
+## 3. Location shift (Phase H2) — FROZEN 2026-11-17
 
-PLACEHOLDER_ — shift design chosen by the user at the H2 gate; kinds, channels and magnitudes
-(including the 0 control).
+Chosen by the user at the H2 gate (design B). **The shift is SIMULATED:** no dataset here
+contains location-dependent physiology, and the shift directions are arbitrary seeded vectors,
+not modelled physiology. Every result that uses it carries `shift.provenance: SIMULATED`.
+
+- **Design** (`src/fedastro/data/shift.py`): per region, on the selected features,
+  `x' = mean + (x - mean) * gain + offset + class_offset[y]`.
+  - Covariate part: a region offset and a region gain (`exp(0.2 * a * g)`, g in [-1, 1]).
+  - Concept part: a class-conditional offset that sums to zero over classes, so the
+    feature-label relationship differs by region.
+  - `a` = magnitude x region strength, in units of a feature's pooled unshifted training
+    standard deviation.
+- **Kinds reported:** `covariate`, `concept`, `both`. **Primary kind: `both`.**
+- **Magnitude grid: {0, 0.5, 1, 2}. Primary magnitude: 1.0.** Magnitude 0 is the control
+  (data bit-identical to no shift), used for the control clause of H2.
+- **Regions:** LEO is the unshifted reference (strength 0); Moon and Mars have strength 1 and
+  different directions.
+- **Shifted features:** a seeded random half of the features (channels, for sequences).
+- **Shift seed: 0**, fixed across run seeds.
+- **Test sets:** a region's train, validation and test data get the same transformation. Where
+  nodes share one held-out test set (WESAD), each region is tested on its own shifted copy.
+- The grid, kinds and primary were fixed before any model was trained on shifted data. They
+  were not, and will not be, chosen from validation or test results.
 
 ## 4. Update-gate tolerance (Phase H5)
 

@@ -1,0 +1,23 @@
+# Smoke test for the SIMULATED location shift (Phase H2) on the wesad12 topology, SYNTHETIC
+# data. LEO is the unshifted reference; Moon and Mars shift in different seeded directions.
+# Inspect only until Phase H3:  fedastro inspect configs/experiments/smoke_hier_shift_wesad12.yaml
+name: smoke_hier_shift_wesad12
+seed: 0
+seeds: [0, 1]
+hierarchy: wesad12
+shift:
+  enabled: true
+  kind: both                   # covariate (offset + scale) and concept (class-conditional offset)
+  magnitude: 1.0               # in training-std units; 0 is the control
+data:
+  name: synthetic
+  synthetic:
+    n_subjects: 15
+    windows_per_subject: 40
+partition:
+  holdout_subjects: 3
+train:
+  epochs: 3
+fl:
+  rounds: 3
+notes: "Simulated location-shift smoke test (wesad12)."
