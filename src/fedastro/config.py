@@ -40,7 +40,8 @@ WESAD_DEVICES = ("chest", "wrist")
 ARCHS = ("mlp", "cnn1d")
 OPTIMIZERS = ("adam", "sgd")
 CLASS_WEIGHTING = ("none", "balanced")
-ARMS = ("centralized", "local_only", "federated", "ensemble_of_locals")
+# "hierarchical" (Phase H3, fl/hierarchy.py) needs a hierarchy and the local_only arm.
+ARMS = ("centralized", "local_only", "federated", "ensemble_of_locals", "hierarchical")
 # Paired comparisons (metrics/stats.py): federated minus each of these.
 COMPARATORS = ("local_only", "ensemble_of_locals", "centralized")
 STAT_METRICS = ("accuracy", "balanced_accuracy", "macro_f1", "auc")  # = metrics.classification.METRICS
@@ -353,6 +354,51 @@ class ShiftConfig:
             raise ConfigError("shift.features must be distinct non-negative indices")
         if any(v < 0 for v in self.region_strength.values()):
             raise ConfigError("shift.region_strength values must be >= 0")
+
+
+@dataclass(frozen=True)
+class HierFLConfig:
+    """The hierarchical arm (fl/hierarchy.py). Rounds, local epochs and the client
+    strategy (fedavg / fedprox) come from ``fl``."""
+
+    # The global aggregator merges the regional models every this many regional rounds.
+    global_every: int = 5
+    # Scripted loss of signal (deterministic, independent of the link model):
+    # node -> rounds in which it cannot reach its regional aggregator, and
+    # region -> rounds in which its aggregator cannot reach the global aggregator
+    # (only matters in merge rounds).
+    offline: dict[str, tuple[int, ...]] = field(default_factory=dict)
+    region_offline: dict[str, tuple[int, ...]] = field(default_factory=dict)
+    # Simulated links (comms.enabled): a node whose update has not reached its regional
+    # aggregator this many SIMULATED seconds after the round starts misses the round.
+    # Required (> 0) with comms on: without it a node in loss of signal is waited for
+    # and its region never falls back.
+    region_deadline_s: float = 0.0
+    # A region whose model has not reached the global aggregator this long after it was
+    # sent is left out of that merge. 0 = wait (unless it can never arrive).
+    global_deadline_s: float = 0.0
+    # Solar-conjunction blackout of one region's link to the global aggregator, in
+    # simulated seconds (scenario assumption; needs comms.enabled). 0 duration = none.
+    conjunction_region: str = ""
+    conjunction_from_s: float = 0.0
+    conjunction_duration_s: float = 0.0
+
+    def validate(self) -> None:
+        if self.global_every < 1:
+            raise ConfigError("hier_fl.global_every must be >= 1")
+        for name in ("region_deadline_s", "global_deadline_s", "conjunction_from_s", "conjunction_duration_s"):
+            if getattr(self, name) < 0:
+                raise ConfigError(f"hier_fl.{name} must be >= 0")
+        for what, sched in (("offline", self.offline), ("region_offline", self.region_offline)):
+            for k, rounds in sched.items():
+                if any(r < 1 for r in rounds) or len(set(rounds)) != len(rounds):
+                    raise ConfigError(f"hier_fl.{what}.{k}: rounds must be distinct and >= 1")
+        if bool(self.conjunction_region) != (self.conjunction_duration_s > 0):
+            raise ConfigError("hier_fl.conjunction_region and conjunction_duration_s > 0 go together")
+
+    @property
+    def is_default(self) -> bool:
+        return self == HierFLConfig()
 
 
 @dataclass(frozen=True)
@@ -726,6 +772,7 @@ class ExperimentConfig:
     # the ``hierarchy`` key; left out of the run id when None.
     hierarchy: HierarchyConfig | None = None
     shift: ShiftConfig = field(default_factory=ShiftConfig)  # needs a hierarchy; default off
+    hier_fl: HierFLConfig = field(default_factory=HierFLConfig)  # the hierarchical arm only
     # Live demo only: sleep simulated link time x this factor (0 = never sleep).
     # Execution detail, excluded from the run id.
     real_sleep_scale: float = 0.0
@@ -750,7 +797,9 @@ class ExperimentConfig:
         self.evaluation.validate()
         self.resources.validate()
         self.shift.validate()
+        self.hier_fl.validate()
         hier = self.hierarchy
+        self._validate_hierarchical_arm()
         if self.shift.enabled and hier is None:
             raise ConfigError("shift.enabled needs a hierarchy: the shift is defined per region")
         if hier is not None:
@@ -847,6 +896,40 @@ class ExperimentConfig:
                 raise ConfigError(
                     f"synthetic n_subjects must be >= silos + holdout_subjects ({needed})")
 
+    def _validate_hierarchical_arm(self) -> None:
+        h, hf = self.hierarchy, self.hier_fl
+        if "hierarchical" not in self.arms:
+            if not hf.is_default:
+                raise ConfigError("hier_fl is only meaningful with the 'hierarchical' arm")
+            return
+        if h is None:
+            raise ConfigError("the 'hierarchical' arm needs a hierarchy")
+        if "local_only" not in self.arms:
+            raise ConfigError("the 'hierarchical' arm needs the 'local_only' arm (each node's local model "
+                              "is one of the three models compared)")
+        if self.fl.strategy not in SYNC_STRATEGIES:
+            raise ConfigError(f"the 'hierarchical' arm supports fl.strategy {SYNC_STRATEGIES}")
+        if self.privacy.enabled or self.privacy.attack.enabled:
+            raise ConfigError("privacy (DP-SGD, attack) is not supported with the 'hierarchical' arm")
+        if hf.global_every > self.fl.rounds:
+            raise ConfigError("hier_fl.global_every must be <= fl.rounds (else the global model never forms)")
+        nodes, regions = {n.name for n in h.nodes}, {r.name for r in h.regions}
+        for what, sched, names in (("offline", hf.offline, nodes), ("region_offline", hf.region_offline, regions)):
+            unknown = sorted(set(sched) - names)
+            if unknown:
+                raise ConfigError(f"hier_fl.{what} names unknown {'nodes' if what == 'offline' else 'regions'} {unknown}")
+            if any(r > self.fl.rounds for rounds in sched.values() for r in rounds):
+                raise ConfigError(f"hier_fl.{what}: rounds must be <= fl.rounds")
+        if hf.conjunction_region:
+            if hf.conjunction_region not in regions:
+                raise ConfigError(f"hier_fl.conjunction_region {hf.conjunction_region!r} is not a region")
+            if not self.comms.enabled:
+                raise ConfigError("hier_fl.conjunction_region needs comms.enabled (it is a link outage)")
+        if self.comms.enabled and hf.region_deadline_s <= 0:
+            raise ConfigError("the 'hierarchical' arm with comms.enabled needs hier_fl.region_deadline_s > 0")
+        if not self.comms.enabled and (hf.region_deadline_s or hf.global_deadline_s):
+            raise ConfigError("hier_fl deadlines need comms.enabled")
+
     # Execution details: where to write and which seeds to iterate. They do not change
     # what a single run computes, so they are excluded from the recorded experiment
     # definition and from the run id (they go into manifest.json instead).
@@ -872,6 +955,8 @@ class ExperimentConfig:
             d.pop("hierarchy")
         if not self.shift.enabled:  # Phase H2 block, same rule
             d.pop("shift")
+        if "hierarchical" not in self.arms:  # Phase H3 block, same rule
+            d.pop("hier_fl")
         if not self.partition.group_map:
             d["partition"].pop("group_map")
         if not self.partition.holdout_groups:

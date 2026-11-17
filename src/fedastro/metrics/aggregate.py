@@ -73,6 +73,18 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
     if "ensemble_of_locals" in arms:
         summary["arms"]["ensemble_of_locals"] = {
             m: _mean_std([r["arms"]["ensemble_of_locals"]["final"][m] for r in results]) for m in METRICS}
+    if "hierarchical" in arms:  # Phase H3: per region, every model on that region's own test data
+        summary["arms"]["hierarchical"] = {
+            key: {m: _mean_std([r["arms"]["hierarchical"][key][m] for r in results]) for m in METRICS}
+            for key in ("final", "regional_final")}
+        regions = results[0]["hierarchy"]["per_region"]
+        models = [k for k in regions[next(iter(regions))] if k != "n_test"]
+        summary["hierarchy"] = {
+            "per_region": {reg: {mod: {m: _mean_std([r["hierarchy"]["per_region"][reg][mod][m] for r in results])
+                                       for m in METRICS} for mod in models} for reg in regions},
+            "disagreement": {k: _mean_std([r["disagreement"][k] for r in results
+                                           if r["disagreement"][k] is not None]) for k in ("acc_agree", "acc_disagree")},
+        }
     if {"centralized", "local_only", "federated"} <= set(summary["arms"]):
         summary["h1"] = _h1_tally(results)
     fairness = {}
@@ -233,6 +245,16 @@ def format_summary(summary: dict[str, Any]) -> str:
             sim_t = v.get("sim_wallclock_s")
             sim_txt = f", simulated time {fmt(sim_t)} s" if sim_t and sim_t["mean"] is not None else ""
             lines.append(f"rounds to target ({key}): {fmt(v['round'])}{sim_txt}, reached in {v['n_reached']}/{v['n_runs']} runs")
+    if "hierarchical" in arms:
+        hi = arms["hierarchical"]
+        lines.append(f"{'hierarchical global':<28}" + "".join(f"{fmt(hi['final'][m]):>20}" for m in METRICS))
+        lines.append(f"{'hierarchical regional':<28}" + "".join(f"{fmt(hi['regional_final'][m]):>20}" for m in METRICS))
+        lines.append("per region, each model on that region's own test data (macro-F1):")
+        for reg, mods in summary["hierarchy"]["per_region"].items():
+            lines.append(f"  {reg:<8}" + "   ".join(f"{mod} {fmt(ms['macro_f1'])}" for mod, ms in mods.items()))
+        d = summary["hierarchy"]["disagreement"]
+        lines.append(f"regional model accuracy where local/regional/global agree {fmt(d['acc_agree'])}, "
+                     f"disagree {fmt(d['acc_disagree'])} (a flag, not an independent opinion)")
     if "fairness" in summary:
         lines.append("fairness (label-mix holdout accuracy across silos; spread = max - min, lower is fairer):")
         for arm, f in summary["fairness"].items():

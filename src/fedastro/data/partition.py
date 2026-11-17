@@ -38,8 +38,10 @@ which gives every node its own train / validation / test data:
      and test membership are frozen across the seeds of an experiment.
    - ``one_subject_per_node``: the shared held-out subjects are removed exactly as in the
      flat path; each remaining subject becomes one node (assignment from the run rng).
-     Validation is the time-ordered tail of the node's subject; the test set is the
-     shared held-out set.
+     Validation is the time-ordered tail of each condition (class) of the node's subject,
+     so the validation set keeps the subject's class mix; the test set is the shared
+     held-out set. (A tail of the whole session would hold only the last conditions:
+     on WESAD it left every validation set without baseline windows. Phase H3 fix.)
 Invariant: no patient appears in two nodes, and (by_source) none in two splits.
 """
 
@@ -414,17 +416,35 @@ def _hier_one_subject(bundle: DatasetBundle, hierarchy: HierarchyConfig, rng: np
     order = rng.permutation(np.array(pool.subjects))
     out: dict[str, NodeSplit] = {}
     for node, subject in zip(nodes, order):
-        # Loaders store each subject's windows in time order (asserted for WESAD in tests),
-        # so the tail of the index is the tail in time.
-        idx = np.flatnonzero(pool.subject_id == subject)
-        n_val = max(1, int(round(hierarchy.val_frac * len(idx))))
-        n_train = len(idx) - n_val - hierarchy.val_gap_windows
-        if n_train < 1:
-            raise ValueError(f"node {node.name}: subject {subject} has too few windows ({len(idx)})")
-        out[node.name] = NodeSplit(
-            region=hierarchy.region_of(node.name), train=pool.subset(idx[:n_train]),
-            val=pool.subset(idx[len(idx) - n_val :]), test=None, n_gap_dropped=hierarchy.val_gap_windows)
+        train, val, gap = tail_split(pool, subject, hierarchy.val_frac, hierarchy.val_gap_windows)
+        if not len(train) or not len(val):
+            raise ValueError(f"node {node.name}: subject {subject} has too few windows for a validation tail")
+        out[node.name] = NodeSplit(region=hierarchy.region_of(node.name), train=pool.subset(train),
+                                   val=pool.subset(val), test=None, n_gap_dropped=gap)
     return HierFederation(nodes=out, holdout=holdout)
+
+
+def tail_split(bundle: DatasetBundle, subject: int, val_frac: float, gap: int) -> tuple[np.ndarray, np.ndarray, int]:
+    """(train indices, validation indices, windows dropped) for one subject.
+
+    Per class, the last round(val_frac * n_class) windows in time order are validation,
+    and the ``gap`` windows of that class just before them are dropped, so overlapping
+    windows never straddle the boundary. A class with too few windows for a tail stays
+    in training. Loaders store each subject's windows in time order (asserted for WESAD
+    in tests), so index order is time order."""
+    idx = np.flatnonzero(bundle.subject_id == subject)
+    train, val, dropped = [], [], 0
+    for k in np.unique(bundle.y[idx]):
+        cls = idx[bundle.y[idx] == k]
+        n_val = int(round(val_frac * len(cls)))
+        if n_val == 0 or len(cls) - n_val - gap < 1:
+            train.append(cls)
+            continue
+        val.append(cls[len(cls) - n_val :])
+        train.append(cls[: len(cls) - n_val - gap])
+        dropped += gap
+    join = lambda parts: np.sort(np.concatenate(parts)) if parts else np.zeros(0, dtype=np.int64)  # noqa: E731
+    return join(train), join(val), dropped
 
 
 def assert_hier_disjoint(fed: HierFederation) -> None:

@@ -111,6 +111,41 @@ class _Sim:
             time.sleep(dt * self.real_sleep)
 
 
+@dataclass(frozen=True)
+class ScalerSetup:
+    scaler: Standardizer
+    ordered_nodes: list[int]  # Flower node id per silo index
+    setup_bytes: int
+    stats_bytes: int  # one silo's statistics payload
+    scaler_bytes: int  # the scaler payload sent to each silo
+
+
+def federated_scaler(grid: Grid, n_silos: int, timeout: float) -> ScalerSetup:
+    """Setup shared by the flat and hierarchical arms: ``query.stats`` to every node,
+    combine the sufficient statistics into one scaler (identical to fitting on the pooled
+    training data), ``query.set_scaler`` to every node."""
+    nodes = _wait_for_nodes(grid, n_silos, timeout)
+    replies = _exchange(grid, nodes, "query.stats", RecordDict({"config": ConfigRecord({})}), timeout)
+    node_of = {int(r.content["metrics"]["silo_index"]): r.metadata.src_node_id for r in replies}
+    if sorted(node_of) != list(range(n_silos)):
+        raise RuntimeError(f"silo indices reported by nodes: {sorted(node_of)}")
+    stats_list, setup_bytes, stats_bytes = [], 0, 0
+    for r in replies:
+        total, total_sq = r.content["arrays"].to_numpy_ndarrays()
+        stats_list.append(Stats(float(r.content["metrics"]["count"]), total, total_sq))
+        stats_bytes = payload_bytes([total, total_sq])
+        setup_bytes += stats_bytes
+    combined = stats_list[0]
+    for st in stats_list[1:]:
+        combined = combined + st
+    scaler = Standardizer.from_stats(combined)
+    scaler_arrays = [scaler.mean, scaler.std]
+    _exchange(grid, nodes, "query.set_scaler", RecordDict({"arrays": ArrayRecord(scaler_arrays)}), timeout)
+    setup_bytes += payload_bytes(scaler_arrays) * len(nodes)
+    return ScalerSetup(scaler, [node_of[i] for i in range(n_silos)], setup_bytes, stats_bytes,
+                       payload_bytes(scaler_arrays))
+
+
 def make_server_app(fed: Federation, cfg: ExperimentConfig, seed: int, device: str,
                     out: dict[str, Any]) -> ServerApp:
     app = ServerApp()
@@ -123,28 +158,11 @@ def make_server_app(fed: Federation, cfg: ExperimentConfig, seed: int, device: s
     @app.main()
     def main(grid: Grid, context: Context) -> None:
         try:
-            nodes = _wait_for_nodes(grid, len(silo_names), timeout)
-
             # --- setup: federated standardisation -------------------------------
-            replies = _exchange(grid, nodes, "query.stats", RecordDict({"config": ConfigRecord({})}), timeout)
-            node_of = {int(r.content["metrics"]["silo_index"]): r.metadata.src_node_id for r in replies}
-            if sorted(node_of) != list(range(len(silo_names))):
-                raise RuntimeError(f"silo indices reported by nodes: {sorted(node_of)}")
-            stats_list, setup_bytes, stats_bytes = [], 0, 0
-            for r in replies:
-                total, total_sq = r.content["arrays"].to_numpy_ndarrays()
-                stats_list.append(Stats(float(r.content["metrics"]["count"]), total, total_sq))
-                stats_bytes = payload_bytes([total, total_sq])
-                setup_bytes += stats_bytes
-            combined = stats_list[0]
-            for st in stats_list[1:]:
-                combined = combined + st
-            scaler = Standardizer.from_stats(combined)
+            setup = federated_scaler(grid, len(silo_names), timeout)
+            scaler, ordered_nodes = setup.scaler, setup.ordered_nodes
+            setup_bytes, stats_bytes = setup.setup_bytes, setup.stats_bytes
             scaler_arrays = [scaler.mean, scaler.std]
-            _exchange(grid, nodes, "query.set_scaler", RecordDict({"arrays": ArrayRecord(scaler_arrays)}), timeout)
-            setup_bytes += payload_bytes(scaler_arrays) * len(nodes)
-
-            ordered_nodes = [node_of[i] for i in range(len(silo_names))]
             model = init_model(cfg, input_shape, n_classes, derive_seed(seed, ARM_IDS["federated"])).to(device)
             weights = get_weights(model)
             t0, dark_from_s = 0.0, None

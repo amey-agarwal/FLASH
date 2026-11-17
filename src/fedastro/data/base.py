@@ -141,6 +141,19 @@ class GroupedDatasetBundle(DatasetBundle):
         return np.isin(self.group_id, [self.group_names.index(n) for n in names])
 
 
+def concat_bundles(bundles: list[DatasetBundle]) -> DatasetBundle:
+    """Concatenate bundles of one dataset (same class names and provenance). Site and
+    group ids are dropped: the result is only used as a test set."""
+    if not bundles:
+        raise ValueError("nothing to concatenate")
+    first = bundles[0]
+    if any(b.class_names != first.class_names for b in bundles):
+        raise ValueError("bundles have different class names")
+    return DatasetBundle(X=np.concatenate([b.X for b in bundles]), y=np.concatenate([b.y for b in bundles]),
+                         subject_id=np.concatenate([b.subject_id for b in bundles]),
+                         class_names=first.class_names, provenance=first.provenance)
+
+
 def array_checksum(*arrays: np.ndarray) -> str:
     """SHA-256 over the raw bytes, dtype and shape of each array."""
     h = hashlib.sha256()

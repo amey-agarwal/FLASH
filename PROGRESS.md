@@ -3,15 +3,118 @@
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
-removed; its Phases 13–18 are dropped. Phases H0 (`881045d`) and H1 (`f3eac96`) are committed. Phase H2 is
-at the gate (below). Next: Phase H3 (hierarchical FL), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
+removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`) and H2 (`9590007`) are
+committed. Phase H3 is at the gate (below). Next: Phase H4 (simulated secure aggregation), in
+plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H2 — Location-shift simulation — AT THE GATE (2026-11-17)
+## Phase H3 — Hierarchical FL — AT THE GATE (2026-11-17)
 
 **Not committed.** Suggested message:
+`feat(fl): phase H3 hierarchical FL, threshold fallback, disagreement metrics`.
+
+### Built
+- **WESAD validation tail fix (first, user approved 2026-11-17).** Checked on real WESAD at the
+  start of H3: the H1 whole-session tail left **every** node's validation set without baseline
+  windows, 6 of 12 with stress only, and the other 6 with no amusement in training. Now the
+  validation set is the time-ordered last 20% **of each condition** of the subject, with one
+  window per condition dropped at the boundary (`partition.tail_split`). On real WESAD every
+  node now has all three classes in train and validation (e.g. `leo_nasa` train 29 / 16 / 8,
+  validation 8 / 4 / 2; tested, skipped without the archive).
+- **`fl/hierarchy.py`**, the `hierarchical` arm, through Flower (same client code as the flat arm):
+  - Each round, every region's reachable nodes train from the regional model; the region does
+    FedAvg if >= `min_participants` reported, else **falls back** to the latest global model it
+    holds (updates discarded, event logged).
+  - Every `hier_fl.global_every` rounds (default 5) the global aggregator merges the regional
+    models it receives, weighted by region training examples; receiving regions reset to it.
+  - Regions cut off at merge time are left out and keep their regional model.
+  - **Common random numbers:** the arm uses the flat federated arm's initial model and client
+    seed stream, so with one region and `global_every: 1` it is flat FedAvg (tested through
+    Flower: identical final metrics on every node).
+  - Simulated time (comms on): node links from each region's `node_link`, regional-to-global
+    links from its `global_link` (Mars presets via `comms.preset`), optional solar-conjunction
+    blackout (`hier_fl.conjunction_*`). Requires `hier_fl.region_deadline_s > 0`; optional
+    `global_deadline_s`.
+  - Scripted loss of signal: `hier_fl.offline` (node -> rounds) and `hier_fl.region_offline`
+    (region -> merge rounds), deterministic, for tests and the fallback-timeline figure.
+- **Evaluation** (`evaluate_hierarchy`): on every node's own test set, the node's `local` model
+  (its own scaler), its region's `regional` model (before the last reset) and the `global`
+  model, plus `flat_federated` and `centralized` for reference. Pooled per region and overall.
+  Regional and global share the federated scaler.
+- **`metrics/disagreement.py`:** per node / region / overall: disagreement rate, pairwise rates,
+  and each model's accuracy on agreeing vs disagreeing examples. Headline = the regional model
+  (decision 6). The section says disagreement is a flag, not an independent opinion.
+- **Pipeline:** `fedastro run/sweep/grid` now run hierarchical configs. The flat arms run over
+  the nodes and are scored on every region's test data pooled. The result fills `topology`,
+  `shift`, `hierarchy` (`rounds`, `events`, `per_node`, `per_region`, `global`, `comms`),
+  `disagreement` and `arms.hierarchical`; each `silos[]` entry adds region, n_val, n_test and the
+  validation label mix. The sweep summary and printout add the hierarchy per region.
+- **Refactor (no behaviour change):** the flat server's scaler setup moved into
+  `fl/server.federated_scaler`, shared by both arms. Locked run ids, the smoke lock and all five
+  flat WESAD seeds are unchanged.
+- **Config:** `hier_fl` block (left out of the run id without the hierarchical arm), arm
+  `hierarchical` (needs a hierarchy and the local_only arm; rejects fedbuff and privacy).
+  `experiments/smoke_hier_fl.yaml`: cinc15, synthetic, shift on, 6 rounds, merge every 2, one
+  LEO node scripted offline in rounds 2-3.
+- **Tests:** `tests/test_hierarchy_fl.py` (17), `tests/test_disagreement.py` (2), plus updated
+  partition and config tests.
+
+### Decisions (user approved 2026-11-17, "approve as recommended")
+1. Regional models reset to the global at each merge; the evaluated regional model is the one
+   before the last reset.
+2. One federated scaler for the regional and global models; local models keep their own.
+3. `global_every` default 5 (frozen in PREREG before H9).
+4. Scripted loss of signal alongside the stochastic link model.
+5. A region cut off at merge time is skipped and keeps its regional model.
+6. Headline disagreement accuracy = the regional model; all three are reported.
+7. The hierarchical arm rejects DP and FedBuff.
+
+### Decisions made while building (review these)
+1. **A region with no new regional round since its last global model sits out the merge**
+   (event `merge_skipped`), but still receives the new global. Without this, a region that fell
+   back carries the old global into the merge and drags the new global back. Found on the smoke
+   run: LEO fell back in round 2, when its "latest global" was still the untrained initial model.
+2. **Fallback skips the discarded training.** A client's seed depends only on its index and the
+   round, so not computing discarded updates changes nothing else. Bytes are still charged as if
+   the round was attempted (downloads to reachable nodes and uploads from participants).
+3. **Regions run synchronised rounds** in simulated time: a round ends when the slowest region
+   finishes. Regions could run asynchronously; that is not modelled.
+4. **Per-round regional and global scores in the log are on the test sets.** They are
+   diagnostics for the log and the H5 terminal view, never used to select anything.
+5. **Common random numbers** between the flat and hierarchical arms (same initial model and
+   client seeds), so their difference is the aggregation scheme, not the draw.
+
+### Acceptance results
+| Check | Result |
+|---|---|
+| One command produces all arms plus the hierarchy into one result file | **Yes.** `fedastro run configs/experiments/smoke_hier_fl.yaml` writes centralized, local_only, federated and hierarchical plus `hierarchy`, `disagreement`, `topology`, `shift` (`test_one_command_produces_every_arm_and_the_hierarchy`) |
+| One region, `global_every: 1` reduces to flat FedAvg | **Yes**, exactly: through Flower, the hierarchical final metrics equal the flat federated ones, and per node `global == flat_federated == regional` (`test_one_region_hierarchy_reproduces_flat_fedavg_through_flower`); also on the Flower-free schedule |
+| A node in loss of signal triggers the fallback without crashing | **Yes**, scripted (`leo_nasa` offline -> LEO falls back in exactly those rounds) and through the link model (a node dark for the whole run misses every regional deadline; its region falls back every round and sits out every merge). Plus: a region cut off at merge time, a solar-conjunction blackout of Mars, and no region reachable at all |
+| Laptop CPU, synthetic data, < 10 min | **Yes: 55 s** for the smoke run (15 nodes, 6 rounds, all four arms), real wall-clock on the laptop |
+| `pytest` | `caffeinate -i uv run --frozen pytest -m "slow or not slow"` (laptop, 2026-11-17): **305 passed, 1 skipped (CUDA), 11 warnings**, 12 min 17 s. That is 286 earlier + 19 new. The warnings: the known sklearn notice, plus 10 sklearn "y_pred contains classes not in y_true" notices from the hierarchical smoke runs, where a tiny synthetic node test set lacks a class (balanced accuracy is still computed correctly). Golden run ids unchanged; smoke result byte-identical; all 5 flat WESAD regression seeds reproduce |
+
+Smoke run (`smoke_hier_fl`, SYNTHETIC data, SIMULATED shift, seed 0), macro-F1 per region on
+that region's own test data. This checks the mechanism only; it is not a result.
+| region | local | regional | global | flat_federated | centralized |
+|---|---|---|---|---|---|
+| leo (unshifted) | 0.724 | 0.716 | 0.730 | 0.716 | 0.803 |
+| moon | 0.818 | 0.887 | 0.713 | 0.680 | 0.818 |
+| mars | 0.606 | 0.646 | 0.429 | 0.443 | 0.743 |
+
+Regional model accuracy on agreeing examples 0.909, on disagreeing 0.604.
+
+### For Phase H4
+- Secure aggregation will mask node updates within a region (group size `min_participants`) and
+  regional models at the global merge. The fallback rule already guarantees no regional
+  aggregate is formed from fewer than `min_participants` nodes.
+
+---
+
+## Phase H2 — Location-shift simulation — COMPLETE (2026-11-17), committed `9590007`
+
+Committed as
 `feat(data): phase H2 simulated location shift (covariate and concept), PREREG section 3`.
 
 **The shift is SIMULATED.** WESAD, CinC and OSD-435 contain no location-dependent physiology.

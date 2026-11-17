@@ -130,16 +130,44 @@ def test_one_subject_per_node_with_shared_holdout(wes):
         assert split.val.subjects == split.train.subjects
 
 
-def test_validation_is_the_time_ordered_tail_with_a_gap(wes):
+def test_validation_is_the_time_ordered_tail_of_each_class_with_a_gap(wes):
     cfg, bundle, fed = wes
     for split in fed.nodes.values():
         s = split.train.subjects[0]
-        X = bundle.X[bundle.subject_id == s]
-        n = len(X)
-        assert len(split.val) == round(0.2 * n) == 8 and split.n_gap_dropped == 1
-        assert len(split.train) + len(split.val) + 1 == n
-        np.testing.assert_array_equal(split.train.X, X[: len(split.train)])
-        np.testing.assert_array_equal(split.val.X, X[n - len(split.val):])
+        mask = bundle.subject_id == s
+        X, y = bundle.X[mask], bundle.y[mask]
+        n_gap = 0
+        for k in np.unique(y):
+            cls = np.flatnonzero(y == k)
+            n_val = round(0.2 * len(cls))
+            np.testing.assert_array_equal(split.val.X[split.val.y == k], X[cls[len(cls) - n_val:]])
+            np.testing.assert_array_equal(split.train.X[split.train.y == k], X[cls[: len(cls) - n_val - 1]])
+            n_gap += 1
+        assert split.n_gap_dropped == n_gap
+        assert set(np.unique(split.val.y)) == set(np.unique(y))  # the validation set keeps every class
+
+
+def test_tail_split_keeps_a_class_too_small_for_a_tail_in_training():
+    from fedastro.data.partition import tail_split
+    from fedastro.data.base import DatasetBundle, Provenance
+    prov = Provenance(dataset="SYNTHETIC", version="t", checksum="c", source="t", kind="SYNTHETIC")
+    y = np.array([0] * 10 + [1] * 2 + [2] * 10)
+    b = DatasetBundle(X=np.arange(22, dtype=np.float32)[:, None], y=y, subject_id=np.zeros(22, dtype=np.int64),
+                      class_names=("a", "b", "c"), provenance=prov)
+    train, val, dropped = tail_split(b, 0, 0.2, 1)
+    assert val.tolist() == [8, 9, 20, 21] and dropped == 2
+    assert train.tolist() == list(range(7)) + [10, 11] + list(range(12, 19))
+
+
+@pytest.mark.skipif(not wesad.archive_path().exists(), reason="real WESAD archive not downloaded")
+def test_real_wesad_validation_sets_hold_every_condition():
+    """The Phase H3 fix: with a whole-session tail, no WESAD validation set had baseline."""
+    cfg = load_config(REPO / "configs" / "experiments" / "smoke_hier_wesad12.yaml")
+    cfg = dataclasses.replace(cfg, data=dataclasses.replace(cfg.data, name="wesad"))
+    _, fed, _ = build_hier_federation(cfg, 0)
+    for name, split in fed.nodes.items():
+        assert all(v > 0 for v in split.val.label_counts().values()), name
+        assert all(v > 0 for v in split.train.label_counts().values()), name
 
 
 def test_holdout_is_the_flat_holdout_and_node_assignment_follows_the_run_seed(wes):

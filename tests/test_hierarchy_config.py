@@ -182,11 +182,8 @@ def test_flat_holdout_rule_is_unchanged(repo, tmp_path):
         load_config(_root(repo, tmp_path, experiment_edit=zero, exp="smoke"))
 
 
-def test_run_refuses_a_hierarchy_until_h3_and_inspect_prints_the_node_table(repo, tmp_path, capsys):
+def test_inspect_prints_the_node_table(repo, capsys):
     cfg = str(repo / "configs" / "experiments" / "smoke_hier.yaml")
-    assert main(["run", cfg, "--seed", "0", "--output-dir", str(tmp_path)]) == 2
-    assert "Phase H3" in capsys.readouterr().err
-    assert not list(tmp_path.iterdir())
     assert main(["inspect", cfg]) == 0
     out = capsys.readouterr().out
     assert "kind=SYNTHETIC" in out and "scenario labels" in out

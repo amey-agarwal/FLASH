@@ -144,6 +144,10 @@ _REQUIRED_V2: list[tuple[str, tuple]] = [
     ("calibration.ece", (dict,)),
 ]
 
+_HIER_ROUND_KEYS = {"round": (int,), "sim_wallclock_s": (*_NUM, _NULL), "regions": (dict,),
+                    "global_aggregated": (bool,)}
+_HIER_REGION_KEYS = {"participants": (list,), "fallback": (bool,), "bytes": (int,)}
+
 _PROVENANCE_KEYS = ("dataset", "version", "checksum")
 # Optional (CLAUDE2.md section 6): absent in artifacts that predate them, checked when present.
 _GROUPS_KEYS = {"silo_to_groups": (dict,), "holdout_groups": (list,), "unused_groups": (list,)}
@@ -185,6 +189,12 @@ def validate_result(result: dict[str, Any]) -> None:
     if version == "2":
         for path, types in _REQUIRED_V2:
             _check(_get(result, path), types, path)
+        for i, rec in enumerate(result["hierarchy"]["rounds"]):
+            for k, types in _HIER_ROUND_KEYS.items():
+                _check(_get(rec, k), types, f"hierarchy.rounds[{i}].{k}")
+            for name, reg in rec["regions"].items():
+                for k, types in _HIER_REGION_KEYS.items():
+                    _check(_get(reg, k), types, f"hierarchy.rounds[{i}].regions.{name}.{k}")
         if result["shift"]["provenance"] != "SIMULATED" or result["secagg"]["simulated"] is not True:
             raise SchemaError("shift.provenance must be 'SIMULATED' and secagg.simulated must be true")
     if not result["provenance"]:

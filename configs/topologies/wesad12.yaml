@@ -11,9 +11,10 @@
 #
 # WESAD has 12 training subjects after the 3 held-out ones, so each node is ONE subject
 # (assigned from the run seed). The test set is the shared held-out subjects. A node's
-# validation set is the time-ordered last 20% of its subject's windows, used only for the
-# update gate and tuning; one window is dropped at the boundary because neighbouring
-# windows (60 s long, 30 s stride) overlap. Agency labels only name the nodes.
+# validation set is the time-ordered last 20% of EACH CONDITION's windows of its subject
+# (so it keeps the subject's class mix), used only for the update gate and tuning; one
+# window per condition is dropped at the boundary because neighbouring windows (60 s long,
+# 30 s stride) overlap. Agency labels only name the nodes.
 name: wesad12
 partition: one_subject_per_node
 min_participants: 4

@@ -1,0 +1,30 @@
+# Smoke test for hierarchical FL (Phase H3) on the cinc15 topology, SYNTHETIC data with the
+# SIMULATED location shift on. Every arm plus the hierarchical arm; few rounds.
+# One node is scripted offline in rounds 2-3, so LEO falls back to the global model there.
+name: smoke_hier_fl
+seed: 0
+seeds: [0, 1]
+hierarchy: cinc15
+shift:
+  enabled: true
+  kind: both
+  magnitude: 1.0
+data:
+  name: synthetic
+  synthetic:
+    n_subjects: 240
+    windows_per_subject: 10
+    n_groups: 8
+    group_names: [g12ec, ptbxl, ptb, incart, ningbo, chapman, cpsc, cpsc_extra]
+partition:
+  holdout_subjects: 0
+arms: [centralized, local_only, federated, hierarchical]
+train:
+  epochs: 3
+fl:
+  rounds: 6
+hier_fl:
+  global_every: 2
+  offline:
+    leo_roscosmos: [2, 3]
+notes: "Hierarchical FL smoke test (cinc15)."

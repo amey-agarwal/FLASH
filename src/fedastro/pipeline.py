@@ -97,10 +97,12 @@ def describe_federation(fed: Federation) -> tuple[list[dict[str, Any]], dict[str
     return silos, holdout
 
 
-def run_arms(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str, Any]) -> dict[str, Any]:
+def run_arms(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str, Any],
+             keep_models: bool = False) -> dict[str, Any]:
     """Train the configured arms into ``result["arms"]``. Returns what the federated
     arm captured (global weights, scaler) for the privacy attack, or {}; with held-out
-    groups or the ensemble arm, ``capture["models"]`` also holds the trained models."""
+    groups, the ensemble arm or ``keep_models``, ``capture["models"]`` also holds the
+    trained models (keeping them changes no result)."""
     from fedastro.baselines.centralized import run_centralized
     from fedastro.baselines.common import resolve_device
     from fedastro.baselines.local_only import run_local_only
@@ -108,9 +110,9 @@ def run_arms(cfg: ExperimentConfig, fed: Federation, seed: int, result: dict[str
     device = resolve_device(cfg.device)
     # Keep trained models only when something scores them after training (Phase 12).
     group_eval = bool(fed.groups and fed.groups["holdout_groups"])
-    keep = group_eval or "ensemble_of_locals" in cfg.arms
+    keep = group_eval or keep_models or "ensemble_of_locals" in cfg.arms
     models: dict[str, Any] = {}
-    cen_capture: dict[str, Any] | None = {} if group_eval else None
+    cen_capture: dict[str, Any] | None = {} if group_eval or keep_models else None
     local_models: list | None = [] if keep and "local_only" in cfg.arms else None
     if "centralized" in cfg.arms:
         result["arms"]["centralized"] = run_centralized(fed, cfg, seed, device, capture=cen_capture)
@@ -167,9 +169,83 @@ def privacy_report(cfg: ExperimentConfig, fed: Federation, seed: int, result: di
     return section
 
 
+def flat_federation(hfed: HierFederation, cfg: ExperimentConfig) -> Federation:
+    """The flat arms' view of a hierarchical topology: one silo per node (its training
+    data) and the pooled test sets of all regions as the holdout."""
+    from fedastro.data.partition import SiloSplit
+    from fedastro.fl.hierarchy import pooled_test_set
+
+    return Federation(holdout=pooled_test_set(hfed, cfg.hierarchy),
+                      silos={n: SiloSplit(s.train) for n, s in hfed.nodes.items()})
+
+
+def run_hier_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
+    """A run on a hierarchical topology: the flat arms over the nodes (scored on the pooled
+    test sets), then the hierarchical arm, then every model scored on each node's own test
+    set (``result.hierarchy``) and the disagreement analysis."""
+    bundle, hfed, shift = build_hier_federation(cfg, seed)
+    fed = flat_federation(hfed, cfg)
+    silos, holdout = describe_federation(fed)
+    for entry in silos:
+        split = hfed.nodes[entry["name"]]
+        entry.update(region=split.region, n_val=len(split.val), n_test=len(hfed.test_of(entry["name"])),
+                     val_label_counts=split.val.label_counts())
+    holdout["note"] = "flat arms: every region's test data pooled"
+    result = empty_result()
+    run_cfg = cfg.experiment_dict()
+    run_cfg["seed"] = seed
+    result.update(run_id=make_run_id(cfg, seed), git_sha=git_sha(), timestamp_utc=timestamp_utc(),
+                  config=run_cfg, seed=seed, provenance=[bundle.provenance.to_dict()], silos=silos,
+                  holdout=holdout, topology=topology_section(cfg), shift=shift)
+    hier = "hierarchical" in cfg.arms
+    capture = run_arms(cfg, fed, seed, result, keep_models=hier)
+    if "comms" in capture:
+        result["comms"] = capture["comms"]
+    result["privacy"] = privacy_report(cfg, fed, seed, result, capture)
+    from fedastro.metrics.fairness import fairness_report
+
+    result["fairness"] = fairness_report(result, list(bundle.class_names))
+    if hier:
+        from fedastro.fl.hierarchy import arm_summary, comms_section, evaluate_hierarchy, run_hierarchical
+
+        device = capture["device"]
+        run = run_hierarchical(hfed, cfg, seed, device)
+        local = {name: (model, scaler) for name, model, scaler in capture["models"]["local"]}
+        extra = {}
+        if "federated" in cfg.arms:
+            extra["flat_federated"] = (capture["global_weights"]["final"], capture["scaler"])
+        if "centralized" in capture["models"]:
+            extra["centralized"] = capture["models"]["centralized"]
+        metrics = evaluate_hierarchy(hfed, cfg, run, local, device, extra)
+        result["arms"]["hierarchical"] = arm_summary(cfg, run, metrics)
+        result["hierarchy"] = {"rounds": run["rounds"], "events": run["events"],
+                               "per_node": metrics["per_node"], "per_region": metrics["per_region"],
+                               "global": metrics["global"], "comms": comms_section(cfg, run)}
+        result["disagreement"] = metrics["disagreement"]
+    notes = []
+    if bundle.provenance.kind == SYNTHETIC:
+        notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
+    notes.append(f"Hierarchical topology {cfg.hierarchy.name} (region, agency and node names are scenario "
+                 f"labels). Arms run: {', '.join(cfg.arms)}. Flat arms are scored on every region's test "
+                 f"data pooled; result.hierarchy scores each model on each node's own test set.")
+    if shift["enabled"]:
+        notes.append(f"SIMULATED location shift ({shift['kind']}, magnitude {shift['magnitude']}): "
+                     f"injected, not measured.")
+    if hier:
+        notes.append(f"Hierarchical arm: regional FedAvg every round when >= {cfg.hierarchy.min_participants} "
+                     f"nodes report (else fallback to the latest global model), global merge every "
+                     f"{cfg.hier_fl.global_every} rounds. Disagreement is a flag, not an independent opinion.")
+        if cfg.comms.enabled:
+            notes.append("sim_wallclock_s is SIMULATED time, not real time.")
+    if cfg.notes:
+        notes.append(cfg.notes)
+    result["notes"] = " ".join(notes)
+    return result
+
+
 def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0) -> dict[str, Any]:
     if cfg.hierarchy is not None:
-        raise NotImplementedError(HIER_RUN_MESSAGE)
+        return run_hier_experiment(cfg, seed)
     bundle, fed = build_federation(cfg, seed, draw)
     silos, holdout = describe_federation(fed)
 
@@ -240,10 +316,6 @@ def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0) -> dict[str,
         notes.append(cfg.notes)
     result["notes"] = " ".join(notes)
     return result
-
-
-HIER_RUN_MESSAGE = ("hierarchical topologies can be inspected (fedastro inspect) but not run yet: "
-                    "hierarchical training arrives in Phase H3")
 
 
 def run_and_write(cfg: ExperimentConfig, seed: int, draw: int = 0) -> Path:
