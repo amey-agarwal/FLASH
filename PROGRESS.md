@@ -3,17 +3,104 @@
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
-removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`) and H2 (`9590007`) are
-committed, and H3 (`836bad2`). Phase H4 is at the gate (below). Next: Phase H5 (on-the-fly model
-updates and terminal peek), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
+removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`), H2 (`9590007`), H3
+(`836bad2`) and H4 (`b19f28b`) are committed. Phase H5 is at the gate (below). Next: Phase H6
+(model comparison), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H4 — Simulated secure aggregation — AT THE GATE (2026-11-17)
+## Phase H5 — On-the-fly model updates and terminal peek — AT THE GATE (2026-11-17)
 
 **Not committed.** Suggested message:
-`feat(fl): phase H4 simulated pairwise-mask secure aggregation`.
+`feat(fl): phase H5 validation-gated model versions and read-only terminal peek`.
+
+### Built
+- **`fl/versioning.py`:** `UpdateGate`. Every node holds a deployed **regional** and **global**
+  version; version 0 of both is its local-only model. An incoming version is scored on the node's
+  own validation set (macro-F1) and deployed iff `val_after >= val_before - k * SE` (SE = bootstrap
+  standard error of the deployed version's score, 200 seeded resamples, k = 2; PREREG §4, frozen).
+  Rejected versions are logged and never deployed. `degrade()` is the SCRIPTED fault for testing.
+- **`fl/hierarchy.py`:** `run_rounds` gains three optional hooks that change no training or
+  aggregation: `gate` (new regional version -> the round's participants; new global version -> the
+  in-contact nodes of every region that received it), `diag` (per-round test-set accuracy of the
+  local / regional / global models and their disagreement rate, pooled over nodes; diagnostic
+  only) and `on_round` (progress file). Every round record now also has `node_state` per region
+  (training / fallback / in_transit / loss_of_signal; LOS = an exchange that could never complete,
+  in transit = still under way at the deadline) and `global_version` on merges.
+  `evaluate_hierarchy` adds `deployed_regional` / `deployed_global` per node when the gate is on.
+- **`peek.py` + `fedastro peek <run_dir> [--follow] [--interval s] [--timeout s]`:** plain-text
+  view per round: simulated time (labelled SIMULATED, or "comms off"), node states, regional and
+  global accuracy, the per-round diagnostic, update offers / accepts / every rejection with its
+  scores. Opens files for reading only. A finished run is read from `result.json`; `--follow`
+  tails `progress.jsonl`.
+- **`pipeline.ProgressLog`:** hierarchical runs written by `fedastro run` get
+  `runs/<run_id>/progress.jsonl` (start line, one line per completed round, `done` / `failed`).
+  Write-only from the run's side.
+- **Result:** `result.updates` = `enabled`, `tolerance` (the rule object), `events` (round, node,
+  region, model, version, version_before, accepted, val_before, val_after, tolerance_used,
+  injected), counts, final `deployed` versions per node, `inject`, note. `arms.hierarchical` gains
+  `n_updates_offered` / `n_updates_rejected`. Schema: `updates.tolerance` may be a number, the rule
+  object or null.
+- **Config:** `updates` block (hierarchical arm only; out of the run id unless enabled, so every
+  earlier run id is unchanged): `enabled`, `metric` (`macro_f1` only), `tolerance_rule`
+  (`bootstrap_se` only), `k`, `n_bootstrap`, `inject` (list of {round, region, track, kind
+  noise|zero, scale}; a global-track fault must fall on a merge round).
+- `experiments/smoke_hier_updates.yaml` (cinc15, SYNTHETIC, shift on, leo_roscosmos offline in
+  round 2, two scripted faults: Moon regional round 3 noise x5, Mars global round 4 zeroed).
+- **Tests:** `tests/test_versioning.py` (14, one `slow`).
+
+### Acceptance
+| Check | Result |
+|---|---|
+| Results identical with and without peek | `test_results_are_identical_with_and_without_peek` (slow): a second run with `peek --follow` tailing it from start to finish writes a byte-identical `result.json`; the follower saw all 6 rounds and `done`. `test_peek_shows_the_run_and_writes_nothing`: file hashes and mtimes in the run dir unchanged after `peek`, `--follow` and the CLI. |
+| At least one rejected update in a scripted run | Smoke run seed 0: 10 injected offers, **9 rejected** (all 5 Moon nodes in round 3; 4 of 5 Mars nodes in round 4). Schedule test: every injected offer rejected, every clean one accepted. |
+| Gate changes no training | Schedule test: rounds, regional and global models identical with and without the gate. Through Flower: the H3 smoke result (`smoke_hier_fl`, seed 0) at `b19f28b` and now are identical after removing only the new additive fields (`node_state`, `diagnostic`, `global_version`); run id unchanged. |
+
+Smoke run (`smoke_hier_updates`, **SYNTHETIC**, seed 0; numbers are a mechanism check, not a
+result): 129 versions offered, 47 rejected. Pooled per-node test accuracy: local 0.723, regional
+0.769, global 0.6625, deployed regional 0.773, deployed global 0.731.
+
+### Decisions (user approved 2026-11-17, "approve as recommended")
+1. The gate controls deployment only; training is H3/H4 unchanged.
+2. Version 0 = the node's local-only model.
+3. Tolerance = k x bootstrap SE (k = 2, 200 resamples), macro-F1 on validation; frozen in PREREG §4.
+4. Recipients: regional -> the round's participants; global -> in-contact nodes of regions that
+   received the merge; fallback rounds publish no regional version.
+5. Injection degrades the delivered copy only.
+6. `--follow` tails `progress.jsonl`; a finished run is read from `result.json` only (a documented
+   deviation from rule 4 during a run).
+7. Plain text, no curses, 1 s polling.
+
+### Decisions made while building (review these)
+1. **Many genuine federated versions are rejected.** On the smoke data the local-only baselines
+   are strong on their own validation sets, so 38 of 119 clean offers fail the gate (e.g.
+   leo_roscosmos, the tiny INCART node, never leaves v0). That is the gate doing what PREREG §4
+   says, not a bug; it will matter when reading H9/H10 results.
+2. **Zero tolerance at a perfect score.** A deployed version with validation macro-F1 1.0 has
+   bootstrap SE 0, so any imperfect version is rejected (seen: moon_esa). Disclosed in PREREG §4.
+3. **The gate is relative.** One injected fault was accepted (mars_partner, global round 4:
+   0.154 vs a deployed 0.222 minus tolerance): a node that already deploys a poor version is only
+   protected against something worse than that.
+4. **Additive round fields are always written** (`node_state`, `diagnostic`, `global_version`),
+   gate on or off, so `peek` works on every hierarchical run. Existing fields and run ids are
+   unchanged (checked against `b19f28b` above).
+5. `progress.jsonl` is written only through `fedastro run` / `sweep` / `grid` (`run_and_write`);
+   `run_experiment` called directly writes nothing.
+6. A deployed version that was injected and accepted stays degraded in `deployed_*` (it is what
+   the node received).
+
+### Tests
+PLACEHOLDER_FULL_SUITE
+
+### Deferrals / open questions
+- Whether the H9/H10 headline uses trained (`regional`, `global`) or deployed (`deployed_*`)
+  models: to be fixed in PREREG §2 before those runs. Recommendation: trained models for H1–H4,
+  deployed models reported alongside as the on-the-fly scenario.
+
+---
+
+## Phase H4 — Simulated secure aggregation — COMMITTED `b19f28b` (2026-11-17)
 
 **A protocol SIMULATION, not cryptography.** Masks come from a seeded PRG (`derive_seed`); there
 is no key agreement, encryption or secret sharing, and anyone with the run seed can unmask.

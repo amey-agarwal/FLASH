@@ -16,6 +16,7 @@ from fedastro.data.base import SYNTHETIC, DatasetBundle
 from fedastro.data.partition import Federation, HierFederation, make_federation, make_hier_federation
 from fedastro.manifest import git_sha, make_run_id, timestamp_utc, write_run
 from fedastro.metrics.schema import empty_result
+from fedastro.peek import PROGRESS_FILE
 from fedastro.seeding import seed_everything
 
 
@@ -179,7 +180,7 @@ def flat_federation(hfed: HierFederation, cfg: ExperimentConfig) -> Federation:
                       silos={n: SiloSplit(s.train) for n, s in hfed.nodes.items()})
 
 
-def run_hier_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
+def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict[str, Any]:
     """A run on a hierarchical topology: the flat arms over the nodes (scored on the pooled
     test sets), then the hierarchical arm, then every model scored on each node's own test
     set (``result.hierarchy``) and the disagreement analysis."""
@@ -210,8 +211,8 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
                                            secagg_section)
 
         device = capture["device"]
-        run = run_hierarchical(hfed, cfg, seed, device)
         local = {name: (model, scaler) for name, model, scaler in capture["models"]["local"]}
+        run = run_hierarchical(hfed, cfg, seed, device, local_models=local, on_round=on_round)
         extra = {}
         if "federated" in cfg.arms:
             extra["flat_federated"] = (capture["global_weights"]["final"], capture["scaler"])
@@ -225,6 +226,10 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
         result["disagreement"] = metrics["disagreement"]
         if (sa := secagg_section(cfg, run)) is not None:
             result["secagg"] = sa
+        if run["gate"] is not None:
+            result["updates"] = run["gate"].section()
+            result["arms"]["hierarchical"].update(n_updates_offered=result["updates"]["n_offered"],
+                                                  n_updates_rejected=result["updates"]["n_rejected"])
     notes = []
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
@@ -241,6 +246,13 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
         if cfg.secagg.enabled:
             notes.append("SIMULATED secure aggregation (seeded-PRG pairwise masks, not cryptographically "
                          "secure; no formal privacy guarantee).")
+        if cfg.updates.enabled:
+            notes.append(f"Update gate: a node deploys a new regional or global version only if its validation "
+                         f"macro-F1 is >= the deployed version's minus {cfg.updates.k:g} x its bootstrap SE "
+                         f"(version 0 = the local-only model); training is unchanged. "
+                         f"hierarchy.per_node.deployed_* score the deployed versions.")
+            if cfg.updates.inject:
+                notes.append("Injected degraded versions are SCRIPTED faults for testing the gate.")
         if cfg.comms.enabled:
             notes.append("sim_wallclock_s is SIMULATED time, not real time.")
     if cfg.notes:
@@ -249,9 +261,10 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int) -> dict[str, Any]:
     return result
 
 
-def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0) -> dict[str, Any]:
+def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0, on_round=None) -> dict[str, Any]:
+    """``on_round(rec, update_events)``: called after each hierarchical round (progress file)."""
     if cfg.hierarchy is not None:
-        return run_hier_experiment(cfg, seed)
+        return run_hier_experiment(cfg, seed, on_round)
     bundle, fed = build_federation(cfg, seed, draw)
     silos, holdout = describe_federation(fed)
 
@@ -324,10 +337,50 @@ def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0) -> dict[str,
     return result
 
 
+
+
+class ProgressLog:
+    """``<run_dir>/progress.jsonl`` for hierarchical runs: one JSON line when the run starts,
+    one per completed round, one when it ends (``done`` or ``failed``). It lets
+    ``fedastro peek --follow`` watch a run in progress. Written only; nothing reads it back
+    into the run, so it cannot change results. Rule-4 deviation (Phase H5 decision 6): during
+    a run the terminal view reads this file, not result.json."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("")  # a re-run starts a fresh log
+
+    def write(self, record: dict[str, Any]) -> None:
+        import json
+
+        with self.path.open("a") as f:
+            f.write(json.dumps(record, sort_keys=True, allow_nan=False) + "\n")
+
+    def on_round(self, rec: dict[str, Any], updates: list[dict[str, Any]]) -> None:
+        self.write({"kind": "round", "round": rec, "updates": updates})
+
+
 def run_and_write(cfg: ExperimentConfig, seed: int, draw: int = 0) -> Path:
     t0 = time.perf_counter()
-    result = run_experiment(cfg, seed, draw)
-    return write_run(result, cfg.output_dir, time.perf_counter() - t0)
+    log = None
+    if cfg.hierarchy is not None and "hierarchical" in cfg.arms:
+        run_id = make_run_id(cfg, seed, draw)
+        log = ProgressLog(Path(cfg.output_dir) / run_id / PROGRESS_FILE)
+        log.write({"kind": "start", "run_id": run_id, "rounds": cfg.fl.rounds, "arms": list(cfg.arms),
+                   "comms": cfg.comms.enabled, "global_every": cfg.hier_fl.global_every,
+                   "regions": {r.name: [n.name for n in r.nodes] for r in cfg.hierarchy.regions},
+                   "data": cfg.data.name})
+    try:
+        result = run_experiment(cfg, seed, draw, on_round=log.on_round if log else None)
+        run_dir = write_run(result, cfg.output_dir, time.perf_counter() - t0)
+    except BaseException as e:
+        if log is not None:
+            log.write({"kind": "failed", "error": f"{type(e).__name__}: {e}"})
+        raise
+    if log is not None:
+        log.write({"kind": "done"})
+    return run_dir
 
 
 def format_distribution_table(fed: Federation, class_names: tuple[str, ...]) -> str:

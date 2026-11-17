@@ -38,12 +38,17 @@ SIMULATED seconds, never real time.
 
 Per-round regional and global scores on the test sets are diagnostics for the log and the
 terminal view. They are never used to select anything (CLAUDE.md rule 9).
+
+Phase H5 adds, without changing training or aggregation: each node's state per round
+(``node_state``), a per-round test-set diagnostic (``diagnostic``), the version gate
+(fl/versioning.py; each node's deployed regional and global versions) and a per-round
+callback for the progress file read by ``fedastro peek --follow``.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -218,6 +223,21 @@ class _Plan:
     reason: str = ""  # fallback reason
     group: list[int] | None = None  # secagg mask group (None = secagg off at this level)
     secagg: dict[str, Any] | None = None
+    lost: list[int] = field(default_factory=list)  # in loss of signal (an exchange could never complete)
+
+    def node_states(self, names: list[str], idxs: list[int]) -> dict[str, str]:
+        """Each node's state this round, for the terminal view: ``training`` (its update was
+        aggregated), ``fallback`` (in contact, but its region fell back), ``in_transit`` (its
+        exchange was still under way at the deadline) or ``loss_of_signal``."""
+        out = {}
+        for i in idxs:
+            if i in self.scripted or i in self.lost:
+                out[names[i]] = "loss_of_signal"
+            elif i in self.parts or (self.fallback and i in (self.group or ())):
+                out[names[i]] = "fallback" if self.fallback else "training"
+            else:
+                out[names[i]] = "in_transit"
+        return out
 
 
 def _rt(link, t: float, down_bytes: int, up_bytes: int, pause: float = 0.0) -> float:
@@ -226,20 +246,23 @@ def _rt(link, t: float, down_bytes: int, up_bytes: int, pause: float = 0.0) -> f
     return INF if down == INF else link.transfer(down + pause, up_bytes, "up")
 
 
-def _key_agreement(links: dict[int, Any], members: list[int], t: float, limit: float) -> tuple[list[int], float]:
+def _key_agreement(links: dict[int, Any], members: list[int], t: float,
+                   limit: float) -> tuple[list[int], float, list[int]]:
     """Advertise keys, then share keys (two round trips, secagg steps 1-2). Returns the mask
-    group (members that completed both by ``limit``) and the time the group is formed. The
+    group (members that completed both by ``limit``), the time the group is formed and the
+    members whose exchange could never complete (loss of signal). The
     aggregator moves on once the last member that will answer has answered (an oracle
     timeout: a real deployment needs a timeout here, which would only add time)."""
     if links is None:
-        return list(members), t
+        return list(members), t, []
     k1 = {i: _rt(links[i], t, secagg.REQUEST_BYTES, secagg.KEY_BYTES) for i in members}
     joined = [i for i in members if k1[i] <= limit]
     t1 = max([k1[i] for i in joined], default=t)
     g = len(joined)
     k2 = {i: _rt(links[i], t1, secagg.KEY_BYTES * g, secagg.SHARE_BYTES * (g - 1)) for i in joined}
     group = [i for i in joined if k2[i] <= limit]
-    return group, max([k2[i] for i in group], default=t1)
+    lost = [i for i in members if k1[i] == INF or (i in k2 and k2[i] == INF)]
+    return group, max([k2[i] for i in group], default=t1), lost
 
 
 def _recovery(links: dict[int, Any] | None, survivors: list[int], n_dropped: int, t: float) -> tuple[list[int], float]:
@@ -260,13 +283,15 @@ def _plan_plain(cfg, sim, names, idxs, scripted, t, payload) -> tuple[_Plan, flo
         parts = [i for i, (_, up) in trips.items() if up <= limit]
         delivered = sum(down < INF for down, _ in trips.values())
         end = max(trips[i][1] for i in parts) if len(parts) == len(idxs) else limit
+        lost = [i for i, (_, up) in trips.items() if up == INF]
     else:
         parts = [i for i in idxs if i not in scripted]
         delivered = len(parts)
+        lost = []
     fallback = len(parts) < h.min_participants
     reason = (f"{len(parts)} of {len(idxs)} nodes reported, fewer than min_participants = "
               f"{h.min_participants}; the region uses its latest global model")
-    return _Plan(parts, scripted, fallback, payload * (delivered + len(parts)), reason), end
+    return _Plan(parts, scripted, fallback, payload * (delivered + len(parts)), reason, lost=lost), end
 
 
 def _plan_secagg(cfg, sim, names, idxs, scripted, t, rnd, weights) -> tuple[_Plan, float]:
@@ -277,7 +302,7 @@ def _plan_secagg(cfg, sim, names, idxs, scripted, t, rnd, weights) -> tuple[_Pla
     drops = {i for i in cand if rnd in sa.dropout.get(names[i], ())}
     links = {i: sim.node_links[names[i]] for i in cand} if sim.on else None
     limit = t + hf.region_deadline_s if sim.on else INF
-    group, t_group = _key_agreement(links, cand, t, limit)
+    group, t_group, lost = _key_agreement(links, cand, t, limit)
     g = len(group)
     nbytes = secagg.key_bytes(g, len(cand))
     info = {"group": [names[i] for i in group], "dropped": [], "recovered": [], "recovery": False}
@@ -286,13 +311,14 @@ def _plan_secagg(cfg, sim, names, idxs, scripted, t, rnd, weights) -> tuple[_Pla
         reason = (f"mask group of {g} of {len(idxs)} nodes, fewer than min_participants = {min_p}; "
                   f"no masked round; the region uses its latest global model")
         info.update(overhead_bytes=nbytes, overhead_sim_s=(t_group - t) if sim.on else None)
-        return _Plan([], scripted, True, nbytes, reason, group, info), t_group
+        return _Plan([], scripted, True, nbytes, reason, group, info, lost), t_group
     end = t_group
     if sim.on:  # model + forwarded shares down, local training, masked update up
         trips = {i: sim.node_round_trip_sized(names[i], t_group, payload + secagg.SHARE_BYTES * (g - 1), masked)
                  for i in group}
         delivered = sum(down < INF for down, _ in trips.values())
         parts = [i for i in group if i not in drops and trips[i][1] <= limit]
+        lost += [i for i in group if trips[i][1] == INF]
         end = max(trips[i][1] for i in parts) if len(parts) == len(idxs) else limit
     else:
         delivered = g
@@ -323,17 +349,27 @@ def _plan_secagg(cfg, sim, names, idxs, scripted, t, rnd, weights) -> tuple[_Pla
     else:
         info["overhead_sim_s"] = None
     info["overhead_bytes"] = nbytes - base
-    return _Plan(parts, scripted, fallback, nbytes, reason, group, info), end
+    lost += [i for i in drops if i in group and i not in lost]  # scripted: its masked upload never arrives
+    return _Plan(parts, scripted, fallback, nbytes, reason, group, info, lost), end
 
 
 def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train: dict[str, int],
-               sim: HierSim, t0: float, score, seed: int = 0) -> dict[str, Any]:
+               sim: HierSim, t0: float, score, seed: int = 0, gate=None, diag=None,
+               on_round=None) -> dict[str, Any]:
     """The regional/global schedule. ``train(dispatch, rnd)`` trains nodes (by index) from
     the given weights and returns their updates; with secure aggregation at the regional
     level it is called as ``train(dispatch, rnd, groups=...)`` and returns each node's masked
     vector instead (``fl/secagg.mask_update``, computed on the node). ``score(weights, region
     | None)`` gives diagnostic metrics. Kept free of Flower so the schedule itself is
-    unit-testable."""
+    unit-testable.
+
+    Optional hooks, none of which changes training or aggregation (Phase H5):
+    - ``gate`` (fl/versioning.UpdateGate): offered each new regional version (to the nodes
+      that took part) and each new global version (to the nodes in contact in the regions
+      that received it); its accept/reject events go into the output's ``update_events``.
+    - ``diag(regional, global | None)``: per-round test-set diagnostic for the log and the
+      terminal view (``rec["diagnostic"]``), never used to select anything.
+    - ``on_round(rec, update_events)``: called once each round is complete (progress file)."""
     h, hf, sa = cfg.hierarchy, cfg.hier_fl, cfg.secagg
     sa_regional = sa.enabled and "regional" in sa.levels
     strategy = build_strategy(cfg.fl)
@@ -348,7 +384,10 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
     fresh = {r.name: False for r in h.regions}  # aggregated since it last received a global model
     rounds, events, t = [], [], t0
     n_merges = 0
+    versions = {r.name: 0 for r in h.regions}  # regional versions published so far
+    update_events: list[dict[str, Any]] = []
     for rnd in range(1, cfg.fl.rounds + 1):
+        round_updates: list[dict[str, Any]] = []
         rec: dict[str, Any] = {"round": rnd, "regions": {}, "global_aggregated": False}
         plan, dispatch, groups, t_end = {}, {}, {}, t
         for region in h.regions:
@@ -390,7 +429,13 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
                 "participants": [names[i] for i in p.parts], "offline": [names[i] for i in p.scripted],
                 "missed_deadline": missed, "fallback": p.fallback, "bytes": p.nbytes,
                 "regional": _brief(score(regional[region.name], region.name)),
+                "node_state": p.node_states(names, region_idx[region.name]),
             }
+            if not p.fallback:
+                versions[region.name] += 1
+                if gate is not None:
+                    round_updates += gate.offer(rnd, "regional", region.name, versions[region.name],
+                                                regional[region.name], [names[i] for i in p.parts])
             if p.secagg is not None:
                 rec["regions"][region.name]["secagg"] = p.secagg
         rec["global"] = None
@@ -401,11 +446,24 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
                 n_merges += 1
                 global_w = rec.pop("_weights")
                 rec["global"] = _brief(score(global_w, None))
+                rec["global_version"] = n_merges
+                if gate is not None:
+                    for r in rec["global_received"]:
+                        round_updates += gate.offer(rnd, "global", r, n_merges, global_w,
+                                                    [names[i] for i in plan[r].parts])
         rec["sim_wallclock_s"] = t_end if sim.on else None
+        if diag is not None:
+            rec["diagnostic"] = diag(last_regional, global_w if n_merges else None)
         t = t_end
         rounds.append(rec)
-    return {"rounds": rounds, "events": events, "global": global_w, "regional": last_regional,
-            "n_merges": n_merges, "sim_end_s": t if sim.on else None}
+        update_events += round_updates
+        if on_round is not None:
+            on_round(rec, round_updates)
+    out = {"rounds": rounds, "events": events, "global": global_w, "regional": last_regional,
+           "n_merges": n_merges, "sim_end_s": t if sim.on else None}
+    if gate is not None:
+        out["update_events"] = update_events
+    return out
 
 
 def _merge_members_secagg(cfg, rnd, rec, events, regions, eligible, regional, region_examples, sim, t,
@@ -420,7 +478,7 @@ def _merge_members_secagg(cfg, rnd, rec, events, regions, eligible, regional, re
     members = [ids[r] for r in eligible]
     links = {ids[r]: sim.global_links[r] for r in eligible} if sim.on else None
     limit = t + hf.global_deadline_s if (sim.on and hf.global_deadline_s) else INF
-    group, t_group = _key_agreement(links, members, t, limit)
+    group, t_group, _ = _key_agreement(links, members, t, limit)
     g = len(group)
     nbytes = secagg.key_bytes(g, len(members))
     info: dict[str, Any] = {"group": [regions[i] for i in group], "dropped": [], "recovered": [],
@@ -540,11 +598,20 @@ def _merge(cfg, rnd, rec, events, regional, received, fresh, region_examples, si
     return t_done
 
 
-def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, device: str) -> dict[str, Any]:
+def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, device: str,
+                     local_models: dict[str, tuple[Any, Standardizer]] | None = None,
+                     on_round=None) -> dict[str, Any]:
     """Run the hierarchical arm through Flower. Returns the schedule output plus the
-    federated scaler, payload, setup bytes and the simulated-link description."""
+    federated scaler, payload, setup bytes and the simulated-link description.
+
+    With ``local_models`` (node -> (local-only model, its scaler)) each round also gets a
+    test-set diagnostic (accuracy of the local, regional and global models and their
+    disagreement rate, every node's test set pooled) and, with ``updates.enabled``, the
+    version gate runs (fl/versioning.py; ``out["gate"]``). ``on_round`` is passed to
+    ``run_rounds`` (progress file for ``fedastro peek --follow``)."""
     h = cfg.hierarchy
     names = [n.name for n in h.nodes]
+    region_of = {n.name: r.name for r in h.regions for n in r.nodes}
     silos = [fed.nodes[n].train for n in names]
     n_train = {n: len(fed.nodes[n].train) for n in names}
     first = silos[0]
@@ -571,8 +638,44 @@ def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, devi
                     return evaluate(pooled.y, predict_proba(model, X_pool, device))
                 return evaluate(tests[region].y, predict_proba(model, X_test[region], device))
 
+            def classes(w, X):
+                set_weights(model, w)
+                return predict_proba(model, X, device).argmax(axis=1)
+
+            gate = diag = None
+            if local_models is not None:
+                from fedastro.fl.versioning import UpdateGate
+
+                node_test = {n: fed.test_of(n) for n in names}
+                X_node = {n: setup.scaler.transform(d.X) for n, d in node_test.items()}
+                y_all = np.concatenate([node_test[n].y for n in names])
+                local_test = np.concatenate([predict_proba(local_models[n][0], local_models[n][1].transform(
+                    node_test[n].X), device).argmax(axis=1) for n in names])
+
+                def diag(regional, global_w):
+                    reg = np.concatenate([classes(regional[region_of[n]], X_node[n]) for n in names])
+                    acc = {"local": float(np.mean(local_test == y_all)), "regional": float(np.mean(reg == y_all)),
+                           "global": None}
+                    rate = None
+                    if global_w is not None:
+                        glob = np.concatenate([classes(global_w, X_node[n]) for n in names])
+                        acc["global"] = float(np.mean(glob == y_all))
+                        rate = float(np.mean(~((local_test == reg) & (reg == glob))))
+                    return {"accuracy": acc, "disagreement_rate": rate,
+                            "scope": "every node's test set pooled; diagnostic only"}
+
+                if cfg.updates.enabled:
+                    vals = {n: fed.nodes[n].val for n in names}
+                    X_val = {n: setup.scaler.transform(v.X) for n, v in vals.items()}
+                    local_val = {n: predict_proba(local_models[n][0], local_models[n][1].transform(vals[n].X),
+                                                  device).argmax(axis=1) for n in names}
+                    gate = UpdateGate(cfg.updates, seed, n_classes, names, {n: v.y for n, v in vals.items()},
+                                      local_val, lambda w, n: classes(w, X_val[n]), [r.name for r in h.regions])
+
             ctx = _Ctx(grid, setup.ordered_nodes, names, cfg.fl.timeout_s, cfg.secagg.frac_bits)
-            sched = run_rounds(cfg, ctx.train, weights, n_train, sim, t0, score, seed=seed)
+            sched = run_rounds(cfg, ctx.train, weights, n_train, sim, t0, score, seed=seed, gate=gate,
+                               diag=diag, on_round=on_round)
+            out["gate"] = gate
             out.update(sched, scaler=setup.scaler, payload_bytes=payload_bytes(weights),
                        setup_bytes=setup.setup_bytes, setup_sim_s=t0 if sim.on else None,
                        n_params=count_parameters(model), sim=sim)
@@ -631,6 +734,10 @@ def evaluate_hierarchy(fed: HierFederation, cfg: ExperimentConfig, run: dict[str
         X = scaler.transform(test.X)
         p["regional"] = _model_proba(cfg, run["regional"][region_of[node]], X, input_shape, n_classes, device)
         p["global"] = _model_proba(cfg, run["global"], X, input_shape, n_classes, device)
+        if run.get("gate") is not None:  # the versions the node deployed (Phase H5); local if none accepted
+            for track, d in run["gate"].deployed[node].items():
+                p[f"deployed_{track}"] = (p["local"] if d.weights is None else
+                                          _model_proba(cfg, d.weights, X, input_shape, n_classes, device))
         for name, (m, m_scaler) in (extra or {}).items():
             Xm = m_scaler.transform(test.X)
             p[name] = (_model_proba(cfg, m, Xm, input_shape, n_classes, device) if isinstance(m, list)

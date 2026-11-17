@@ -441,6 +441,64 @@ class SecAggConfig:
         return self == SecAggConfig()
 
 
+UPDATE_TRACKS = ("regional", "global")
+INJECT_KINDS = ("noise", "zero")
+
+
+@dataclass(frozen=True)
+class UpdateInject:
+    """A SCRIPTED fault on one region's update downlink (a test of the gate, not a model of
+    any real failure): the copy of a new version delivered to the region's nodes in
+    ``round`` is degraded. Training is unaffected."""
+
+    round: int
+    region: str
+    track: str = "regional"  # which version: the region's new regional model, or the global
+    kind: str = "noise"  # noise: w + scale * std(w) * N(0, 1) per array; zero: all weights 0
+    scale: float = 5.0
+
+    def validate(self) -> None:
+        if self.round < 1:
+            raise ConfigError("updates.inject.round must be >= 1")
+        if self.track not in UPDATE_TRACKS:
+            raise ConfigError(f"updates.inject.track must be one of {UPDATE_TRACKS}")
+        if self.kind not in INJECT_KINDS:
+            raise ConfigError(f"updates.inject.kind must be one of {INJECT_KINDS}")
+        if self.scale <= 0:
+            raise ConfigError("updates.inject.scale must be > 0")
+
+
+@dataclass(frozen=True)
+class UpdatesConfig:
+    """On-the-fly model updates with a validation gate (fl/versioning.py), hierarchical arm
+    only. The gate decides which model version each node deploys; training is unchanged.
+    Tolerance rule frozen in PREREG.md section 4."""
+
+    enabled: bool = False
+    metric: str = "macro_f1"  # the only option (class imbalance; PREREG section 4)
+    # tolerance = k x bootstrap standard error of the deployed version's validation score
+    tolerance_rule: str = "bootstrap_se"
+    k: float = 2.0
+    n_bootstrap: int = 200
+    inject: tuple[UpdateInject, ...] = ()
+
+    def validate(self) -> None:
+        if self.metric != "macro_f1":
+            raise ConfigError("updates.metric must be 'macro_f1'")
+        if self.tolerance_rule != "bootstrap_se":
+            raise ConfigError("updates.tolerance_rule must be 'bootstrap_se'")
+        if self.k <= 0:
+            raise ConfigError("updates.k must be > 0")
+        if self.n_bootstrap < 20:
+            raise ConfigError("updates.n_bootstrap must be >= 20")
+        for inj in self.inject:
+            inj.validate()
+
+    @property
+    def is_default(self) -> bool:
+        return self == UpdatesConfig()
+
+
 @dataclass(frozen=True)
 class PartitionConfig:
     method: str = "by_subject"
@@ -814,6 +872,7 @@ class ExperimentConfig:
     shift: ShiftConfig = field(default_factory=ShiftConfig)  # needs a hierarchy; default off
     hier_fl: HierFLConfig = field(default_factory=HierFLConfig)  # the hierarchical arm only
     secagg: SecAggConfig = field(default_factory=SecAggConfig)  # the hierarchical arm only
+    updates: UpdatesConfig = field(default_factory=UpdatesConfig)  # the hierarchical arm only
     # Live demo only: sleep simulated link time x this factor (0 = never sleep).
     # Execution detail, excluded from the run id.
     real_sleep_scale: float = 0.0
@@ -840,6 +899,7 @@ class ExperimentConfig:
         self.shift.validate()
         self.hier_fl.validate()
         self.secagg.validate()
+        self.updates.validate()
         hier = self.hierarchy
         self._validate_hierarchical_arm()
         if self.shift.enabled and hier is None:
@@ -945,7 +1005,19 @@ class ExperimentConfig:
                 raise ConfigError("hier_fl is only meaningful with the 'hierarchical' arm")
             if not self.secagg.is_default:
                 raise ConfigError("secagg is only implemented for the 'hierarchical' arm")
+            if not self.updates.is_default:
+                raise ConfigError("updates (the version gate) is only implemented for the 'hierarchical' arm")
             return
+        up = self.updates  # with enabled false its settings are ignored (and not in the run id)
+        if up.enabled and h is not None:
+            for inj in up.inject:
+                if inj.region not in {r.name for r in h.regions}:
+                    raise ConfigError(f"updates.inject.region {inj.region!r} is not a region")
+                if inj.round > self.fl.rounds:
+                    raise ConfigError("updates.inject.round must be <= fl.rounds")
+                if inj.track == "global" and inj.round % hf.global_every:
+                    raise ConfigError("updates.inject with track 'global' needs a merge round "
+                                      "(a multiple of hier_fl.global_every)")
         sa = self.secagg  # with enabled false its settings are ignored (and not in the run id)
         if sa.enabled:
             known = {n.name for n in h.nodes} | {r.name for r in h.regions} if h is not None else set()
@@ -1011,6 +1083,8 @@ class ExperimentConfig:
             d.pop("hier_fl")
         if not self.secagg.enabled:  # Phase H4 block, same rule
             d.pop("secagg")
+        if not self.updates.enabled:  # Phase H5 block, same rule
+            d.pop("updates")
         if not self.partition.group_map:
             d["partition"].pop("group_map")
         if not self.partition.holdout_groups:

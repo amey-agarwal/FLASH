@@ -1,6 +1,7 @@
 # PREREG — pre-registration for the `hier-fl` branch
 
-**Status: IN PROGRESS. Frozen so far: §1 hypotheses (wording from CLAUDE.md), §3 location shift.
+**Status: IN PROGRESS. Frozen so far: §1 hypotheses (wording from CLAUDE.md), §3 location shift,
+§4 update-gate tolerance.
 The other sections are still placeholders.**
 Each section is filled in and frozen (committed) by the phase named in it, **before** any
 result-producing run that it covers (CLAUDE.md rule 9 and §7). After a section is frozen, any
@@ -65,10 +66,32 @@ not modelled physiology. Every result that uses it carries `shift.provenance: SI
 - The grid, kinds and primary were fixed before any model was trained on shifted data. They
   were not, and will not be, chosen from validation or test results.
 
-## 4. Update-gate tolerance (Phase H5)
+## 4. Update-gate tolerance (Phase H5) — FROZEN 2026-11-17
 
-PLACEHOLDER_ — validation tolerance for accepting an incoming model version, set on validation
-data only.
+Chosen by the user at the H5 plan ("approve as recommended"), before any result-producing run
+that uses the gate (`src/fedastro/fl/versioning.py`, config block `updates`).
+
+- **What the gate controls:** which model version each node deploys, on two tracks (regional,
+  global). Training and aggregation are unchanged, so every H1–H4 result is unaffected.
+- **Version 0 of both tracks:** the node's own local-only model.
+- **Metric:** macro-F1 on the node's **own validation set** (never test data).
+- **Rule:** an incoming version is deployed iff
+  `val_after >= val_before - k * SE`, where `val_before` is the deployed version's validation
+  macro-F1 and `SE` is the bootstrap standard error of that score: `n_bootstrap = 200` seeded
+  resamples (with replacement) of the node's validation set, `std` with `ddof = 1`. **k = 2.**
+  `SE` is recomputed each time a new version is deployed. Rejected versions are logged
+  (`result.updates.events`) and never deployed.
+- **Who receives a version:** a new regional version goes to the nodes whose update was
+  aggregated that round; a new global version to the nodes in contact that round in every region
+  that received the merge. A fallback round publishes no regional version.
+- **Why a noise-based tolerance and not a fixed constant:** validation sets are small (e.g. a few
+  tens of windows per node), so no fixed number has support on validation data; `k * SE` scales
+  with how noisy each node's score is. k = 2 is a conventional choice, fixed here, not tuned.
+- **Known consequence (disclosed before any real run):** when a deployed version scores 1.0 on a
+  tiny validation set, its bootstrap SE is 0, so the tolerance is 0 and any imperfect version is
+  rejected. This is reported, not patched.
+- **Scripted faults** (`updates.inject`) are tests of the gate, labelled SCRIPTED wherever they
+  appear; no headline result uses them.
 
 ## 5. Gap-closing grid and selection rule (Phase H8)
 

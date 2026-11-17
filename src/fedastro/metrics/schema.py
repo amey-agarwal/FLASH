@@ -133,7 +133,9 @@ _REQUIRED_V2: list[tuple[str, tuple]] = [
     ("secagg.overhead_sim_s", (*_NUM, _NULL)),  # null with comms off (rule 10)
     ("secagg.dropout_recoveries", (int,)),
     ("updates", (dict,)),
-    ("updates.tolerance", (*_NUM, _NULL)),
+    # null = gate off; a number (fixed tolerance) or the rule object (Phase H5: k x bootstrap SE
+    # per node and version, each event carries its tolerance_used)
+    ("updates.tolerance", (*_NUM, dict, _NULL)),
     ("updates.events", (list,)),
     ("stream", (dict,)),
     ("stream.enabled", (bool,)),

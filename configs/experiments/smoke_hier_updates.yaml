@@ -1,0 +1,39 @@
+# Smoke test for on-the-fly model updates with the validation gate (Phase H5) on the cinc15
+# topology, SYNTHETIC data, SIMULATED location shift on. Arms: local_only + hierarchical.
+# Each node deploys a new regional / global version only if its validation macro-F1 is at
+# least the deployed version's minus 2 x its bootstrap SE (version 0 = the local-only model).
+# SCRIPTED faults for testing the gate (training is unaffected):
+# - round 3: Moon's new regional version reaches its nodes degraded (Gaussian noise);
+# - round 4 (a merge round): the global version reaches Mars's nodes with all weights zero.
+name: smoke_hier_updates
+seed: 0
+seeds: [0, 1]
+hierarchy: cinc15
+shift:
+  enabled: true
+  kind: both
+  magnitude: 1.0
+data:
+  name: synthetic
+  synthetic:
+    n_subjects: 240
+    windows_per_subject: 10
+    n_groups: 8
+    group_names: [g12ec, ptbxl, ptb, incart, ningbo, chapman, cpsc, cpsc_extra]
+partition:
+  holdout_subjects: 0
+arms: [local_only, hierarchical]
+train:
+  epochs: 3
+fl:
+  rounds: 6
+hier_fl:
+  global_every: 2
+  offline:
+    leo_roscosmos: [2]
+updates:
+  enabled: true
+  inject:
+    - {round: 3, region: moon, track: regional, kind: noise, scale: 5.0}
+    - {round: 4, region: mars, track: global, kind: zero}
+notes: "Update-gate smoke test (cinc15)."

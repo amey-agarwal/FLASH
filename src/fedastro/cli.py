@@ -1,4 +1,4 @@
-"""Single entrypoint: ``fedastro run <config>`` and ``fedastro sweep <config>``.
+"""Single entrypoint: ``fedastro run <config>``, ``fedastro sweep <config>``, ``fedastro peek <run_dir>``.
 
 Non-interactive by design so it runs unchanged on a headless cluster.
 """
@@ -51,6 +51,12 @@ def _parser() -> argparse.ArgumentParser:
     grid.add_argument("--output-dir", help="override output_dir")
     grid.add_argument("--report", action="store_true",
                       help="collect existing per-variant summaries into one table; runs nothing")
+
+    peek = sub.add_parser("peek", help="read-only terminal view of a hierarchical run (writes nothing)")
+    peek.add_argument("run_dir", help="runs/<run_id> (or its result.json)")
+    peek.add_argument("--follow", action="store_true", help="tail a run in progress until it ends")
+    peek.add_argument("--interval", type=float, default=1.0, help="--follow poll interval in real seconds")
+    peek.add_argument("--timeout", type=float, help="--follow: give up after this many real seconds")
 
     inspect = sub.add_parser("inspect", help="print the per-silo class distribution; writes nothing")
     common(inspect)
@@ -130,6 +136,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "grid":
         return _grid(args)
+    if args.command == "peek":
+        from fedastro.peek import follow, peek
+
+        if args.follow:
+            return follow(args.run_dir, interval=args.interval, timeout=args.timeout)
+        return peek(args.run_dir)
     try:
         cfg = load_config(args.config)
         overrides = {"output_dir": args.output_dir, "device": args.device,
