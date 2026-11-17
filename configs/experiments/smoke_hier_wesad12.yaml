@@ -1,0 +1,20 @@
+# Smoke test for the hierarchical WESAD topology (Phase H1): SYNTHETIC data, 12 node
+# subjects + 3 held-out subjects, as in WESAD. Inspect only until Phase H3:
+#   fedastro inspect configs/experiments/smoke_hier_wesad12.yaml
+# Results are tagged SYNTHETIC.
+name: smoke_hier_wesad12
+seed: 0
+seeds: [0, 1]
+hierarchy: wesad12
+data:
+  name: synthetic
+  synthetic:
+    n_subjects: 15
+    windows_per_subject: 40
+partition:
+  holdout_subjects: 3
+train:
+  epochs: 3
+fl:
+  rounds: 3
+notes: "Hierarchical topology smoke test (wesad12)."

@@ -28,19 +28,36 @@ statistics either (every scaler, local or federated, is fit on silo data only).
 
 Invariant for every method: no subject appears in two silos or in a silo and the
 held-out set; no held-out group appears in a silo.
+
+Hierarchical topologies (CLAUDE.md section 4b/4c) use ``make_hier_federation`` instead,
+which gives every node its own train / validation / test data:
+   - ``by_source``: a node holds patients of its listed dataset groups (sources). A
+     source's patients are divided across the regions that use it with Dirichlet quantity
+     shares, then each node splits its patients into train / validation / test. The whole
+     assignment comes from the fixed ``holdout_seed``, never the run seed, so validation
+     and test membership are frozen across the seeds of an experiment.
+   - ``one_subject_per_node``: the shared held-out subjects are removed exactly as in the
+     flat path; each remaining subject becomes one node (assignment from the run rng).
+     Validation is the time-ordered tail of the node's subject; the test set is the
+     shared held-out set.
+Invariant: no patient appears in two nodes, and (by_source) none in two splits.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from fedastro.data.base import DatasetBundle, GroupedDatasetBundle
 
+if TYPE_CHECKING:
+    from fedastro.config import HierarchyConfig
+
 # Separates the holdout RNG stream from run-seed streams even when the integers coincide.
 _HOLDOUT_STREAM = 0x484F4C44
+_HIER_STREAM = 0x48494552  # the fixed by_source node assignment and per-node splits
 
 
 @dataclass(frozen=True)
@@ -294,4 +311,139 @@ def _allocate(n: int, shares: np.ndarray) -> np.ndarray:
     while (counts == 0).any():
         counts[int(np.argmax(counts))] -= 1
         counts[int(np.flatnonzero(counts == 0)[0])] += 1
+    return counts
+
+
+# -- Hierarchical topologies ---------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class NodeSplit:
+    region: str
+    train: DatasetBundle
+    val: DatasetBundle
+    # None under one_subject_per_node: the node is tested on the shared held-out set.
+    test: DatasetBundle | None
+    n_gap_dropped: int = 0  # windows dropped between train and the validation tail
+
+
+@dataclass(frozen=True)
+class HierFederation:
+    nodes: dict[str, NodeSplit]
+    holdout: DatasetBundle | None  # shared test set (one_subject_per_node), else None
+    unused_sources: tuple[str, ...] = ()  # by_source: dataset groups no node draws from
+
+    def test_of(self, node: str) -> DatasetBundle:
+        split = self.nodes[node]
+        return self.holdout if split.test is None else split.test
+
+
+def make_hier_federation(
+    bundle: DatasetBundle,
+    hierarchy: HierarchyConfig,
+    rng: np.random.Generator,
+    holdout_subjects: int = 0,
+    holdout_seed: int = 0,
+) -> HierFederation:
+    if hierarchy.partition == "by_source":
+        fed = _hier_by_source(bundle, hierarchy, np.random.default_rng([holdout_seed, _HIER_STREAM]))
+    elif hierarchy.partition == "one_subject_per_node":
+        fed = _hier_one_subject(bundle, hierarchy, rng, holdout_subjects,
+                                np.random.default_rng([holdout_seed, _HOLDOUT_STREAM]))
+    else:
+        raise ValueError(f"unknown hierarchy partition {hierarchy.partition!r}")
+    assert_hier_disjoint(fed)
+    return fed
+
+
+def _hier_by_source(bundle: DatasetBundle, hierarchy: HierarchyConfig, rng: np.random.Generator) -> HierFederation:
+    if not isinstance(bundle, GroupedDatasetBundle):
+        raise ValueError(f"dataset {bundle.provenance.dataset} has no groups; hierarchy partition "
+                         f"by_source needs grouped data (one group per source)")
+    floor = hierarchy.min_patients_per_node
+    # source -> the nodes drawing from it, in topology order (at most one per region)
+    users: dict[str, list[str]] = {}
+    for node in hierarchy.nodes:
+        for source in node.sources:
+            users.setdefault(source, []).append(node.name)
+    unknown = sorted(set(users) - set(bundle.group_names))
+    if unknown:
+        raise ValueError(f"hierarchy sources {unknown} are not groups of the dataset {bundle.group_names}")
+    patients: dict[str, list[np.ndarray]] = {n.name: [] for n in hierarchy.nodes}
+    for source, nodes in users.items():
+        ids = np.unique(bundle.subject_id[bundle.in_groups([source])])
+        if len(ids) < floor * len(nodes):
+            raise ValueError(f"source {source!r} has {len(ids)} patients, fewer than "
+                             f"{floor} (min_patients_per_node) x {len(nodes)} nodes")
+        shares = rng.dirichlet(np.full(len(nodes), hierarchy.quantity_alpha))
+        counts = floor + _allocate_free(len(ids) - floor * len(nodes), shares)
+        shuffled = rng.permutation(ids)
+        start = 0
+        for node, c in zip(nodes, counts):
+            patients[node].append(shuffled[start : start + c])
+            start += c
+    out: dict[str, NodeSplit] = {}
+    for node in hierarchy.nodes:
+        ids = rng.permutation(np.sort(np.concatenate(patients[node.name])))
+        n = len(ids)
+        n_test = max(1, int(round(hierarchy.test_frac * n)))
+        n_val = max(1, int(round(hierarchy.val_frac * n)))
+        if n - n_test - n_val < 1:
+            raise ValueError(f"node {node.name}: {n} patients cannot fill train, validation and test")
+        parts = (ids[n_test + n_val :], ids[n_test : n_test + n_val], ids[:n_test])
+        train, val, test = (bundle.subset(np.isin(bundle.subject_id, part)) for part in parts)
+        out[node.name] = NodeSplit(region=hierarchy.region_of(node.name), train=train, val=val, test=test)
+    unused = tuple(g for g in bundle.group_names if g not in users)
+    return HierFederation(nodes=out, holdout=None, unused_sources=unused)
+
+
+def _hier_one_subject(bundle: DatasetBundle, hierarchy: HierarchyConfig, rng: np.random.Generator,
+                      holdout_subjects: int, holdout_rng: np.random.Generator) -> HierFederation:
+    pool, holdout = holdout_split(bundle, holdout_subjects, holdout_rng)
+    nodes = hierarchy.nodes
+    if len(pool.subjects) != len(nodes):
+        raise ValueError(f"one_subject_per_node: {len(pool.subjects)} training subjects after the "
+                         f"holdout, but the topology has {len(nodes)} nodes")
+    order = rng.permutation(np.array(pool.subjects))
+    out: dict[str, NodeSplit] = {}
+    for node, subject in zip(nodes, order):
+        # Loaders store each subject's windows in time order (asserted for WESAD in tests),
+        # so the tail of the index is the tail in time.
+        idx = np.flatnonzero(pool.subject_id == subject)
+        n_val = max(1, int(round(hierarchy.val_frac * len(idx))))
+        n_train = len(idx) - n_val - hierarchy.val_gap_windows
+        if n_train < 1:
+            raise ValueError(f"node {node.name}: subject {subject} has too few windows ({len(idx)})")
+        out[node.name] = NodeSplit(
+            region=hierarchy.region_of(node.name), train=pool.subset(idx[:n_train]),
+            val=pool.subset(idx[len(idx) - n_val :]), test=None, n_gap_dropped=hierarchy.val_gap_windows)
+    return HierFederation(nodes=out, holdout=holdout)
+
+
+def assert_hier_disjoint(fed: HierFederation) -> None:
+    """Raise if a patient is in two nodes, in a node and the shared held-out set, or (when
+    nodes have their own test sets) in two splits of one node."""
+    seen: dict[int, str] = {s: "holdout" for s in (fed.holdout.subjects if fed.holdout is not None else [])}
+    for name, split in fed.nodes.items():
+        parts = {"train": split.train, "val": split.val}
+        if split.test is not None:
+            parts["test"] = split.test
+            for a, b in (("train", "val"), ("train", "test"), ("val", "test")):
+                both = set(parts[a].subjects) & set(parts[b].subjects)
+                if both:
+                    raise AssertionError(f"node {name}: patients {sorted(both)} in both {a} and {b}")
+        elif split.train.subjects != split.val.subjects or len(split.train.subjects) != 1:
+            raise AssertionError(f"node {name}: one_subject_per_node needs exactly one subject")
+        for s in sorted({s for part in parts.values() for s in part.subjects}):
+            if s in seen:
+                raise AssertionError(f"patient {s} in both {seen[s]} and {name}")
+            seen[s] = name
+
+
+def _allocate_free(n: int, shares: np.ndarray) -> np.ndarray:
+    """Largest-remainder allocation of n items by share; buckets may be empty."""
+    raw = shares / shares.sum() * n
+    counts = np.floor(raw).astype(int)
+    order = np.argsort(-(raw - counts), kind="stable")
+    counts[order[: n - counts.sum()]] += 1
     return counts

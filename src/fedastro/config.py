@@ -4,6 +4,11 @@ An experiment YAML is deep-merged over ``configs/base.yaml``. The ``silos`` key 
 a topology file in ``configs/silos/`` which is expanded inline, so the resolved config
 recorded in every result is fully self-contained.
 
+``hierarchy`` (default off) names a hierarchical topology in ``configs/topologies/``:
+regions, regional aggregators, one global aggregator and nodes (CLAUDE.md section 4). Its
+nodes then also act as the silo list, so the flat arms run over the same nodes. Region,
+aggregator, agency and node names are SCENARIO LABELS, never real deployments.
+
 Unknown keys are rejected: a typo in a config must fail loudly, never silently fall
 back to a default.
 """
@@ -45,6 +50,11 @@ REPRESENTATIONS = ("features", "sequence")
 DEVICES = ("cpu", "cuda")
 LOS_PROFILES = ("none", "rare", "short_occasional", "periodic", "long_blackout")
 LOS_KINDS = ("none", "poisson", "periodic")
+# How a hierarchical topology hands data to its nodes (data/partition.py):
+# "by_source": a node holds patients of its listed dataset groups; per-node train/val/test.
+# "one_subject_per_node": one training subject per node; validation is the time-ordered
+#   tail of that subject; the test set is the shared held-out subjects.
+HIER_PARTITIONS = ("by_source", "one_subject_per_node")
 COMMS_PRESETS = ("earth", "moon", "mars_near", "mars_mean", "mars_far")
 ATTACK_STATES = ("init", "final")
 ATTACK_LABEL_MODES = ("known", "inferred")
@@ -62,6 +72,9 @@ class SyntheticParams:
     # 0 = ungrouped (default; left out of the run id). >0 = contiguous subject groups
     # group_0.. with their own mean shift: a grouped bundle, for the by-group path.
     n_groups: int = 0
+    # Optional names for the groups (default group_0..), so synthetic data can stand in
+    # for a real dataset's sources when smoke-testing a hierarchical topology.
+    group_names: tuple[str, ...] = ()
 
     def validate(self) -> None:
         for name in ("n_subjects", "windows_per_subject", "n_features", "n_classes"):
@@ -75,6 +88,9 @@ class SyntheticParams:
             raise ConfigError("data.synthetic.n_sites must be >= 0")
         if not 0 <= self.n_groups <= self.n_subjects:
             raise ConfigError("data.synthetic.n_groups must be in [0, n_subjects]")
+        if self.group_names and (len(self.group_names) != self.n_groups
+                                 or len(set(self.group_names)) != self.n_groups):
+            raise ConfigError("data.synthetic.group_names must be n_groups distinct names")
 
 
 @dataclass(frozen=True)
@@ -158,6 +174,155 @@ class TopologyConfig:
 
 
 @dataclass(frozen=True)
+class LinkConfig:
+    """One link of a hierarchical topology. Scenario assumptions unless sourced."""
+
+    one_way_latency_s: float = 0.0
+    los_profile: str = "none"
+    latency_presets_s: dict[str, float] = field(default_factory=dict)
+
+    def validate(self, where: str) -> None:
+        if self.one_way_latency_s < 0:
+            raise ConfigError(f"{where}: one_way_latency_s must be >= 0")
+        if self.los_profile not in LOS_PROFILES:
+            raise ConfigError(f"{where}: los_profile must be one of {LOS_PROFILES}")
+        for k, v in self.latency_presets_s.items():
+            if v < 0:
+                raise ConfigError(f"{where}: latency preset {k!r} must be >= 0")
+
+
+@dataclass(frozen=True)
+class NodeConfig:
+    name: str
+    agency: str  # agency analog, a scenario label
+    # by_source only: the dataset groups (e.g. CinC sources) this node's patients come from.
+    sources: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RegionConfig:
+    name: str
+    aggregator: str
+    nodes: tuple[NodeConfig, ...]
+    node_link: LinkConfig = field(default_factory=LinkConfig)  # node <-> regional aggregator
+    global_link: LinkConfig = field(default_factory=LinkConfig)  # regional <-> global aggregator
+
+
+@dataclass(frozen=True)
+class GlobalAggregatorConfig:
+    name: str
+    host: str  # the regional aggregator it is co-located with
+
+
+@dataclass(frozen=True)
+class HierarchyConfig:
+    """Regions, aggregators and nodes (CLAUDE.md section 4b/4c). Used by Phase H3 onward;
+    Phase H1 loads, validates and partitions only."""
+
+    name: str
+    min_participants: int  # regional aggregation needs this many reporting nodes
+    global_aggregator: GlobalAggregatorConfig
+    regions: tuple[RegionConfig, ...]
+    partition: str = "by_source"
+    # by_source: Dirichlet concentration of a source's patient shares across its regions
+    # (quantity skew; large = near-equal shares).
+    quantity_alpha: float = 1.0
+    # Per-node split. by_source: fractions of the node's patients (patient-disjoint).
+    # one_subject_per_node: fractions of the subject's windows, validation = the tail;
+    # test_frac must be 0 (the test set is the shared held-out subjects).
+    train_frac: float = 0.7
+    val_frac: float = 0.1
+    test_frac: float = 0.2
+    # one_subject_per_node: windows dropped between train and the validation tail, so
+    # overlapping windows never straddle the boundary.
+    val_gap_windows: int = 0
+    min_patients_per_node: int = 3  # by_source: at least one patient per split
+
+    @property
+    def nodes(self) -> tuple[NodeConfig, ...]:
+        return tuple(n for r in self.regions for n in r.nodes)
+
+    def region_of(self, node: str) -> str:
+        for r in self.regions:
+            if any(n.name == node for n in r.nodes):
+                return r.name
+        raise KeyError(node)
+
+    def validate(self) -> None:
+        w = f"hierarchy {self.name!r}"
+        if not self.regions:
+            raise ConfigError(f"{w}: at least one region is required")
+        if self.partition not in HIER_PARTITIONS:
+            raise ConfigError(f"{w}: partition must be one of {HIER_PARTITIONS}")
+        if self.min_participants < 1:
+            raise ConfigError(f"{w}: min_participants must be >= 1")
+        regions = [r.name for r in self.regions]
+        aggregators = [r.aggregator for r in self.regions]
+        nodes = [n.name for n in self.nodes]
+        for what, names in (("region", regions), ("aggregator", aggregators), ("node", nodes)):
+            if any(not x for x in names):
+                raise ConfigError(f"{w}: {what} names must be non-empty")
+            if len(set(names)) != len(names):
+                raise ConfigError(f"{w}: duplicate {what} names: {sorted(names)}")
+        if not self.global_aggregator.name or self.global_aggregator.name in aggregators:
+            raise ConfigError(f"{w}: global_aggregator.name must be non-empty and differ from the regional aggregators")
+        if self.global_aggregator.host not in aggregators:
+            raise ConfigError(f"{w}: global_aggregator.host {self.global_aggregator.host!r} is not a "
+                              f"regional aggregator {aggregators}")
+        for r in self.regions:
+            if len(r.nodes) < self.min_participants:
+                raise ConfigError(f"{w}: region {r.name!r} has {len(r.nodes)} nodes, fewer than "
+                                  f"min_participants = {self.min_participants}; it could never aggregate")
+            r.node_link.validate(f"{w} region {r.name!r} node_link")
+            r.global_link.validate(f"{w} region {r.name!r} global_link")
+            if any(not n.agency for n in r.nodes):
+                raise ConfigError(f"{w}: region {r.name!r}: every node needs an agency label")
+            used = [s for n in r.nodes for s in n.sources]
+            if len(set(used)) != len(used):
+                raise ConfigError(f"{w}: region {r.name!r}: a source is listed by two nodes "
+                                  f"(its patients could not be kept in one node)")
+            for n in r.nodes:
+                if self.partition == "by_source" and not n.sources:
+                    raise ConfigError(f"{w}: node {n.name!r} needs sources (partition by_source)")
+                if self.partition != "by_source" and n.sources:
+                    raise ConfigError(f"{w}: node {n.name!r}: sources are only meaningful for partition by_source")
+        fracs = (self.train_frac, self.val_frac, self.test_frac)
+        if abs(sum(fracs) - 1.0) > 1e-9 or self.train_frac <= 0 or self.val_frac <= 0 or self.test_frac < 0:
+            raise ConfigError(f"{w}: train_frac and val_frac must be > 0, test_frac >= 0, and the three must sum to 1")
+        if self.partition == "by_source":
+            if self.test_frac <= 0:
+                raise ConfigError(f"{w}: by_source needs test_frac > 0 (each node has its own test set)")
+            if self.quantity_alpha <= 0:
+                raise ConfigError(f"{w}: quantity_alpha must be > 0")
+            if self.min_patients_per_node < 3:
+                raise ConfigError(f"{w}: min_patients_per_node must be >= 3 (one patient per split)")
+            if self.val_gap_windows != 0:
+                raise ConfigError(f"{w}: val_gap_windows is only meaningful for one_subject_per_node")
+        else:
+            if self.test_frac != 0:
+                raise ConfigError(f"{w}: one_subject_per_node needs test_frac 0 (the test set is the "
+                                  f"shared held-out subjects)")
+            if self.val_gap_windows < 0:
+                raise ConfigError(f"{w}: val_gap_windows must be >= 0")
+
+    def as_silos(self) -> "TopologyConfig":
+        """The nodes as a flat silo list, so the flat arms run over the same nodes. A
+        node's flat latency is its path to the global aggregator (node link + regional
+        link); its loss-of-signal profile is its node link's. data_share is unused by the
+        hierarchical partition and set to 1."""
+        silos = []
+        for r in self.regions:
+            base = r.node_link.one_way_latency_s
+            for n in r.nodes:
+                silos.append(SiloConfig(
+                    name=n.name, data_share=1.0,
+                    one_way_latency_s=base + r.global_link.one_way_latency_s,
+                    los_profile=r.node_link.los_profile,
+                    latency_presets_s={k: base + v for k, v in r.global_link.latency_presets_s.items()}))
+        return TopologyConfig(name=self.name, silos=tuple(silos))
+
+
+@dataclass(frozen=True)
 class PartitionConfig:
     method: str = "by_subject"
     # Dirichlet concentration; required (> 0) for the two dirichlet methods.
@@ -183,7 +348,7 @@ class PartitionConfig:
             raise ConfigError(f"partition.alpha must be > 0 for method {self.method!r}")
         if self.method not in DIRICHLET_METHODS and self.alpha != 0:
             raise ConfigError("partition.alpha is only meaningful for the dirichlet methods")
-        if self.holdout_subjects < (0 if self.holdout_groups else 1):
+        if self.holdout_subjects < 0:
             raise ConfigError("partition.holdout_subjects must be >= 1 (>= 0 with holdout_groups)")
         if self.holdout_seed < 0:
             raise ConfigError("partition.holdout_seed must be >= 0")
@@ -524,6 +689,9 @@ class ExperimentConfig:
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
     resources: ResourcesConfig = field(default_factory=ResourcesConfig)
     notes: str = ""
+    # Hierarchical topology (configs/topologies/), or None = flat. Set by load_config from
+    # the ``hierarchy`` key; left out of the run id when None.
+    hierarchy: HierarchyConfig | None = None
     # Live demo only: sleep simulated link time x this factor (0 = never sleep).
     # Execution detail, excluded from the run id.
     real_sleep_scale: float = 0.0
@@ -547,6 +715,34 @@ class ExperimentConfig:
         self.comms.validate()
         self.evaluation.validate()
         self.resources.validate()
+        hier = self.hierarchy
+        by_source = hier is not None and hier.partition == "by_source"
+        if self.partition.holdout_subjects < 1 and not self.partition.holdout_groups and not by_source:
+            raise ConfigError("partition.holdout_subjects must be >= 1 (>= 0 with holdout_groups)")
+        if hier is not None:
+            hier.validate()
+            if self.topology != hier.as_silos():
+                raise ConfigError("with a hierarchy, the silo list must be the hierarchy's nodes")
+            p = self.partition
+            if p.method != "by_subject" or p.group_map or p.holdout_groups:
+                raise ConfigError("with a hierarchy, the hierarchy partitions the data: leave "
+                                  "partition.method, group_map and holdout_groups at their defaults")
+            if self.evaluation.holdout_draws > 1:
+                raise ConfigError("evaluation.holdout_draws > 1 is not supported with a hierarchy")
+            if by_source and p.holdout_subjects != 0:
+                raise ConfigError("hierarchy partition by_source has per-node test sets: set "
+                                  "partition.holdout_subjects to 0")
+            if self.data.is_synthetic:
+                syn = self.data.synthetic
+                if by_source:
+                    names = set(syn.group_names or (f"group_{g}" for g in range(syn.n_groups)))
+                    missing = sorted({s for n in hier.nodes for s in n.sources} - names)
+                    if missing:
+                        raise ConfigError(f"hierarchy sources {missing} are not synthetic groups "
+                                          f"(data.synthetic.n_groups / group_names)")
+                elif syn.n_subjects != len(hier.nodes) + p.holdout_subjects:
+                    raise ConfigError(f"one_subject_per_node needs n_subjects = nodes + holdout_subjects "
+                                      f"({len(hier.nodes) + p.holdout_subjects})")
         if self.evaluation.holdout_draws > 1 and self.partition.holdout_groups:
             # Which groups may rotate into the held-out set depends on the dataset and its
             # agency mapping, so group redraws are designed with it (Phase 13).
@@ -629,6 +825,10 @@ class ExperimentConfig:
         # Phase 11 fields: absent when unused, so earlier run ids are unchanged.
         if "synthetic" in d["data"] and not self.data.synthetic.n_groups:
             d["data"]["synthetic"].pop("n_groups")
+        if "synthetic" in d["data"] and not self.data.synthetic.group_names:
+            d["data"]["synthetic"].pop("group_names")
+        if self.hierarchy is None:  # Phase H1 block, same rule
+            d.pop("hierarchy")
         if not self.partition.group_map:
             d["partition"].pop("group_map")
         if not self.partition.holdout_groups:
@@ -699,6 +899,12 @@ def load_topology(name: str, config_root: Path) -> TopologyConfig:
     return _build(TopologyConfig, raw, "topology")
 
 
+def load_hierarchy(name: str, config_root: Path) -> HierarchyConfig:
+    raw = _read_yaml(config_root / "topologies" / f"{name}.yaml")
+    raw.setdefault("name", name)
+    return _build(HierarchyConfig, raw, "hierarchy")
+
+
 def dotted_to_nested(overrides: dict[str, Any]) -> dict[str, Any]:
     """{"partition.alpha": 0.1} -> {"partition": {"alpha": 0.1}}"""
     out: dict[str, Any] = {}
@@ -715,7 +921,8 @@ def load_config(path: str | Path, overrides: dict[str, Any] | None = None) -> Ex
     """Load an experiment; ``overrides`` (dotted keys) are applied last, before validation."""
     path = Path(path).resolve()
     root = find_config_root(path)
-    merged = deep_merge(_read_yaml(root / "base.yaml"), _read_yaml(path))
+    experiment = _read_yaml(path)
+    merged = deep_merge(_read_yaml(root / "base.yaml"), experiment)
     if overrides:
         merged = deep_merge(merged, dotted_to_nested(overrides))
     comms = merged.get("comms")
@@ -724,13 +931,27 @@ def load_config(path: str | Path, overrides: dict[str, Any] | None = None) -> Ex
         defaults = {k: dataclasses.asdict(v) for k, v in _default_los_profiles().items()}
         comms["los_profiles"] = deep_merge(defaults, comms["los_profiles"])
     topo_name = merged.pop("silos", None)
-    if not isinstance(topo_name, str):
-        raise ConfigError("'silos' must name a topology file in configs/silos/")
-    merged["topology"] = dataclasses.asdict(load_topology(topo_name, root))
+    hier_name = merged.pop("hierarchy", None)
+    hierarchy = None
+    if hier_name is not None:
+        if not isinstance(hier_name, str):
+            raise ConfigError("'hierarchy' must name a topology file in configs/topologies/ (or be null)")
+        if "silos" in experiment:
+            raise ConfigError("set either 'silos' (flat) or 'hierarchy', not both: a hierarchy's "
+                              "nodes are its silos")
+        hierarchy = load_hierarchy(hier_name, root)
+        hierarchy.validate()  # before its nodes are expanded into the silo list
+        merged["topology"] = dataclasses.asdict(hierarchy.as_silos())
+    else:
+        if not isinstance(topo_name, str):
+            raise ConfigError("'silos' must name a topology file in configs/silos/")
+        merged["topology"] = dataclasses.asdict(load_topology(topo_name, root))
     seeds = merged.get("seeds")
     if seeds is None:
         merged["seeds"] = [merged.get("seed", 0)]
     cfg = _build(ExperimentConfig, merged, "")
+    if hierarchy is not None:
+        cfg = dataclasses.replace(cfg, hierarchy=hierarchy)
     cfg.validate()
     return cfg
 

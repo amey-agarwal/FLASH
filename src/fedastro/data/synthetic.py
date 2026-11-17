@@ -6,7 +6,8 @@ split is mildly non-IID. Every bundle produced here carries provenance kind SYNT
 With ``n_groups > 0`` subjects are split into contiguous groups ``group_0..``, each with
 its own mean shift (scale ``subject_shift``), and a GroupedDatasetBundle is returned, for
 smoke-testing the by-group path. The group shifts are drawn after every other draw, so
-the ungrouped data stays exactly as before.
+the ungrouped data stays exactly as before. ``group_names`` only renames the groups (to
+stand in for a real dataset's sources in a hierarchical smoke test); the data is the same.
 """
 
 from __future__ import annotations
@@ -59,4 +60,4 @@ def load_synthetic(params: SyntheticParams, seed: int) -> DatasetBundle:
     if group_id is None:
         return DatasetBundle(**common)
     return GroupedDatasetBundle(**common, group_id=group_id,
-                                group_names=tuple(f"group_{g}" for g in range(params.n_groups)))
+                                group_names=params.group_names or tuple(f"group_{g}" for g in range(params.n_groups)))

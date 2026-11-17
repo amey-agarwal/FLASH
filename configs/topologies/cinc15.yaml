@@ -1,0 +1,59 @@
+# Hierarchical topology for PhysioNet/CinC 2021 (CLAUDE.md section 4b): 3 regions x 5 nodes.
+# Region, aggregator, agency and node names are SCENARIO LABELS for a simulation, never real
+# deployments or data holders. Every latency and loss-of-signal profile below is a scenario
+# assumption unless a source is named. Links are consumed from Phase H3 onward.
+#
+# node_link:   node <-> its regional aggregator (short light-time, contact windows).
+# global_link: regional aggregator <-> agg_global. agg_global is hosted at agg_leo, so the
+#   LEO link is zero. Moon ~1.3 s one-way (Earth-Moon light time ~1.2-1.3 s), periodic loss
+#   of signal. Mars uses the existing presets (near 182 s, mean 751 s, far 1337 s); the
+#   solar-conjunction blackout window is added in Phase H3.
+#
+# Agency analogs map to CinC 2021 sources. A source's patients are divided across the regions
+# that use it with Dirichlet quantity shares (quantity_alpha, seeded); no patient is in two
+# nodes. Each node splits its own patients 70 / 10 / 20 into train / validation / test.
+# Roscosmos (INCART) is LEO-only: the deliberately tiny silo.
+# Source names are the dataset's group names; confirm them against the loader in Phase H10.
+name: cinc15
+partition: by_source
+min_participants: 5          # one node in loss of signal drops its region below threshold
+quantity_alpha: 1.0
+train_frac: 0.7
+val_frac: 0.1
+test_frac: 0.2
+min_patients_per_node: 3
+global_aggregator: {name: agg_global, host: agg_leo}
+regions:
+  - name: leo
+    aggregator: agg_leo
+    node_link: {one_way_latency_s: 0.01, los_profile: short_occasional}
+    global_link: {one_way_latency_s: 0.0, los_profile: none}
+    nodes:
+      - {name: leo_nasa, agency: nasa, sources: [g12ec]}
+      - {name: leo_esa, agency: esa, sources: [ptbxl, ptb]}
+      - {name: leo_roscosmos, agency: roscosmos, sources: [incart]}
+      - {name: leo_cmsa1, agency: cmsa1, sources: [ningbo]}
+      - {name: leo_partner, agency: partner, sources: [cpsc, cpsc_extra]}
+  - name: moon
+    aggregator: agg_moon
+    node_link: {one_way_latency_s: 0.01, los_profile: periodic}
+    global_link: {one_way_latency_s: 1.3, los_profile: periodic}
+    nodes:
+      - {name: moon_nasa, agency: nasa, sources: [g12ec]}
+      - {name: moon_esa, agency: esa, sources: [ptbxl, ptb]}
+      - {name: moon_cmsa1, agency: cmsa1, sources: [ningbo]}
+      - {name: moon_cmsa2, agency: cmsa2, sources: [chapman]}
+      - {name: moon_partner, agency: partner, sources: [cpsc, cpsc_extra]}
+  - name: mars
+    aggregator: agg_mars
+    node_link: {one_way_latency_s: 0.06, los_profile: periodic}
+    global_link:
+      one_way_latency_s: 751.0        # default = mean preset
+      los_profile: long_blackout
+      latency_presets_s: {near: 182.0, mean: 751.0, far: 1337.0}
+    nodes:
+      - {name: mars_nasa, agency: nasa, sources: [g12ec]}
+      - {name: mars_esa, agency: esa, sources: [ptbxl, ptb]}
+      - {name: mars_cmsa1, agency: cmsa1, sources: [ningbo]}
+      - {name: mars_cmsa2, agency: cmsa2, sources: [chapman]}
+      - {name: mars_partner, agency: partner, sources: [cpsc, cpsc_extra]}

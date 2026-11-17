@@ -4,6 +4,7 @@ seed: 0
 output_dir: runs
 device: cpu
 silos: five_agency          # topology file in configs/silos/
+hierarchy: null             # or a hierarchical topology file in configs/topologies/ (its nodes replace silos)
 data:
   name: synthetic
 partition:

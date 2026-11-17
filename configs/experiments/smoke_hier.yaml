@@ -1,0 +1,22 @@
+# Smoke test for the hierarchical CinC topology (Phase H1): SYNTHETIC grouped data whose
+# groups are named after the CinC 2021 sources. Inspect only until Phase H3:
+#   fedastro inspect configs/experiments/smoke_hier.yaml
+# Results are tagged SYNTHETIC.
+name: smoke_hier
+seed: 0
+seeds: [0, 1]
+hierarchy: cinc15
+data:
+  name: synthetic
+  synthetic:
+    n_subjects: 240
+    windows_per_subject: 10
+    n_groups: 8
+    group_names: [g12ec, ptbxl, ptb, incart, ningbo, chapman, cpsc, cpsc_extra]
+partition:
+  holdout_subjects: 0          # per-node test sets; no shared holdout
+train:
+  epochs: 3
+fl:
+  rounds: 3
+notes: "Hierarchical topology smoke test (cinc15)."

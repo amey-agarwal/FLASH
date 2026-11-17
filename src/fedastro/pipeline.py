@@ -13,7 +13,7 @@ from typing import Any
 from fedastro.config import ExperimentConfig
 from fedastro.data import get_dataset
 from fedastro.data.base import SYNTHETIC, DatasetBundle
-from fedastro.data.partition import Federation, make_federation
+from fedastro.data.partition import Federation, HierFederation, make_federation, make_hier_federation
 from fedastro.manifest import git_sha, make_run_id, timestamp_utc, write_run
 from fedastro.metrics.schema import empty_result
 from fedastro.seeding import seed_everything
@@ -37,6 +37,32 @@ def build_federation(cfg: ExperimentConfig, seed: int, draw: int = 0) -> tuple[D
         holdout_draw=draw,
     )
     return bundle, fed
+
+
+def build_hier_federation(cfg: ExperimentConfig, seed: int) -> tuple[DatasetBundle, HierFederation]:
+    """Per-node train / validation / test data for a hierarchical topology."""
+    if cfg.hierarchy is None:
+        raise ValueError("build_hier_federation needs a config with a hierarchy")
+    rng = seed_everything(seed)
+    bundle = load_dataset(cfg, seed)
+    fed = make_hier_federation(bundle, cfg.hierarchy, rng, cfg.partition.holdout_subjects,
+                               cfg.partition.holdout_seed)
+    return bundle, fed
+
+
+def topology_section(cfg: ExperimentConfig) -> dict[str, Any]:
+    """The result's ``topology`` block. Names are scenario labels, not deployments."""
+    h = cfg.hierarchy
+    if h is None:
+        return {"name": cfg.topology.name, "regions": [], "aggregators": [], "min_participants": None}
+    return {
+        "name": h.name,
+        "regions": [{"name": r.name, "aggregator": r.aggregator,
+                     "nodes": [{"name": n.name, "agency": n.agency, "sources": list(n.sources)} for n in r.nodes]}
+                    for r in h.regions],
+        "aggregators": [r.aggregator for r in h.regions] + [h.global_aggregator.name],
+        "min_participants": h.min_participants,
+    }
 
 
 def describe_federation(fed: Federation) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -137,6 +163,8 @@ def privacy_report(cfg: ExperimentConfig, fed: Federation, seed: int, result: di
 
 
 def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0) -> dict[str, Any]:
+    if cfg.hierarchy is not None:
+        raise NotImplementedError(HIER_RUN_MESSAGE)
     bundle, fed = build_federation(cfg, seed, draw)
     silos, holdout = describe_federation(fed)
 
@@ -152,6 +180,7 @@ def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0) -> dict[str,
         provenance=[bundle.provenance.to_dict()],
         silos=silos,
         holdout=holdout,
+        topology=topology_section(cfg),
     )
     if fed.groups is not None:
         result["groups"] = fed.groups
@@ -208,6 +237,10 @@ def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0) -> dict[str,
     return result
 
 
+HIER_RUN_MESSAGE = ("hierarchical topologies can be inspected (fedastro inspect) but not run yet: "
+                    "hierarchical training arrives in Phase H3")
+
+
 def run_and_write(cfg: ExperimentConfig, seed: int, draw: int = 0) -> Path:
     t0 = time.perf_counter()
     result = run_experiment(cfg, seed, draw)
@@ -229,4 +262,32 @@ def format_distribution_table(fed: Federation, class_names: tuple[str, ...]) -> 
         lines.append("groups: " + "; ".join(f"{k}={','.join(v)}" for k, v in fed.groups["silo_to_groups"].items())
                      + f"; HOLDOUT={','.join(fed.holdout.groups)}"
                      + (f"; unused={','.join(fed.groups['unused_groups'])}" if fed.groups["unused_groups"] else ""))
+    return "\n".join(lines)
+
+
+def format_node_table(fed: HierFederation, class_names: tuple[str, ...]) -> str:
+    """Plain-text per-node table for a hierarchical topology: patients and windows per
+    split, and the train and test label mix (counts and row percentages)."""
+    def mix(data: DatasetBundle) -> str:
+        counts = data.label_counts()
+        n = max(len(data), 1)
+        return "".join(f"{counts[c]:>7} ({100 * counts[c] / n:5.1f}%)" for c in class_names)
+
+    def labels(tag: str) -> str:
+        return "".join(f"{f'{tag}:{c}'[:16]:>17}" for c in class_names)
+
+    head = (f"{'node':<16}{'region':<8}{'pat':>5}{'n_train':>9}{'n_val':>7}{'n_test':>8}{'gap':>5}"
+            + labels("train") + labels("test"))
+    lines = [head, "-" * len(head)]
+    for name, split in fed.nodes.items():
+        test = fed.test_of(name)
+        n_pat = len({*split.train.subjects, *split.val.subjects, *(split.test.subjects if split.test else [])})
+        shared = "" if split.test is not None else "*"
+        lines.append(f"{name:<16}{split.region:<8}{n_pat:>5}{len(split.train):>9}{len(split.val):>7}"
+                     f"{f'{len(test)}{shared}':>8}{split.n_gap_dropped:>5}{mix(split.train)}{mix(test)}")
+    if fed.holdout is not None:
+        lines.append(f"* shared held-out test set: subjects {fed.holdout.subjects}; validation is the "
+                     f"time-ordered tail of each node's own subject")
+    if fed.unused_sources:
+        lines.append(f"unused sources (in no node): {', '.join(fed.unused_sources)}")
     return "\n".join(lines)

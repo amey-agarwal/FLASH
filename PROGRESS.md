@@ -3,15 +3,105 @@
 Handoff log between sessions. Newest phase first. Assume no memory of prior sessions.
 
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
-removed; its Phases 13–18 are dropped. Phase H0 is at the gate (below). Next: Phase H1, in plan
-mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
+removed; its Phases 13–18 are dropped. Phase H0 is committed (`881045d`). Phase H1 is at the gate
+(below). Next: Phase H2 (location-shift simulation), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H0 — Branch setup and reproducibility lock — AT THE GATE (2026-11-15)
+## Phase H1 — Hierarchical topology config — AT THE GATE (2026-11-16)
 
 **Not committed.** Suggested message:
+`feat(config): phase H1 hierarchical topologies, per-node splits, result schema 2`.
+The commit also carries the `prereg/` deletion (user decision 2026-11-16).
+
+### Built
+- **Config (`config.py`):** `HierarchyConfig` with regions (`RegionConfig`), nodes (`NodeConfig`:
+  name, agency, sources), links (`LinkConfig`: latency, loss-of-signal profile, presets), the
+  global aggregator and its host, `min_participants`, split fractions.
+  - An experiment opts in with the top-level key `hierarchy: <file in configs/topologies/>`.
+    Default `null` (flat). It is left out of the run id when unset.
+  - **A hierarchy's nodes are also the silo list** (`HierarchyConfig.as_silos`), so the flat arms
+    will run over the same nodes. Setting both `silos` and `hierarchy` in an experiment is an error.
+  - Strict validation: unknown keys; duplicate region / aggregator / node names; a region with
+    fewer nodes than `min_participants`; a global aggregator hosted on an unknown aggregator;
+    unknown loss-of-signal profiles; fractions not summing to 1; a source listed by two nodes of
+    one region; sources missing (by_source) or present (one_subject_per_node).
+- **Topologies:** `configs/topologies/cinc15.yaml` (3 regions x 5 nodes, `min_participants: 5`,
+  Roscosmos/INCART LEO-only) and `wesad12.yaml` (3 x 4, `min_participants: 4`), per CLAUDE.md §4.
+  Link values are scenario assumptions, labelled in the files; links are consumed from H3.
+- **Partitioning (`data/partition.py`):** `make_hier_federation` -> `HierFederation` of
+  `NodeSplit(train, val, test)`, checked by `assert_hier_disjoint` on every call.
+  - `by_source` (CinC): a source's patients are divided across the regions that use it with
+    Dirichlet quantity shares (`quantity_alpha`), with a floor of `min_patients_per_node` (3)
+    per source per node; each node then splits its patients 70 / 10 / 20.
+  - `one_subject_per_node` (WESAD): the shared held-out subjects come from the same stream as
+    the flat path (so 13, 16, 17 on WESAD); each remaining subject is one node; validation is
+    the last 20% of the subject's windows, with 1 window dropped at the boundary.
+- **`fedastro inspect`** prints the per-node table (patients, n per split, train and test label
+  mix) for a hierarchical config. **`run` / `sweep` / `grid` refuse a hierarchy until H3.**
+- **Synthetic data:** optional `data.synthetic.group_names`, so synthetic groups can carry the
+  CinC source names. Left out of the run id when empty.
+- **Result schema "2"** (`metrics/schema.py`): `schema_version` plus the sections `topology`,
+  `shift`, `hierarchy`, `disagreement`, `secagg`, `updates`, `stream`, `calibration`, present in
+  every run with nulls. `topology.name` is filled now; the rest by their phases. Artifacts
+  without `schema_version` still validate as version "1". `shift.provenance` must be `SIMULATED`
+  and `secagg.simulated` must be true.
+- **Configs:** `experiments/smoke_hier.yaml` (synthetic on cinc15), `smoke_hier_wesad12.yaml`.
+- **Tests:** `tests/test_hierarchy_config.py` and `tests/test_node_partition.py` (46 new tests
+  in total).
+
+### Decisions (user approved 2026-11-16, "approve as recommended")
+1. Nodes act as the silo list for the existing arms.
+2. Schema bumped to "2" with every new section added at once. **`tests/golden/smoke_result.json`
+   was regenerated with this approval.** The diff is additions only (the new sections and
+   `schema_version`); no existing line changed. `golden.py ids`: every locked run id unchanged.
+3. WESAD validation = last 20% of each subject's windows, 1 boundary window dropped.
+4. At least 3 patients per node, else an error.
+5. Link schema reuses the existing loss-of-signal profile names and Mars presets. The
+   solar-conjunction blackout is added in H3.
+6. `fedastro run` refuses a hierarchical config until H3.
+
+### Decisions made while building (review these)
+1. **The by_source assignment does not depend on the run seed.** Which patient sits in which
+   node and split comes from `partition.holdout_seed` only, so validation and test membership
+   are frozen across the seeds of an experiment (CLAUDE.md §4b: "validation is frozen"). Seeds
+   then vary model initialisation and training only. Alternative: redraw the node assignment per
+   seed, which also moves every test set.
+2. **Under one_subject_per_node the subject -> node assignment follows the run seed** (as silo
+   membership does in the flat path); the held-out test set does not.
+3. **The 70 / 10 / 20 split counts patients, not windows** (test = round(0.2 n), val =
+   round(0.1 n), each at least 1).
+4. **A node's flat-arm latency is its path to the global aggregator** (node link + regional
+   link). Only relevant once comms is on (H3).
+5. `partition.holdout_subjects` must be set to 0 explicitly with a by_source hierarchy. The
+   ">= 1" rule for flat configs is unchanged (now checked at the experiment level).
+
+### Acceptance results
+| Check | Result |
+|---|---|
+| No patient in two nodes or two splits (tested) | **Yes.** `test_no_patient_in_two_nodes_or_two_splits`, `test_one_subject_per_node_with_shared_holdout`, and `test_disjointness_assertion_catches_a_leak` (a leak across nodes, across splits, and into the holdout each raise) |
+| The flat topology still loads | **Yes.** `test_flat_configs_still_load_without_a_hierarchy`; golden run ids unchanged; all 5 flat WESAD regression seeds reproduce |
+| Per-node size and label tables print on synthetic data | **Yes.** `fedastro inspect configs/experiments/smoke_hier.yaml` (15 nodes; 4 to 30 patients per node from the Dirichlet shares) and `smoke_hier_wesad12.yaml` (12 nodes, 31 train / 8 val windows, shared test set of 120) |
+| `pytest` | `caffeinate -i uv run --frozen pytest -m "slow or not slow"` (laptop, 2026-11-16): **271 passed, 1 skipped (CUDA), 1 warning** (the known sklearn notice), 21 min 02 s. That is 225 earlier + 46 new |
+
+### Caveats and open questions
+- **WESAD validation tails may be single-class.** The tail of a WESAD session is whatever
+  condition came last, so a node's validation set can lack a class. To check on real data at the
+  start of H3/H5 (`fedastro inspect` shows train and test mixes only; add the validation mix
+  then if needed).
+- **Synthetic groups are equal-sized,** so the smoke table does not show INCART as the tiny
+  silo. Real quantity skew appears with the real sources (H10).
+- **CinC source names** (`g12ec`, `ptbxl`, `ptb`, `incart`, `ningbo`, `chapman`, `cpsc`,
+  `cpsc_extra`) are provisional until the H10 loader defines the group names.
+- The full suite took 21 min this time against 11 min for H0, with only seconds of new tests.
+  Not investigated.
+
+---
+
+## Phase H0 — Branch setup and reproducibility lock — COMPLETE (2026-11-15), committed `881045d`
+
+Committed as
 `test(regression): phase H0 flat WESAD reproducibility lock and PREREG skeleton`.
 
 ### Session start
@@ -40,7 +130,7 @@ mode first.** Everything below the H0 entry is the record of the earlier plans; 
 2. **The lock is golden Tier A plus the new regression test.** It does not wait for the cluster
    Tier B freeze.
 3. **The Phase 12 redraw run and the Tier B freeze are dropped as superseded.**
-   `prereg/p12-wesad-redraws.md` was never run and is kept for the record.
+   `prereg/p12-wesad-redraws.md` was never run (deleted 2026-11-16, in git history).
    `tests/golden/metrics.json` stays `PENDING`.
 4. **The schema bump to "2" is deferred to Phase H1.** It changes the byte-locked
    `tests/golden/smoke_result.json`, so regenerating that file needs the user's approval then.
@@ -54,8 +144,8 @@ mode first.** Everything below the H0 entry is the record of the earlier plans; 
 | Branch point tagged | **Yes:** `pre-hier-fl` on `c20c455` (by the user) |
 
 ### Open questions
-- CLAUDE.md §3 lists `PREREG.md` only; the old `prereg/` directory still exists. Keep it, or
-  delete it once the user confirms the Phase 12 run will never happen?
+- ~~Keep or delete the old `prereg/` directory?~~ **Deleted 2026-11-16 (user decision).** It
+  stays in git history (`881045d`). Mentions of CLAUDE2.md anywhere are history, not instructions.
 - `Makefile` and `scripts/golden.py` comments still cite CLAUDE2.md. Left alone in H0 (not in
   the approved plan); a one-line cleanup for a later phase.
 

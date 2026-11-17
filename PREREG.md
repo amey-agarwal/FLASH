@@ -12,8 +12,8 @@ Scope notes that apply to everything here (CLAUDE.md §2):
 - The location shift is **simulated**. Secure aggregation is a **protocol simulation**.
 - If federated or hierarchical FL loses to a baseline, that is a result and is reported.
 
-Earlier pre-registration (previous plan, kept for the record, **not run, superseded**):
-[`prereg/p12-wesad-redraws.md`](prereg/p12-wesad-redraws.md).
+The earlier pre-registration `prereg/p12-wesad-redraws.md` (previous plan) was never run and was
+deleted on 2026-11-16 at the user's request; it remains in git history (`881045d`).
 
 ## 1. Hypotheses
 

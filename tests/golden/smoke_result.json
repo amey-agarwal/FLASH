@@ -364,6 +364,9 @@
       }
     }
   },
+  "calibration": {
+    "ece": {}
+  },
   "comms": {
     "los_events": [],
     "preset": null
@@ -469,6 +472,13 @@
       "weight_decay": 0.0001
     }
   },
+  "disagreement": {
+    "acc_agree": null,
+    "acc_disagree": null,
+    "global": {},
+    "per_node": {},
+    "per_region": {}
+  },
   "drift": {
     "detected_round": null,
     "enabled": false,
@@ -506,6 +516,12 @@
     "metric": "holdout recall re-weighted to each silo's training label mix"
   },
   "git_sha": "GOLDEN-MASKED",
+  "hierarchy": {
+    "global": {},
+    "per_node": {},
+    "per_region": {},
+    "rounds": []
+  },
   "holdout": {
     "label_counts": {
       "class_0": 29,
@@ -548,7 +564,21 @@
     }
   ],
   "run_id": "smoke-seed0-fde671b54c",
+  "schema_version": "2",
+  "secagg": {
+    "dropout_recoveries": 0,
+    "enabled": false,
+    "overhead_bytes": 0,
+    "overhead_sim_s": 0.0,
+    "simulated": true
+  },
   "seed": 0,
+  "shift": {
+    "enabled": false,
+    "kind": null,
+    "magnitude": 0.0,
+    "provenance": "SIMULATED"
+  },
   "silos": [
     {
       "label_counts": {
@@ -638,5 +668,21 @@
       "target_proportions": null
     }
   ],
-  "timestamp_utc": "1970-01-01T00:00:00Z"
+  "stream": {
+    "enabled": false,
+    "label_delay_rounds": null,
+    "label_fraction": null,
+    "test_then_train": {}
+  },
+  "timestamp_utc": "1970-01-01T00:00:00Z",
+  "topology": {
+    "aggregators": [],
+    "min_participants": null,
+    "name": "five_agency",
+    "regions": []
+  },
+  "updates": {
+    "events": [],
+    "tolerance": null
+  }
 }

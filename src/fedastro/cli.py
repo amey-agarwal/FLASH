@@ -12,7 +12,8 @@ from pathlib import Path
 from fedastro.config import ConfigError, load_config
 from fedastro.manifest import dumps
 from fedastro.metrics.aggregate import format_summary, load_results, summarise
-from fedastro.pipeline import build_federation, format_distribution_table, run_and_write
+from fedastro.pipeline import (HIER_RUN_MESSAGE, build_federation, build_hier_federation,
+                               format_distribution_table, format_node_table, run_and_write)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -149,6 +150,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"config error: --draw {args.draw} not in [0, evaluation.holdout_draws = "
               f"{cfg.evaluation.holdout_draws})", file=sys.stderr)
         return 2
+    if cfg.hierarchy is not None:
+        if args.command != "inspect":
+            print(f"config error: {HIER_RUN_MESSAGE}", file=sys.stderr)
+            return 2
+        bundle, hfed = build_hier_federation(cfg, cfg.seed)
+        p, h = bundle.provenance, cfg.hierarchy
+        print(f"dataset={p.dataset} kind={p.kind} version={p.version}")
+        print(f"hierarchy={h.name} partition={h.partition} min_participants={h.min_participants} "
+              f"seed={cfg.seed} (region, agency and node names are scenario labels)")
+        print(format_node_table(hfed, bundle.class_names))
+        return 0
     if args.command == "inspect":
         bundle, fed = build_federation(cfg, cfg.seed, args.draw)
         p = bundle.provenance

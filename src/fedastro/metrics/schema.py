@@ -11,7 +11,10 @@ from typing import Any
 
 from fedastro.data.base import DOMAINS
 
-SCHEMA_VERSION = "1"
+# "2" (branch hier-fl, Phase H1) adds schema_version itself and the sections topology,
+# shift, hierarchy, disagreement, secagg, updates, stream and calibration. Every "1" field
+# is unchanged. Artifacts without schema_version are version "1" and stay valid.
+SCHEMA_VERSION = "2"
 
 
 class SchemaError(ValueError):
@@ -20,6 +23,7 @@ class SchemaError(ValueError):
 
 def empty_result() -> dict[str, Any]:
     return {
+        "schema_version": SCHEMA_VERSION,
         "run_id": "",
         "git_sha": "",
         "timestamp_utc": "",
@@ -42,6 +46,21 @@ def empty_result() -> dict[str, Any]:
         "comms": {"preset": None, "los_events": []},
         "drift": {"enabled": False, "onset_round": None, "detected_round": None},
         "notes": "",
+        # Schema "2" sections. Present in every run; null/empty until the phase that fills
+        # them (hierarchy and disagreement H3, secagg H4, updates H5, calibration H6, stream H7).
+        "topology": {"name": None, "regions": [], "aggregators": [], "min_participants": None},
+        # provenance is always SIMULATED: no dataset here has a measured location shift.
+        "shift": {"enabled": False, "kind": None, "magnitude": 0.0, "provenance": "SIMULATED"},
+        "hierarchy": {"rounds": [], "per_node": {}, "per_region": {}, "global": {}},
+        "disagreement": {"per_node": {}, "per_region": {}, "global": {},
+                         "acc_agree": None, "acc_disagree": None},
+        # simulated is always true: a protocol simulation, not a cryptographic implementation.
+        "secagg": {"enabled": False, "simulated": True, "overhead_bytes": 0,
+                   "overhead_sim_s": 0.0, "dropout_recoveries": 0},
+        "updates": {"tolerance": None, "events": []},
+        "stream": {"enabled": False, "label_fraction": None, "label_delay_rounds": None,
+                   "test_then_train": {}},
+        "calibration": {"ece": {}},
     }
 
 
@@ -84,6 +103,47 @@ _REQUIRED: list[tuple[str, tuple]] = [
     ("notes", (str,)),
 ]
 
+_NULL = type(None)
+_REQUIRED_V2: list[tuple[str, tuple]] = [
+    ("topology", (dict,)),
+    ("topology.name", (str, _NULL)),
+    ("topology.regions", (list,)),
+    ("topology.aggregators", (list,)),
+    ("topology.min_participants", (int, _NULL)),
+    ("shift", (dict,)),
+    ("shift.enabled", (bool,)),
+    ("shift.kind", (str, _NULL)),
+    ("shift.magnitude", _NUM),
+    ("shift.provenance", (str,)),
+    ("hierarchy", (dict,)),
+    ("hierarchy.rounds", (list,)),
+    ("hierarchy.per_node", (dict,)),
+    ("hierarchy.per_region", (dict,)),
+    ("hierarchy.global", (dict,)),
+    ("disagreement", (dict,)),
+    ("disagreement.per_node", (dict,)),
+    ("disagreement.per_region", (dict,)),
+    ("disagreement.global", (dict,)),
+    ("disagreement.acc_agree", (*_NUM, _NULL)),
+    ("disagreement.acc_disagree", (*_NUM, _NULL)),
+    ("secagg", (dict,)),
+    ("secagg.enabled", (bool,)),
+    ("secagg.simulated", (bool,)),
+    ("secagg.overhead_bytes", (int,)),
+    ("secagg.overhead_sim_s", _NUM),
+    ("secagg.dropout_recoveries", (int,)),
+    ("updates", (dict,)),
+    ("updates.tolerance", (*_NUM, _NULL)),
+    ("updates.events", (list,)),
+    ("stream", (dict,)),
+    ("stream.enabled", (bool,)),
+    ("stream.label_fraction", (*_NUM, _NULL)),
+    ("stream.label_delay_rounds", (int, _NULL)),
+    ("stream.test_then_train", (dict,)),
+    ("calibration", (dict,)),
+    ("calibration.ece", (dict,)),
+]
+
 _PROVENANCE_KEYS = ("dataset", "version", "checksum")
 # Optional (CLAUDE2.md section 6): absent in artifacts that predate them, checked when present.
 _GROUPS_KEYS = {"silo_to_groups": (dict,), "holdout_groups": (list,), "unused_groups": (list,)}
@@ -119,6 +179,14 @@ def _check(value: Any, types: tuple, where: str) -> None:
 def validate_result(result: dict[str, Any]) -> None:
     for path, types in _REQUIRED:
         _check(_get(result, path), types, path)
+    version = result.get("schema_version", "1")
+    if version not in ("1", "2"):
+        raise SchemaError(f"schema_version: unknown version {version!r}")
+    if version == "2":
+        for path, types in _REQUIRED_V2:
+            _check(_get(result, path), types, path)
+        if result["shift"]["provenance"] != "SIMULATED" or result["secagg"]["simulated"] is not True:
+            raise SchemaError("shift.provenance must be 'SIMULATED' and secagg.simulated must be true")
     if not result["provenance"]:
         raise SchemaError("provenance must list at least one dataset")
     for i, p in enumerate(result["provenance"]):

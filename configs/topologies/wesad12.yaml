@@ -1,0 +1,55 @@
+# Hierarchical topology for WESAD (CLAUDE.md section 4c): 3 regions x 4 nodes.
+# Region, aggregator, agency and node names are SCENARIO LABELS for a simulation, never real
+# deployments or data holders. Every latency and loss-of-signal profile below is a scenario
+# assumption unless a source is named. Links are consumed from Phase H3 onward.
+#
+# node_link:   node <-> its regional aggregator (short light-time, contact windows).
+# global_link: regional aggregator <-> agg_global. agg_global is hosted at agg_leo, so the
+#   LEO link is zero. Moon ~1.3 s one-way (Earth-Moon light time ~1.2-1.3 s), periodic loss
+#   of signal. Mars uses the existing presets (near 182 s, mean 751 s, far 1337 s); the
+#   solar-conjunction blackout window is added in Phase H3.
+#
+# WESAD has 12 training subjects after the 3 held-out ones, so each node is ONE subject
+# (assigned from the run seed). The test set is the shared held-out subjects. A node's
+# validation set is the time-ordered last 20% of its subject's windows, used only for the
+# update gate and tuning; one window is dropped at the boundary because neighbouring
+# windows (60 s long, 30 s stride) overlap. Agency labels only name the nodes.
+name: wesad12
+partition: one_subject_per_node
+min_participants: 4
+train_frac: 0.8
+val_frac: 0.2
+test_frac: 0.0
+val_gap_windows: 1
+global_aggregator: {name: agg_global, host: agg_leo}
+regions:
+  - name: leo
+    aggregator: agg_leo
+    node_link: {one_way_latency_s: 0.01, los_profile: short_occasional}
+    global_link: {one_way_latency_s: 0.0, los_profile: none}
+    nodes:
+      - {name: leo_nasa, agency: nasa}
+      - {name: leo_esa, agency: esa}
+      - {name: leo_cmsa, agency: cmsa}
+      - {name: leo_partner, agency: partner}
+  - name: moon
+    aggregator: agg_moon
+    node_link: {one_way_latency_s: 0.01, los_profile: periodic}
+    global_link: {one_way_latency_s: 1.3, los_profile: periodic}
+    nodes:
+      - {name: moon_nasa, agency: nasa}
+      - {name: moon_esa, agency: esa}
+      - {name: moon_cmsa, agency: cmsa}
+      - {name: moon_partner, agency: partner}
+  - name: mars
+    aggregator: agg_mars
+    node_link: {one_way_latency_s: 0.06, los_profile: periodic}
+    global_link:
+      one_way_latency_s: 751.0        # default = mean preset
+      los_profile: long_blackout
+      latency_presets_s: {near: 182.0, mean: 751.0, far: 1337.0}
+    nodes:
+      - {name: mars_nasa, agency: nasa}
+      - {name: mars_esa, agency: esa}
+      - {name: mars_cmsa, agency: cmsa}
+      - {name: mars_partner, agency: partner}
