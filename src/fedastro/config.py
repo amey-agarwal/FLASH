@@ -37,7 +37,8 @@ DATASETS = dataset_names()  # from the registry in fedastro/data/__init__.py
 PARTITION_METHODS = ("by_subject", "by_site", "dirichlet", "dirichlet_quantity_control", "by_group")
 DIRICHLET_METHODS = ("dirichlet", "dirichlet_quantity_control")
 WESAD_DEVICES = ("chest", "wrist")
-ARCHS = ("mlp", "cnn1d")
+ARCHS = ("mlp", "cnn1d", "logreg")
+FEATURE_ARCHS = ("mlp", "logreg")  # need feature input; cnn1d needs sequences
 OPTIMIZERS = ("adam", "sgd")
 CLASS_WEIGHTING = ("none", "balanced")
 # "hierarchical" (Phase H3, fl/hierarchy.py) needs a hierarchy and the local_only arm.
@@ -77,8 +78,17 @@ class SyntheticParams:
     # Optional names for the groups (default group_0..), so synthetic data can stand in
     # for a real dataset's sources when smoke-testing a hierarchical topology.
     group_names: tuple[str, ...] = ()
+    # Phase H6: "sequence" turns each window's feature vector into n_features channels of
+    # seq_length steps (channel level = the feature value, plus seeded AR(1) noise), for
+    # 1D-CNN smoke tests. Still SYNTHETIC. Defaults are left out of the run id.
+    representation: str = "features"
+    seq_length: int = 32
 
     def validate(self) -> None:
+        if self.representation not in REPRESENTATIONS:
+            raise ConfigError(f"data.synthetic.representation must be one of {REPRESENTATIONS}")
+        if self.seq_length < 4:
+            raise ConfigError("data.synthetic.seq_length must be >= 4")
         for name in ("n_subjects", "windows_per_subject", "n_features", "n_classes"):
             if getattr(self, name) < 1:
                 raise ConfigError(f"data.synthetic.{name} must be >= 1")
@@ -500,6 +510,18 @@ class UpdatesConfig:
 
 
 @dataclass(frozen=True)
+class CalibrationConfig:
+    """Top-label expected calibration error over equal-width confidence bins (Phase H6)."""
+
+    enabled: bool = False
+    n_bins: int = 10
+
+    def validate(self) -> None:
+        if not 2 <= self.n_bins <= 50:
+            raise ConfigError("calibration.n_bins must be in [2, 50]")
+
+
+@dataclass(frozen=True)
 class PartitionConfig:
     method: str = "by_subject"
     # Dirichlet concentration; required (> 0) for the two dirichlet methods.
@@ -873,6 +895,9 @@ class ExperimentConfig:
     hier_fl: HierFLConfig = field(default_factory=HierFLConfig)  # the hierarchical arm only
     secagg: SecAggConfig = field(default_factory=SecAggConfig)  # the hierarchical arm only
     updates: UpdatesConfig = field(default_factory=UpdatesConfig)  # the hierarchical arm only
+    # Phase H6: ECE and reliability bins. Always computed in hierarchical runs (with the
+    # defaults below); flat runs only with enabled: true, so locked flat results are unchanged.
+    calibration: CalibrationConfig = field(default_factory=CalibrationConfig)
     # Live demo only: sleep simulated link time x this factor (0 = never sleep).
     # Execution detail, excluded from the run id.
     real_sleep_scale: float = 0.0
@@ -900,6 +925,7 @@ class ExperimentConfig:
         self.hier_fl.validate()
         self.secagg.validate()
         self.updates.validate()
+        self.calibration.validate()
         hier = self.hierarchy
         self._validate_hierarchical_arm()
         if self.shift.enabled and hier is None:
@@ -964,11 +990,15 @@ class ExperimentConfig:
             raise ConfigError("device 'cuda' with the federated arm needs resources.client_num_gpus > 0")
         if any(a not in ARMS for a in self.arms) or len(set(self.arms)) != len(self.arms):
             raise ConfigError(f"arms must be distinct entries from {ARMS}")
-        sequence_input = self.data.name == "wesad" and self.data.wesad.representation == "sequence"
+        sequence_input = (self.data.name == "wesad" and self.data.wesad.representation == "sequence") or \
+            (self.data.name == "synthetic" and self.data.synthetic.representation == "sequence")
         if self.model.arch == "cnn1d" and not sequence_input:
-            raise ConfigError("model.arch 'cnn1d' needs data.wesad.representation 'sequence'")
-        if self.model.arch == "mlp" and sequence_input:
-            raise ConfigError("model.arch 'mlp' needs feature input, not 'sequence'")
+            raise ConfigError("model.arch 'cnn1d' needs sequence input (data.<dataset>.representation 'sequence')")
+        if self.model.arch in FEATURE_ARCHS and sequence_input:
+            raise ConfigError(f"model.arch {self.model.arch!r} needs feature input, not 'sequence'")
+        cal = self.calibration
+        if not cal.enabled and cal != CalibrationConfig():
+            raise ConfigError("calibration settings need calibration.enabled (the defaults apply otherwise)")
         if self.privacy.enabled:
             if self.train.class_weighting != "none":
                 # balanced weights are a function of the whole dataset's label counts,
@@ -1073,6 +1103,11 @@ class ExperimentConfig:
         # Phase 11 fields: absent when unused, so earlier run ids are unchanged.
         if "synthetic" in d["data"] and not self.data.synthetic.n_groups:
             d["data"]["synthetic"].pop("n_groups")
+        if "synthetic" in d["data"] and self.data.synthetic.representation == "features":  # Phase H6
+            d["data"]["synthetic"].pop("representation")
+            d["data"]["synthetic"].pop("seq_length")
+        if not self.calibration.enabled:  # Phase H6 block, same rule
+            d.pop("calibration")
         if "synthetic" in d["data"] and not self.data.synthetic.group_names:
             d["data"]["synthetic"].pop("group_names")
         if self.hierarchy is None:  # Phase H1 block, same rule

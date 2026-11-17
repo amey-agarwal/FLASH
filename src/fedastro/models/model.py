@@ -27,6 +27,18 @@ class MLP(nn.Module):
         return self.net(x)
 
 
+class LogReg(nn.Module):
+    """Multinomial logistic regression: one linear layer; the softmax is in the loss
+    (cross-entropy) and in predict_proba. No hidden layer, no dropout (Phase H6)."""
+
+    def __init__(self, in_features: int, n_classes: int):
+        super().__init__()
+        self.net = nn.Linear(in_features, n_classes)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+
 class CNN1D(nn.Module):
     """Conv blocks (Conv1d -> GroupNorm -> ReLU -> MaxPool), global average pool, linear head."""
 
@@ -57,6 +69,10 @@ def build_model(cfg: ModelConfig, input_shape: tuple[int, ...], n_classes: int) 
         if len(input_shape) != 1:
             raise ValueError(f"mlp expects 1-D input, got shape {input_shape}")
         return MLP(input_shape[0], cfg.hidden, n_classes, cfg.dropout)
+    if cfg.arch == "logreg":
+        if len(input_shape) != 1:
+            raise ValueError(f"logreg expects 1-D input, got shape {input_shape}")
+        return LogReg(input_shape[0], n_classes)
     if cfg.arch == "cnn1d":
         if len(input_shape) != 2:
             raise ValueError(f"cnn1d expects (channels, length) input, got shape {input_shape}")

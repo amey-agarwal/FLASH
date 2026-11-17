@@ -4,16 +4,113 @@ Handoff log between sessions. Newest phase first. Assume no memory of prior sess
 
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
 removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`), H2 (`9590007`), H3
-(`836bad2`) and H4 (`b19f28b`) are committed. Phase H5 is at the gate (below). Next: Phase H6
-(model comparison), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
+(`836bad2`), H4 (`b19f28b`) and H5 (`e9738f9`, `3d5812a`) are committed. Phase H6 is at the gate
+(below). Next: Phase H7 (test-then-train evaluation), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H5 — On-the-fly model updates and terminal peek — AT THE GATE (2026-11-17)
+## Phase H6 — Model comparison — AT THE GATE (2026-11-17)
 
 **Not committed.** Suggested message:
-`feat(fl): phase H5 validation-gated model versions and read-only terminal peek`.
+`feat(models): phase H6 logreg, calibration (ECE) and per-run model report`.
+
+### Built
+- **`models/model.py`:** `LogReg` (`arch: logreg`), one linear layer, softmax in the loss. With 8
+  features and 3 classes it has 27 parameters.
+- **Input rule (config):** logreg and MLP need feature input, the 1D-CNN needs sequences, for
+  WESAD and synthetic data alike.
+- **`data/synthetic.py`:** `representation: sequence` (`seq_length`, default 32): each window's
+  feature vector becomes `n_features` channels at that level plus seeded AR(1) noise (phi 0.8,
+  unit variance, own rng stream). SYNTHETIC; the default feature data is byte-identical.
+- **`metrics/calibration.py`:** top-label ECE and reliability bins (10 equal-width bins; counts
+  reported). `result.calibration` = ece and reliability per model, n_bins, scope.
+- **`metrics/model_report.py`:** `result.model_report` = arch, n_params, payload_bytes, and one row
+  per model: accuracy, macro-F1, AUC, ECE, worst-node accuracy (+ node).
+  - Hierarchical runs (always): every model on each node's own test set, pooled (local, regional,
+    global, flat_federated, centralized, deployed_* with the gate on).
+  - Flat runs (only with `calibration.enabled: true`): each arm on the shared holdout; worst node
+    only for local_only.
+- **`metrics/aggregate.py`:** `summarize` and `grid --report` show the model report as mean ± std
+  over seeds, with the worst-node counts.
+- **Schema:** optional `model_report` checked when present.
+- **Config:** `calibration` block (`enabled`, `n_bins`); out of the run id unless enabled; non-default
+  `n_bins` needs `enabled`. Synthetic `representation` / `seq_length` out of the run id at defaults.
+- **Configs:** `experiments/smoke_hier_models.yaml` (cinc15, SYNTHETIC, shift on, every arm, 2
+  rounds); `sweeps/model_families_smoke.yaml`; `experiments/wesad12_hier.yaml` and
+  `sweeps/model_families_wesad12.yaml` (real WESAD; **not run**; to be frozen in PREREG §6 before H9).
+- **Tests:** `tests/test_models_h6.py` (12).
+
+### Acceptance
+| Check | Result |
+|---|---|
+| All three architectures run through every arm and the hierarchy, and appear in the result schema | `test_every_family_runs_through_every_arm_and_the_hierarchy[logreg|mlp|cnn1d]`: centralized, local_only, federated, ensemble_of_locals and hierarchical on cinc15 synthetic; `result.model_report` and `result.calibration` filled and schema-valid. Real time per run 37-42 s (laptop CPU). |
+| Flat locks unchanged | Golden smoke result byte-identical and every golden run id unchanged (test_golden); flat WESAD regression passes; with `calibration.enabled` the smoke arms equal the golden arms exactly. |
+
+Model report, `model_families_smoke`, **SYNTHETIC**, seed 0, 2 rounds x 2 epochs (a mechanism
+check, not a result; each node's own test set pooled):
+
+| arch | params | payload B | model | acc | macro-F1 | AUC | ECE | worst node acc |
+|---|---|---|---|---|---|---|---|---|
+| logreg | 27 | 108 | centralized | 0.623 | 0.610 | 0.797 | 0.075 | 0.300 |
+| | | | local | 0.371 | 0.362 | 0.533 | 0.161 | 0.125 |
+| | | | regional | 0.256 | 0.226 | 0.402 | 0.242 | 0.025 |
+| | | | global | 0.252 | 0.221 | 0.390 | 0.247 | 0.025 |
+| mlp | 2755 | 11020 | centralized | 0.798 | 0.798 | 0.934 | 0.082 | 0.600 |
+| | | | local | 0.654 | 0.649 | 0.813 | 0.271 | 0.200 |
+| | | | regional | 0.642 | 0.596 | 0.851 | 0.266 | 0.300 |
+| | | | global | 0.504 | 0.431 | 0.729 | 0.134 | 0.300 |
+| cnn1d | 3443 | 13772 | centralized | 0.821 | 0.821 | 0.944 | 0.068 | 0.700 |
+| | | | local | 0.746 | 0.744 | 0.895 | 0.261 | 0.000 |
+| | | | regional | 0.740 | 0.739 | 0.920 | 0.264 | 0.400 |
+| | | | global | 0.592 | 0.583 | 0.791 | 0.153 | 0.400 |
+
+**logreg is undertrained in this smoke config, not broken:** at lr 1e-3, 2 epochs on ~150 windows
+is about 10 optimizer steps, and its weights move ~0.016 (mean |dw|) from the initialisation, so its
+federated models stay near the (arbitrary) initial model: AUC below 0.5, and `global` and
+`flat_federated` give identical predictions on every node. On one node, local logreg reaches test
+accuracy 0.675 after 2 epochs and 0.975 after 30 (checked). The CNN numbers come from synthetic
+sequences, which are not the same data as the synthetic features.
+
+### Decisions (user approved 2026-11-17, "approve as recommended")
+1. Calibration always in hierarchical runs; flat runs opt in (`calibration.enabled`), so the locked
+   flat golden result and every run id are unchanged.
+2. Top-label ECE, 10 equal-width bins.
+3. CNN smoke input = synthetic sequences.
+4. Worst-node accuracy from per-node test sets (hierarchical); flat runs: local_only only.
+5. One architecture per run; the comparison is a sweep.
+6. Architecture settings unchanged (MLP 64-32, CNN 16-32 k5); tuning belongs to H8 (validation only).
+
+### Decisions made while building (review these)
+1. **No new sweep key.** The grid already had `variants:` (explicit override lists), so the planned
+   `cases:` key was not added.
+2. **Hierarchical ECE uses the per-node pooled test sets only**; the flat arms' shared-holdout ECE is
+   not repeated there (local / flat_federated / centralized are in the per-node table).
+3. **local_only ECE in flat runs** = the mean of the silos' ECE (as the arm's other metrics).
+4. ECE is computed from the models already kept for evaluation; keeping them changes no arm result
+   (tested against the golden smoke result).
+
+### Tests
+Full suite including slow tests (`pytest -m ""`): **347 passed, 1 skipped, 0 failed** (343 in
+the main run, 19 min 42 s; 4 tests deselected there by a mistaken `-k` filter, run separately:
+4 passed).
+
+Flaky (Ray infrastructure, as in H4): `test_secagg.py::test_one_region_flat_equivalence_holds_with_secagg`
+failed twice (once in an earlier `-x` suite run, once standalone, both with a
+PytestUnhandledThreadExceptionWarning from a Flower/Ray thread, one at 58 s vs a usual 36 s), then
+passed 4 times in a row, including in the full run. No code it uses changed except additive return
+values.
+
+### Deferrals / open questions
+- **Equal training budget across families (H4 fairness).** One `train` / `fl` budget for all three
+  families favours the faster-converging ones; the smoke run shows logreg barely moving at lr 1e-3.
+  Recommendation: the H8 grid tunes lr and local epochs **per family** on validation, and H9 uses
+  each family's selected setting (to be frozen in PREREG §5).
+- `sweeps/model_families_wesad12.yaml` is not run; its rounds and seeds go into PREREG §6 before H9.
+
+---
+
+## Phase H5 — On-the-fly model updates and terminal peek — COMMITTED `e9738f9` (2026-11-17)
 
 ### Built
 - **`fl/versioning.py`:** `UpdateGate`. Every node holds a deployed **regional** and **global**

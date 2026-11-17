@@ -754,8 +754,10 @@ def evaluate_hierarchy(fed: HierFederation, cfg: ExperimentConfig, run: dict[str
                     **{m: evaluate(ys[n], probas[n][m]) for m in models}} for n in probas}
     per_region = {r.name: pooled([n.name for n in r.nodes]) for r in h.regions}
     preds = {n: {m: probas[n][m].argmax(axis=1) for m in ("local", "regional", "global")} for n in probas}
+    y_all = np.concatenate([ys[n] for n in probas])
+    pooled_proba = {m: (y_all, np.concatenate([probas[n][m] for n in probas])) for m in models}
     return {"per_node": per_node, "per_region": per_region, "global": pooled(list(probas)),
-            "disagreement": disagreement_report(ys, preds, region_of)}
+            "disagreement": disagreement_report(ys, preds, region_of), "pooled_proba": pooled_proba}
 
 
 def arm_summary(cfg: ExperimentConfig, run: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:

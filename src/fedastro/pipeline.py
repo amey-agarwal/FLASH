@@ -224,6 +224,13 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict
                                "per_node": metrics["per_node"], "per_region": metrics["per_region"],
                                "global": metrics["global"], "comms": comms_section(cfg, run)}
         result["disagreement"] = metrics["disagreement"]
+        from fedastro.metrics.calibration import calibration_section
+        from fedastro.metrics.model_report import hier_report
+
+        result["calibration"] = calibration_section(metrics["pooled_proba"], cfg.calibration.n_bins,
+                                                    "each node's own test set, pooled")
+        result["model_report"] = hier_report(cfg.model.arch, run["n_params"], run["payload_bytes"], metrics,
+                                             result["calibration"])
         if (sa := secagg_section(cfg, run)) is not None:
             result["secagg"] = sa
         if run["gate"] is not None:
@@ -261,6 +268,32 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict
     return result
 
 
+def flat_calibration(cfg: ExperimentConfig, fed: Federation, result: dict[str, Any], capture: dict[str, Any]) -> None:
+    """Phase H6, flat runs with calibration.enabled: ECE per arm on the held-out set
+    (local_only: the mean of the silos' ECE, as the arm's other metrics) and the model report."""
+    from fedastro.baselines.common import init_model
+    from fedastro.evaluation import arm_probabilities
+    from fedastro.fl.client import get_weights
+    from fedastro.metrics.calibration import calibration_section, ece
+    from fedastro.metrics.comms import payload_bytes
+    from fedastro.metrics.model_report import flat_report
+    from fedastro.models.model import count_parameters
+
+    y = fed.holdout.y
+    probas = arm_probabilities(cfg, fed, capture["models"], capture, capture["device"])
+    nb = cfg.calibration.n_bins
+    section = calibration_section({a: (y, p) for a, p in probas.items() if a != "local_only"}, nb,
+                                  "shared held-out set")
+    if "local_only" in probas:
+        per = {s: ece(y, p, nb) for s, p in probas["local_only"].items()}
+        section["ece"]["local_only"] = float(sum(per.values()) / len(per))
+        section["ece_local_only_per_silo"] = per
+    result["calibration"] = section
+    model = init_model(cfg, fed.holdout.X.shape[1:], len(fed.holdout.class_names), seed=0)
+    result["model_report"] = flat_report(cfg.model.arch, count_parameters(model), payload_bytes(get_weights(model)),
+                                         result["arms"], tuple(a for a in cfg.arms if a in probas), section)
+
+
 def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0, on_round=None) -> dict[str, Any]:
     """``on_round(rec, update_events)``: called after each hierarchical round (progress file)."""
     if cfg.hierarchy is not None:
@@ -284,7 +317,7 @@ def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0, on_round=Non
     )
     if fed.groups is not None:
         result["groups"] = fed.groups
-    capture = run_arms(cfg, fed, seed, result)
+    capture = run_arms(cfg, fed, seed, result, keep_models=cfg.calibration.enabled)
     if "comms" in capture:
         result["comms"] = capture["comms"]
     result["privacy"] = privacy_report(cfg, fed, seed, result, capture)
@@ -304,6 +337,8 @@ def run_experiment(cfg: ExperimentConfig, seed: int, draw: int = 0, on_round=Non
         if "ensemble_of_locals" in result["arms"]:
             result["arms"]["ensemble_of_locals"]["per_holdout_group"] = {
                 g: row["ensemble_of_locals"] for g, row in result["evaluation"]["per_holdout_group"].items()}
+    if cfg.calibration.enabled:
+        flat_calibration(cfg, fed, result, capture)
     notes = []
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")

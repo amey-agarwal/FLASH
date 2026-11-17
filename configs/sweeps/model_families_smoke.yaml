@@ -1,0 +1,8 @@
+# Phase H6: the three model families through every arm and the hierarchy, SYNTHETIC data.
+# Features feed logreg and the MLP; sequences feed the 1D-CNN (paired via 'variants').
+name: model_families_smoke
+base: ../experiments/smoke_hier_models.yaml
+variants:
+  - {model.arch: logreg}
+  - {model.arch: mlp}
+  - {model.arch: cnn1d, data.synthetic.representation: sequence}

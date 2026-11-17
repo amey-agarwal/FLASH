@@ -1,0 +1,14 @@
+# Hierarchical WESAD (CLAUDE.md section 4c): 12 node subjects, 4 per region, the existing
+# held-out subjects as the test set. Base for the Phase H6 model-family sweep
+# (configs/sweeps/model_families_wesad12.yaml). NOT run in Phase H6: rounds, seeds and the
+# shift arms are fixed in PREREG.md section 6 before Phase H9.
+name: wesad12_hier
+seed: 0
+seeds: [0, 1, 2, 3, 4]
+hierarchy: wesad12
+data:
+  name: wesad
+partition:
+  holdout_subjects: 3
+arms: [centralized, local_only, federated, ensemble_of_locals, hierarchical]
+notes: "Hierarchical WESAD (wesad12)."

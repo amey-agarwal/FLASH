@@ -106,7 +106,25 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
     privacy = _summarise_privacy(results)
     if privacy:
         summary["privacy"] = privacy
+    if all("model_report" in r for r in results):  # Phase H6
+        summary["model_report"] = _summarise_model_report(results)
     return summary
+
+
+MODEL_REPORT_METRICS = ("accuracy", "macro_f1", "auc", "ece", "worst_node_accuracy")
+
+
+def _summarise_model_report(results: list[dict[str, Any]]) -> dict[str, Any]:
+    first = results[0]["model_report"]
+    rows = {}
+    for model in first["rows"]:
+        rows[model] = {m: _mean_std([r["model_report"]["rows"][model][m] for r in results
+                                     if r["model_report"]["rows"][model][m] is not None])
+                       for m in MODEL_REPORT_METRICS}
+        worst = [r["model_report"]["rows"][model]["worst_node"] for r in results]
+        rows[model]["worst_node_counts"] = {n: worst.count(n) for n in sorted({w for w in worst if w})}
+    return {"arch": first["arch"], "n_params": first["n_params"], "payload_bytes": first["payload_bytes"],
+            "scope": first["scope"], "rows": rows}
 
 
 ATTACK_METRICS = ("mse", "rel_mse", "corr", "nn_identified")
@@ -279,6 +297,13 @@ def format_summary(summary: dict[str, Any]) -> str:
                 lines.append(f"  {key:<34} rel_mse {fmt(c['rel_mse'])} {ci(c['ci95']['rel_mse'])}  "
                              f"nn_id {fmt(c['nn_identified'])} {ci(c['ci95']['nn_identified'])}  "
                              f"chance nn_id {fmt(c['chance']['nn_identified'])}{la}")
+    if "model_report" in summary:
+        mr = summary["model_report"]
+        lines.append(f"model report: arch {mr['arch']}, {mr['n_params']} parameters, payload {mr['payload_bytes']} B "
+                     f"({mr['scope']})")
+        lines.append(f"  {'model':<20}" + "".join(f"{m:>22}" for m in MODEL_REPORT_METRICS))
+        for model, row in mr["rows"].items():
+            lines.append(f"  {model:<20}" + "".join(f"{fmt(row[m]):>22}" for m in MODEL_REPORT_METRICS))
     if "h1" in summary:
         h = summary["h1"]
         lines.append(f"H1 ({h['metric']}): federated > local_only mean in {h['federated_beats_local_only_mean']}/{h['n_seeds']} runs; "
@@ -331,6 +356,12 @@ def grid_report(variants, out_dir: Path) -> tuple[list[dict[str, Any]], str]:
             "time_to_target_sim_s": {k: v.get("sim_wallclock_s") for k, v in
                                      arms.get("federated", {}).get("rounds_to_target", {}).items()},
         }
+        if "model_report" in s:  # Phase H6: the family comparison
+            row["model_report"] = s["model_report"]
+            mr = s["model_report"]
+            lines.append(f"{'':<46}  {mr['arch']} ({mr['n_params']} params, {mr['payload_bytes']} B): " + "  ".join(
+                f"{m} acc {ms(r['accuracy'])} F1 {ms(r['macro_f1'])} ECE {ms(r['ece'])} worst {ms(r['worst_node_accuracy'])}"
+                for m, r in mr["rows"].items()))
         rows.append(row)
         h1_txt = f"{h1['federated_beats_local_only_mean']}/{h1['n_seeds']}" if h1 else "n/a"
         if row["sim_wallclock_s_total"]:

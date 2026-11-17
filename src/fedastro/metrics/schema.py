@@ -199,6 +199,12 @@ def validate_result(result: dict[str, Any]) -> None:
                     _check(_get(reg, k), types, f"hierarchy.rounds[{i}].regions.{name}.{k}")
         if result["shift"]["provenance"] != "SIMULATED" or result["secagg"]["simulated"] is not True:
             raise SchemaError("shift.provenance must be 'SIMULATED' and secagg.simulated must be true")
+    if "model_report" in result:  # Phase H6, optional
+        for k, types in (("arch", (str,)), ("n_params", (int,)), ("payload_bytes", (int,)), ("rows", (dict,))):
+            _check(_get(result, f"model_report.{k}"), types, f"model_report.{k}")
+        for model, row in result["model_report"]["rows"].items():
+            for k in ("accuracy", "macro_f1", "auc", "ece", "worst_node_accuracy"):
+                _check(_get(row, k), (*_NUM, _NULL), f"model_report.rows.{model}.{k}")
     if not result["provenance"]:
         raise SchemaError("provenance must list at least one dataset")
     for i, p in enumerate(result["provenance"]):

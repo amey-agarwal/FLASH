@@ -1,0 +1,9 @@
+# Phase H6 model-family comparison on hierarchical WESAD (hypothesis H4). NOT run in Phase H6;
+# frozen in PREREG.md section 6 before Phase H9. Features (per-channel statistics) feed
+# logreg and the MLP; 4 Hz block-mean sequences feed the 1D-CNN.
+name: model_families_wesad12
+base: ../experiments/wesad12_hier.yaml
+variants:
+  - {model.arch: logreg}
+  - {model.arch: mlp}
+  - {model.arch: cnn1d, data.wesad.representation: sequence, data.wesad.sequence_hz: 4.0}

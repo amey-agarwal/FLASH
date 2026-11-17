@@ -1,0 +1,29 @@
+# Smoke test for the model-family comparison (Phase H6) on the cinc15 topology, SYNTHETIC
+# data, SIMULATED location shift on, every arm plus the hierarchical arm. One architecture
+# per run; configs/sweeps/model_families_smoke.yaml runs logreg / MLP (features) and the
+# 1D-CNN (synthetic sequences: data.synthetic.representation sequence).
+name: smoke_hier_models
+seed: 0
+seeds: [0, 1]
+hierarchy: cinc15
+shift:
+  enabled: true
+  kind: both
+  magnitude: 1.0
+data:
+  name: synthetic
+  synthetic:
+    n_subjects: 240
+    windows_per_subject: 10
+    n_groups: 8
+    group_names: [g12ec, ptbxl, ptb, incart, ningbo, chapman, cpsc, cpsc_extra]
+partition:
+  holdout_subjects: 0
+arms: [centralized, local_only, federated, ensemble_of_locals, hierarchical]
+train:
+  epochs: 2
+fl:
+  rounds: 2
+hier_fl:
+  global_every: 2
+notes: "Model-family smoke test (cinc15)."
