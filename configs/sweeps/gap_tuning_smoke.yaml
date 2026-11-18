@@ -1,0 +1,18 @@
+# Phase H8 smoke: SYNTHETIC data, two learning rates, tests the select / emit / gap path.
+name: gap_tuning_smoke
+base: ../experiments/smoke_hier_wesad12.yaml
+seeds:
+- 100
+- 101
+fixed:
+  fl.rounds: 4
+  hier_fl.global_every: 2
+  arms:
+  - centralized
+  - local_only
+  - federated
+  - hierarchical
+axes:
+  train.lr:
+  - 0.001
+  - 0.01

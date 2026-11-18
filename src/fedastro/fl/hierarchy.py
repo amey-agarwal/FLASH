@@ -65,7 +65,7 @@ from fedastro.fl import secagg
 from fedastro.fl.client import get_weights, make_client_app, set_weights
 from fedastro.fl.comms import COMMS_ID, INF, Link, compute_s, los_events, resolve_latency
 from fedastro.fl.server import _opt_float, federated_scaler
-from fedastro.fl.strategy import ClientUpdate, FedAvg, build_strategy
+from fedastro.fl.strategy import ClientUpdate, FedAvg, build_server_opt, build_strategy
 from fedastro.metrics.classification import evaluate
 from fedastro.metrics.comms import payload_bytes
 from fedastro.models.model import count_parameters
@@ -353,6 +353,10 @@ def _plan_secagg(cfg, sim, names, idxs, scripted, t, rnd, weights) -> tuple[_Pla
     return _Plan(parts, scripted, fallback, nbytes, reason, group, info, lost), end
 
 
+def _opt_step(opt, current: list[np.ndarray], aggregate: list[np.ndarray]) -> list[np.ndarray]:
+    return aggregate if opt is None else opt.step(current, aggregate)
+
+
 def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train: dict[str, int],
                sim: HierSim, t0: float, score, seed: int = 0, gate=None, diag=None,
                on_round=None, stream=None) -> dict[str, Any]:
@@ -378,6 +382,9 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
     h, hf, sa = cfg.hierarchy, cfg.hier_fl, cfg.secagg
     sa_regional = sa.enabled and "regional" in sa.levels
     strategy = build_strategy(cfg.fl)
+    # Phase H8: one server optimizer per regional aggregator (own state, kept across merges);
+    # the global merge stays a weighted average.
+    server_opt = {r.name: build_server_opt(cfg.fl) for r in h.regions}
     names = [n.name for n in h.nodes]
     region_idx = {r.name: [names.index(n.name) for n in r.nodes] for r in h.regions}
     region_examples = {r.name: sum(n_train[n.name] for n in r.nodes) for r in h.regions}
@@ -424,10 +431,11 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
             elif sa_regional:
                 out = secagg.unmask_sum({i: updates[i] for i in p.parts}, p.group, seed, "regional", rnd,
                                         sa.frac_bits, regional[region.name], h.min_participants)
-                regional[region.name] = out.weights
+                regional[region.name] = _opt_step(server_opt[region.name], regional[region.name], out.weights)
                 fresh[region.name] = True
             else:
-                regional[region.name] = strategy.aggregate([updates[i] for i in p.parts])
+                regional[region.name] = _opt_step(server_opt[region.name], regional[region.name],
+                                                  strategy.aggregate([updates[i] for i in p.parts]))
                 fresh[region.name] = True
             if p.secagg is not None and p.secagg["recovery"]:
                 events.append({"round": rnd, "region": region.name, "kind": "secagg_recovery",

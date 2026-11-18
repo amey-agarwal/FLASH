@@ -199,7 +199,9 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict
                   config=run_cfg, seed=seed, provenance=[bundle.provenance.to_dict()], silos=silos,
                   holdout=holdout, topology=topology_section(cfg), shift=shift)
     hier = "hierarchical" in cfg.arms
-    capture = run_arms(cfg, fed, seed, result, keep_models=hier)
+    # Models are always kept on a hierarchical topology: every one is scored on the nodes'
+    # validation sets (result.validation, Phase H8). Keeping them changes no result.
+    capture = run_arms(cfg, fed, seed, result, keep_models=True)
     if "comms" in capture:
         result["comms"] = capture["comms"]
     result["privacy"] = privacy_report(cfg, fed, seed, result, capture)
@@ -239,6 +241,7 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict
                                                   n_updates_rejected=result["updates"]["n_rejected"])
         if "hierarchical_stream" in cfg.arms:
             result["stream"] = run_stream(cfg, hfed, seed, device, metrics)
+    result["validation"] = hier_validation(cfg, hfed, capture, run if hier else None)
     notes = []
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
@@ -275,6 +278,39 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict
         notes.append(cfg.notes)
     result["notes"] = " ".join(notes)
     return result
+
+
+def hier_validation(cfg: ExperimentConfig, hfed: HierFederation, capture: dict[str, Any],
+                    run: dict[str, Any] | None) -> dict[str, Any]:
+    """``result.validation`` (Phase H8): every trained model on each node's validation split."""
+    from fedastro.fl.hierarchy import _model_proba
+    from fedastro.metrics.validation import validation_section
+    from fedastro.training import predict_proba
+
+    h = cfg.hierarchy
+    region_of = {n.name: r.name for r in h.regions for n in r.nodes}
+    first = next(iter(hfed.nodes.values())).train
+    shape, n_classes = first.X.shape[1:], len(first.class_names)
+    device = capture["device"]
+    models = capture.get("models", {})
+    preds: dict[str, Any] = {}
+    if "centralized" in models:
+        m, sc = models["centralized"]
+        preds["centralized"] = lambda node, X, m=m, sc=sc: predict_proba(m, sc.transform(X), device)
+    if "local" in models:
+        local = {name: (m, sc) for name, m, sc in models["local"]}
+        preds["local"] = lambda node, X: predict_proba(local[node][0], local[node][1].transform(X), device)
+    if "global_weights" in capture:
+        w, sc = capture["global_weights"]["final"], capture["scaler"]
+        preds["flat_federated"] = lambda node, X, w=w, sc=sc: _model_proba(cfg, w, sc.transform(X), shape,
+                                                                            n_classes, device)
+    if run is not None:
+        sc = run["scaler"]
+        preds["regional"] = lambda node, X: _model_proba(cfg, run["regional"][region_of[node]], sc.transform(X),
+                                                         shape, n_classes, device)
+        preds["global"] = lambda node, X: _model_proba(cfg, run["global"], sc.transform(X), shape, n_classes,
+                                                       device)
+    return validation_section(hfed, region_of, preds)
 
 
 def order_provenance(order: str, kind: str) -> str:

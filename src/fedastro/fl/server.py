@@ -48,7 +48,7 @@ from fedastro.data.partition import Federation
 from fedastro.data.preprocess import Standardizer, Stats
 from fedastro.fl.client import get_weights, make_client_app, set_weights
 from fedastro.fl.comms import INF, build_links, compute_s, dark_window, describe_links, link_drops, los_events
-from fedastro.fl.strategy import BufferedUpdate, ClientUpdate, FedBuff, build_strategy
+from fedastro.fl.strategy import BufferedUpdate, ClientUpdate, FedBuff, build_server_opt, build_strategy
 from fedastro.metrics.classification import METRICS
 from fedastro.metrics.comms import payload_bytes, rounds_to_target
 from fedastro.models.model import count_parameters
@@ -311,6 +311,7 @@ def _run_sync(ctx: _RunCtx, cfg: ExperimentConfig, weights: list[np.ndarray], t0
     participating update arrives (or the deadline). Without a deadline, a silo that
     can never be reached stalls the federation: the run stops there and says so."""
     strategy = build_strategy(cfg.fl)
+    server_opt = build_server_opt(cfg.fl)  # Phase H8; None = plain FedAvg / FedProx
     sim, n = ctx.sim, len(ctx.silo_names)
     payload = payload_bytes(weights)
     deadline = cfg.comms.sync_deadline_s if sim.on else 0.0
@@ -335,7 +336,8 @@ def _run_sync(ctx: _RunCtx, cfg: ExperimentConfig, weights: list[np.ndarray], t0
             updates = ctx.train(idxs, weights, {i: rnd for i in idxs})
             for upd in updates:
                 per_silo[upd.silo] = ctx.score_update(upd)
-            weights = strategy.aggregate(updates)
+            agg = strategy.aggregate(updates)
+            weights = agg if server_opt is None else server_opt.step(weights, agg)
         global_metrics = ctx.score_global(weights)
         if idxs:
             for silo, metrics in ctx.evaluate(idxs, weights, rnd).items():
@@ -484,6 +486,8 @@ def run_federated(fed: Federation, cfg: ExperimentConfig, seed: int, device: str
         "stalled": out["stalled"],
         "sim_wallclock_s_total": out["sim_end_s"],
     }
+    if cfg.fl.server_opt != "none":  # Phase H8; absent otherwise, so locked results are unchanged
+        result["server_opt"] = {k: getattr(cfg.fl, k) for k in cfg.fl.SERVER_OPT_KEYS}
     for key in ("dispatches", "lost_dispatches", "target_aggregations"):
         if key in out:
             result[key] = out[key]

@@ -96,6 +96,49 @@ class FedBuff:
         return out
 
 
+class ServerOpt:
+    """Server optimizer on the round's aggregate (Phase H8; Reddi et al. 2021, "Adaptive
+    Federated Optimization"). The pseudo-gradient is ``delta = aggregate - current``:
+    - ``momentum`` (FedAvgM): v <- beta1 * v + delta; w <- current + lr * v.
+      With beta1 = 0 and lr = 1 this is plain FedAvg.
+    - ``adam`` (FedAdam): m <- beta1 * m + (1 - beta1) * delta;
+      v <- beta2 * v + (1 - beta2) * delta^2; w <- current + lr * m / (sqrt(v) + tau).
+      No bias correction, as in Reddi et al.
+    State starts at zero and is kept across rounds by whoever holds the object (one per
+    aggregator). Float64 throughout, cast back to each array's dtype."""
+
+    def __init__(self, kind: str, lr: float, beta1: float, beta2: float, tau: float):
+        if kind not in ("momentum", "adam"):
+            raise ValueError(f"unknown server optimizer {kind!r}")
+        self.kind, self.lr, self.beta1, self.beta2, self.tau = kind, lr, beta1, beta2, tau
+        self.m: list[np.ndarray] | None = None
+        self.v: list[np.ndarray] | None = None
+
+    def step(self, current: list[np.ndarray], aggregate: list[np.ndarray]) -> list[np.ndarray]:
+        deltas = [a.astype(np.float64) - c.astype(np.float64) for c, a in zip(current, aggregate)]
+        if self.m is None:
+            self.m = [np.zeros_like(d) for d in deltas]
+            self.v = [np.zeros_like(d) for d in deltas]
+        out = []
+        for j, (c, d) in enumerate(zip(current, deltas)):
+            if self.kind == "momentum":
+                self.m[j] = self.beta1 * self.m[j] + d
+                step = self.m[j]
+            else:
+                self.m[j] = self.beta1 * self.m[j] + (1 - self.beta1) * d
+                self.v[j] = self.beta2 * self.v[j] + (1 - self.beta2) * d * d
+                step = self.m[j] / (np.sqrt(self.v[j]) + self.tau)
+            out.append((c.astype(np.float64) + self.lr * step).astype(c.dtype))
+        return out
+
+
+def build_server_opt(cfg: FLConfig) -> ServerOpt | None:
+    """A fresh optimizer (zero state) for one aggregator, or None for plain aggregation."""
+    if cfg.server_opt == "none":
+        return None
+    return ServerOpt(cfg.server_opt, cfg.server_opt_lr, cfg.server_beta1, cfg.server_beta2, cfg.server_tau)
+
+
 def build_strategy(cfg: FLConfig) -> FedAvg:
     if cfg.strategy == "fedavg":
         return FedAvg()

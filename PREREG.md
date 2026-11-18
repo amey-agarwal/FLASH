@@ -1,7 +1,7 @@
 # PREREG — pre-registration for the `hier-fl` branch
 
 **Status: IN PROGRESS. Frozen so far: §1 hypotheses (wording from CLAUDE.md), §3 location shift,
-§4 update-gate tolerance.
+§4 update-gate tolerance, §5 gap-closing grid and selection rule (on the H8 commit).
 The other sections are still placeholders.**
 Each section is filled in and frozen (committed) by the phase named in it, **before** any
 result-producing run that it covers (CLAUDE.md rule 9 and §7). After a section is frozen, any
@@ -122,10 +122,49 @@ first result-producing stream run, and none of them is chosen from validation or
   10% labels a node trains on a handful of labels; and WESAD conditions arrive in blocks, so
   early rounds see only some classes. Both are reported, not adjusted.
 
-## 5. Gap-closing grid and selection rule (Phase H8)
+## 5. Gap-closing grid and selection rule (Phase H8) — FROZEN on the Phase H8 commit (2026-11-18)
 
-PLACEHOLDER_ — grid (FedProx μ, local epochs, server optimizer, learning rate) and the selection
-rule, applied to validation scores only.
+Chosen by the user at the H8 plan ("approve as recommended"). Frozen before any tuning run: no
+run of the sweeps below existed when this was written (only a timing run, whose scores were not
+looked at). Code: `src/fedastro/tuning.py`, `metrics/validation.py`, `metrics/gap.py`,
+`fl/strategy.ServerOpt`.
+
+- **Selection data:** `result.validation` only: every model on each node's own validation split
+  (WESAD: the time-ordered tail of each node subject; CinC: the node's patient-disjoint 10%).
+  Never a test set. The selector loads nothing else from a result (tested).
+- **Seeds:** tuning seeds **100, 101, 102**. Evaluation seeds **0-4**, never used for tuning.
+- **Per model family** (logreg, MLP, 1D-CNN) and **per arm**, independently:
+  - **flat federated** (validation model `flat_federated`) and **hierarchical** (validation
+    model `global`; regional reported alongside):
+    - Stage A (`gapA_<dataset>_<family>`): FedAvg, no server optimizer; `train.lr` {3e-4, 1e-3,
+      3e-3, 1e-2} x `fl.local_epochs` {1, 2, 5}. 12 variants. Run with arms local_only +
+      federated + hierarchical; each arm's winner is selected separately.
+    - Stage B (generated from `templates/gapB.yaml` on top of that arm's stage A winner):
+      FedProx mu {0 (= FedAvg), 0.001, 0.01, 0.1} x server optimizer {none; momentum (FedAvgM,
+      server lr 1.0, beta 0.9); FedAdam server lr 0.01; FedAdam server lr 0.1} (FedAdam beta1 0.9,
+      beta2 0.99, tau 1e-3, Reddi et al. 2021). 16 variants. In the hierarchy the server optimizer
+      runs at each regional aggregator (own state); the global merge stays a weighted average.
+  - **centralized** (validation model `centralized`) and **local-only** (`local`, each node with
+    its own model, pooled) (`gapC_<dataset>_<family>`): `train.lr` {3e-4, 1e-3, 3e-3, 1e-2} x
+    `train.epochs` {30, 60}. 8 variants.
+  - Fixed throughout: `fl.rounds` 30, `hier_fl.global_every` 5, batch size 32, Adam client
+    optimizer, weight decay 1e-4, model architectures as in Phase H6.
+- **Score:** mean over the tuning seeds of the pooled validation **macro-F1** of the arm's model.
+- **Rule:** the winner is the **cheapest** variant whose score is within **0.005** of the best
+  score. Cheaper = fewer local epochs, then FedAvg over FedProx, then no server optimizer, then
+  fewer (centralized / local-only) epochs. Remaining ties: higher score, then lower variant index.
+  Every candidate's scores and the winner are written to `<sweep>-selection.json`.
+- **Evaluation:** each arm's winner, evaluation seeds 0-4, its own run (arms can have different
+  learning rates). Gap table (`fedastro gap`): centralized - flat federated, centralized -
+  hierarchical (global model), centralized - hierarchical (regional), per family, on accuracy,
+  macro-F1 and AUC; paired by seed, mean +/- std, hierarchical bootstrap 95% CI. A negative gap
+  is reported as it is.
+- **Datasets:** WESAD (wesad12) in Phase H8; CinC (cinc15) in Phase H10 with the same grid and
+  rule (sweep files added then).
+- **SCAFFOLD:** not run (deferred stretch goal).
+- **Known limitation, disclosed now:** the federated arms are selected on the hierarchical
+  topology's node validation splits, which are small (WESAD: ~10-15 windows per node), so
+  selection noise is real; the tolerance rule prefers cheap settings among near-ties.
 
 ## 6. Experiment configurations and seeds
 

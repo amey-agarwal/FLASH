@@ -1,0 +1,23 @@
+# Phase H8 gap-closing grid, baselines (logreg): centralized and local-only, learning rate x epochs. Hierarchical WESAD (wesad12), TUNING seeds 100-102
+# (never the evaluation seeds 0-4). Winners are chosen by `fedastro select` from
+# result.validation only (PREREG.md section 5, frozen before any of these runs).
+name: gapC_wesad12_logreg
+base: ../experiments/wesad12_hier.yaml
+seeds:
+- 100
+- 101
+- 102
+fixed:
+  model.arch: logreg
+  arms:
+  - centralized
+  - local_only
+axes:
+  train.lr:
+  - 0.0003
+  - 0.001
+  - 0.003
+  - 0.01
+  train.epochs:
+  - 30
+  - 60

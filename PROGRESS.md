@@ -4,17 +4,106 @@ Handoff log between sessions. Newest phase first. Assume no memory of prior sess
 
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
 removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`), H2 (`9590007`), H3
-(`836bad2`), H4 (`b19f28b`), H5 (`e9738f9`, `3d5812a`) and H6 (`11906a9`) are committed. Phase H7
-is at the gate (below). Next: Phase H8 (closing the centralized vs federated gap), in plan mode
-first.** Everything below the H0 entry is the record of the earlier plans; where it says
+(`836bad2`), H4 (`b19f28b`), H5 (`e9738f9`, `3d5812a`), H6 (`11906a9`) and H7 (`7c556b0`) are
+committed. Phase H8 is built and at the build gate (below); its WESAD tuning runs are pending
+(they need the H8 commit, which freezes PREREG §5). Next: run the H8 grid, report the gap, then
+Phase H9.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H7 — Test-then-train evaluation — AT THE GATE (2026-11-18)
+## Phase H8 — Closing the centralized vs federated gap — BUILT, TUNING RUNS PENDING (2026-11-18)
 
 **Not committed.** Suggested message:
-`feat(eval): phase H7 test-then-train stream evaluation (hierarchical_stream arm)`.
+`feat(fl): phase H8 server optimizers, validation-only selection and gap table`.
+Committing freezes PREREG §5 (grid, seeds, rule) **before** any tuning run, as rule 9 requires.
+
+### Built
+- **Server optimizers** (`fl/strategy.ServerOpt`, `fl.server_opt` none | momentum | adam with
+  `server_opt_lr`, `server_beta1`, `server_beta2`, `server_tau`): FedAvgM and FedAdam (Reddi et al.
+  2021, no bias correction) on the round's aggregate. Flat sync arm, and each regional aggregator
+  in the hierarchy (own state, kept across merges; the global merge stays a weighted average).
+  Default `none`: keys out of the run id and out of the result, so every lock holds.
+- **`result.validation`** (`metrics/validation.py`, `pipeline.hier_validation`): on every
+  hierarchical-topology run, each trained model (centralized, local, flat_federated, regional,
+  global) on each node's own validation split, per node / region / pooled. Hierarchical-topology
+  runs now always keep their models (changes no result). Schema checks it when present.
+- **`fedastro select <sweep> --arms ... [--emit-dir D [--template T | --eval-seeds ...]]`**
+  (`tuning.py`): the PREREG §5 rule (mean validation macro-F1 over tuning seeds; cheapest within
+  0.005). Loads only `result.validation` from each run. Writes `<sweep>-selection.json` (every
+  candidate's scores, the winner) and generates the stage B sweep (from
+  `configs/sweeps/templates/gapB.yaml`) or the evaluation sweep (winner, evaluation seeds) per arm.
+  Hierarchical-only settings are dropped from flat-arm sweeps.
+- **`fedastro gap <spec> [--out]`** (`metrics/gap.py`): centralized - flat federated, centralized -
+  hierarchical (global), centralized - hierarchical (regional), per family, accuracy / macro-F1 /
+  AUC, paired by seed, mean +/- std, hierarchical bootstrap 95% CI. Arms come from their own
+  evaluation runs (each arm has its own selected learning rate).
+- **Sweeps:** `gapA_wesad12_{logreg,mlp,cnn1d}` (12 variants, seeds 100-102),
+  `gapC_wesad12_{...}` (8), `templates/gapB.yaml` (16), `gap_tuning_smoke` (SYNTHETIC).
+- **`scripts/slurm/gap.sbatch`:** generic array job, one variant per task
+  (`--export=ALL,SWEEP=...`).
+- **PREREG §5** written; frozen on this commit.
+- **Tests:** `tests/test_server_opt.py` (6), `tests/test_tuning.py` (10, 1 `slow`).
+
+### Acceptance (so far)
+| Check | Result |
+|---|---|
+| Grid and selection rule frozen in PREREG.md before running | §5 written; frozen on the H8 commit. No tuning run exists (one timing run, scores not read). |
+| Selected configuration chosen by a rule applied to validation scores, recorded | `tuning.select` + `<sweep>-selection.json`; `test_selection_is_blind_to_test_scores` (random test scores, same winner and candidate scores), tie-break tests, missing-run error. **Pending on WESAD.** |
+| Remaining gap reported honestly | Mechanism only (below). **WESAD gap pending the tuning runs.** |
+
+End-to-end mechanism check, **SYNTHETIC** (`gap_tuning_smoke`, 2 learning rates x seeds 100-101,
+then generated evaluation sweeps at seeds 0-1; CLI only): select picked lr 1e-2 for all three arms;
+gap (MLP) centralized - flat federated accuracy +0.033, centralized - hierarchical +0.033,
+centralized - hierarchical regional +0.040 (n = 2 seeds; not a result). Flat federated and
+hierarchical global agree on almost every synthetic example (AUC 0.9544 vs 0.9545); expected with
+full participation and a merge every 2 rounds, checked, not a bug.
+
+### Timing (WESAD12, laptop CPU; scores not inspected)
+One tuning run with local_only + federated + hierarchical, 30 rounds, 1 local epoch: **95.5 s**;
+centralized + local_only: **7.4 s**. Estimated grid: stage A 108 runs (~4-6 h; 5 local epochs and
+the CNN are slower), stage B 2 arms x 144 runs (~5-6 h), baselines 72 runs (~10 min), evaluation
+~45 runs (~1 h): **about 11-14 h sequential on the laptop.** On PACE (one variant per array task)
+each stage is ~1 h of wall time.
+
+### Decisions (user approved 2026-11-18, "approve as recommended")
+1. WESAD12 tuning in H8; CinC in H10 with the same rule. 2. Tuning seeds 100-102, evaluation
+seeds 0-4. 3. Centralized and local-only tuned on the same rule. 4. Per-arm selection.
+5. Selection blind to test fields (tested), no validation-only run mode.
+
+### Decisions made while building (review these)
+1. **Hierarchical selection uses the global model's validation score**; regional is reported.
+2. **Each arm is evaluated in its own runs**, because `train.lr` is shared by every arm of a run.
+   Consequence for H9: a run holding local, regional and global together uses one learning rate
+   (the hierarchical arm's winner); the local model in it is not local-only's own winner.
+3. **Stage B template lives in `configs/sweeps/templates/`**: `scripts/golden.py` loads every
+   `configs/sweeps/*.yaml` as a runnable sweep (the golden test failed while it sat there).
+4. FedAdam has two server learning rates in the grid (0.01, 0.1) because its scale is not
+   transferable from FedAvg; momentum keeps server lr 1.0.
+5. Generated sweeps go under the run directory (untracked), so cluster jobs keep a clean tree.
+
+### Tests
+Full suite including slow tests (`pytest -m ""`, 377 collected): 371 passed, 1 skipped, 2 failed,
+3 errors.
+- `test_golden.py::test_run_ids_match_golden`: real; the stage B template sat in `configs/sweeps/`.
+  Fixed (moved to `templates/`); passes.
+- `test_models_h6.py[logreg]` and the 3 `test_hierarchy_fl.py` fixture errors: Ray "No heartbeat
+  received from the run" (same flake as H4/H6/H7).
+Re-run of the affected files (golden, tuning, models_h6, hierarchy_fl): 43 passed, 1 failed
+(`test_one_region_hierarchy_reproduces_flat_fedavg_through_flower`). That test then passed alone,
+and `test_hierarchy_fl.py` re-run whole: **15 passed**.
+
+### Deferrals / open questions
+- **Where to run the WESAD grid** (laptop ~12 h vs PACE ~3-4 h wall over the stages). Needs the
+  H8 commit first (clean tree; PREREG §5 frozen).
+- SCAFFOLD not built (deferred stretch goal, PREREG §5).
+- CinC sweep files (`gapA_cinc15_*` etc.) come with H10.
+- Ray flakiness now appears in most full runs; consider running the Ray test files in a separate
+  pytest invocation at gates.
+
+---
+
+## Phase H7 — Test-then-train evaluation — COMMITTED `7c556b0` (2026-11-18)
 
 ### Built
 - **`data/stream.py` (new):** each node's **training split** becomes a stream (validation and test

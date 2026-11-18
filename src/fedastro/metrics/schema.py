@@ -207,6 +207,10 @@ def validate_result(result: dict[str, Any]) -> None:
                 _check(_get(st, k), types, f"stream.{k}")
             if st["audit"].get("ok") is not True:
                 raise SchemaError("stream.audit.ok must be true (an example was scored after training on it)")
+    if "validation" in result:  # Phase H8, optional (hierarchical topologies)
+        _check(_get(result, "validation.models"), (dict,), "validation.models")
+        for model, sec in result["validation"]["models"].items():
+            _check(_get(sec, "pooled.macro_f1"), _NUM, f"validation.models.{model}.pooled.macro_f1")
     if "model_report" in result:  # Phase H6, optional
         for k, types in (("arch", (str,)), ("n_params", (int,)), ("payload_bytes", (int,)), ("rows", (dict,))):
             _check(_get(result, f"model_report.{k}"), types, f"model_report.{k}")

@@ -1,0 +1,54 @@
+# Phase H8 stage B axes (NOT a runnable sweep): `fedastro select <stage A> --template` puts these 16
+# variants (FedProx mu {0 = fedavg, 0.001, 0.01, 0.1} x server optimizer {none, momentum (lr 1,
+# beta 0.9), adam lr 0.01, adam lr 0.1}; adam beta1 0.9, beta2 0.99, tau 1e-3) on top of the stage A
+# winner, one generated sweep per arm.
+name: gapB
+variants:
+- fl.strategy: fedavg
+- fl.strategy: fedavg
+  fl.server_opt: momentum
+- fl.strategy: fedavg
+  fl.server_opt: adam
+  fl.server_opt_lr: 0.01
+- fl.strategy: fedavg
+  fl.server_opt: adam
+  fl.server_opt_lr: 0.1
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.001
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.001
+  fl.server_opt: momentum
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.001
+  fl.server_opt: adam
+  fl.server_opt_lr: 0.01
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.001
+  fl.server_opt: adam
+  fl.server_opt_lr: 0.1
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.01
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.01
+  fl.server_opt: momentum
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.01
+  fl.server_opt: adam
+  fl.server_opt_lr: 0.01
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.01
+  fl.server_opt: adam
+  fl.server_opt_lr: 0.1
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.1
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.1
+  fl.server_opt: momentum
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.1
+  fl.server_opt: adam
+  fl.server_opt_lr: 0.01
+- fl.strategy: fedprox
+  fl.proximal_mu: 0.1
+  fl.server_opt: adam
+  fl.server_opt_lr: 0.1

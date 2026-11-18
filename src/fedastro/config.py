@@ -53,6 +53,10 @@ COMPARATORS = ("local_only", "ensemble_of_locals", "centralized")
 STAT_METRICS = ("accuracy", "balanced_accuracy", "macro_f1", "auc")  # = metrics.classification.METRICS
 FL_STRATEGIES = ("fedavg", "fedprox", "fedbuff")
 SYNC_STRATEGIES = ("fedavg", "fedprox")
+# Server-side optimizer applied to the aggregate of a synchronous round (Phase H8,
+# fl/strategy.ServerOpt): "momentum" = FedAvgM (Hsu et al. 2019), "adam" = FedAdam
+# (Reddi et al. 2021). Flat sync arm and regional aggregators.
+SERVER_OPTS = ("none", "momentum", "adam")
 REPRESENTATIONS = ("features", "sequence")
 DEVICES = ("cpu", "cuda")
 LOS_PROFILES = ("none", "rare", "short_occasional", "periodic", "long_blackout")
@@ -665,8 +669,28 @@ class FLConfig:
     # client updates matches the synchronous run with the same ``rounds``.
     buffer_k: int = 3
     server_lr: float = 1.0
+    # Phase H8 server optimizer (sync strategies only). With "none" (default) the settings
+    # below must stay at their defaults and are left out of the run id.
+    server_opt: str = "none"
+    server_opt_lr: float = 1.0
+    server_beta1: float = 0.9  # momentum coefficient (momentum) / first-moment decay (adam)
+    server_beta2: float = 0.99  # adam only
+    server_tau: float = 1e-3  # adam only: adaptivity (Reddi et al. 2021)
+
+    SERVER_OPT_KEYS = ("server_opt", "server_opt_lr", "server_beta1", "server_beta2", "server_tau")
 
     def validate(self) -> None:
+        if self.server_opt not in SERVER_OPTS:
+            raise ConfigError(f"fl.server_opt must be one of {SERVER_OPTS}")
+        if self.server_opt_lr <= 0 or self.server_tau <= 0:
+            raise ConfigError("fl.server_opt_lr and fl.server_tau must be > 0")
+        if not (0 <= self.server_beta1 < 1 and 0 <= self.server_beta2 < 1):
+            raise ConfigError("fl.server_beta1 and fl.server_beta2 must be in [0, 1)")
+        defaults = FLConfig.__dataclass_fields__
+        if self.server_opt == "none" and any(getattr(self, k) != defaults[k].default for k in self.SERVER_OPT_KEYS):
+            raise ConfigError("fl.server_opt_* settings need fl.server_opt 'momentum' or 'adam'")
+        if self.server_opt != "none" and self.strategy == "fedbuff":
+            raise ConfigError("fl.server_opt is for synchronous strategies (fedbuff has its own server_lr)")
         if self.buffer_k < 1 or self.server_lr <= 0:
             raise ConfigError("fl.buffer_k must be >= 1 and fl.server_lr > 0")
         if self.strategy not in FL_STRATEGIES:
@@ -1181,6 +1205,9 @@ class ExperimentConfig:
         if self.fl.strategy != "fedbuff":
             d["fl"].pop("buffer_k")
             d["fl"].pop("server_lr")
+        if self.fl.server_opt == "none":  # Phase H8 keys, same rule
+            for k in FLConfig.SERVER_OPT_KEYS:
+                d["fl"].pop(k)
         if not self.comms.enabled:
             d.pop("comms")
         # Absent when unused, so configs that predate Phase 5 keep their run ids.

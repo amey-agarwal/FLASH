@@ -52,6 +52,22 @@ def _parser() -> argparse.ArgumentParser:
     grid.add_argument("--report", action="store_true",
                       help="collect existing per-variant summaries into one table; runs nothing")
 
+    sel = sub.add_parser("select", help="pick a tuning sweep's winner per arm from VALIDATION scores only "
+                                        "(Phase H8; never reads test results)")
+    sel.add_argument("sweep", help="the tuning sweep YAML whose runs exist")
+    sel.add_argument("--arms", nargs="+", required=True,
+                     choices=("centralized", "local_only", "federated", "hierarchical"))
+    sel.add_argument("--output-dir", help="where the runs are (default: the sweep's output_dir)")
+    sel.add_argument("--emit-dir", help="also write one generated sweep per arm here")
+    sel.add_argument("--template", help="with --emit-dir: next-stage axes (stage B); omit for the evaluation sweep")
+    sel.add_argument("--eval-seeds", type=int, nargs="+", help="with --emit-dir and no --template: seeds")
+
+    gap = sub.add_parser("gap", help="centralized vs federated / hierarchical gap table (Phase H8)")
+    gap.add_argument("spec", help="YAML: {families: {<family>: {centralized: <sweep>, federated: <sweep>, "
+                                  "hierarchical: <sweep>}}}, paths relative to the spec")
+    gap.add_argument("--output-dir", help="where the runs are (default: each sweep's output_dir)")
+    gap.add_argument("--out", help="also write the table as JSON here")
+
     peek = sub.add_parser("peek", help="read-only terminal view of a hierarchical run (writes nothing)")
     peek.add_argument("run_dir", help="runs/<run_id> (or its result.json)")
     peek.add_argument("--follow", action="store_true", help="tail a run in progress until it ends")
@@ -129,6 +145,73 @@ def _grid(args: argparse.Namespace) -> int:
     return 0
 
 
+def _select(args: argparse.Namespace) -> int:
+    import yaml
+
+    from fedastro.grid import load_grid
+    from fedastro.tuning import emit_sweep, run_select
+
+    try:
+        name, variants = load_grid(args.sweep)
+    except ConfigError as e:
+        print(f"config error: {e}", file=sys.stderr)
+        return 2
+    out_dir = Path(args.output_dir or variants[0].config.output_dir)
+    try:
+        res = run_select(Path(args.sweep), out_dir, args.arms)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"select: {e}", file=sys.stderr)
+        return 2
+    for arm, sel in res["selections"].items():
+        w = sel["winner"]
+        print(f"{arm}: winner {w['name']} (validation macro-F1 {w['mean']:.4f}; best {sel['best_mean']:.4f}; "
+              f"{len(sel['candidates'])} candidates, seeds {sel['seeds']})")
+    path = out_dir / f"{name}-selection.json"
+    path.write_text(dumps(res))
+    print(path)
+    if args.emit_dir:
+        template = yaml.safe_load(Path(args.template).read_text()) if args.template else None
+        for arm, sel in res["selections"].items():
+            stem = f"{template['name']}_{name}_{arm}" if template else f"eval_{name}_{arm}"
+            target = Path(args.emit_dir) / f"{stem}.yaml"
+            emit_sweep(Path(args.sweep), sel, target, stem, template, args.eval_seeds if not template else None)
+            print(target)
+    return 0
+
+
+def _gap(args: argparse.Namespace) -> int:
+    import yaml
+
+    from fedastro.grid import load_grid
+    from fedastro.manifest import make_run_id
+    from fedastro.metrics.gap import format_gap, gap_rows
+
+    spec_path = Path(args.spec)
+    spec = yaml.safe_load(spec_path.read_text())
+    rows = []
+    for family, arms in spec["families"].items():
+        runs = {}
+        for arm, sweep in arms.items():
+            _, variants = load_grid(spec_path.parent / sweep)
+            if len(variants) != 1:
+                print(f"gap: {sweep} must have exactly one variant (an evaluation sweep)", file=sys.stderr)
+                return 2
+            cfg = variants[0].config
+            out_dir = Path(args.output_dir or cfg.output_dir)
+            paths = [out_dir / make_run_id(cfg, s) / "result.json" for s in cfg.seeds]
+            missing = [str(p) for p in paths if not p.is_file()]
+            if missing:
+                print(f"gap: missing runs {missing}", file=sys.stderr)
+                return 2
+            runs[arm] = load_results(paths)
+        rows += gap_rows(family, runs)
+    print(format_gap(rows))
+    if args.out:
+        Path(args.out).write_text(dumps({"spec": str(spec_path), "rows": rows}))
+        print(args.out)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "summarize":
@@ -136,6 +219,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "grid":
         return _grid(args)
+    if args.command == "select":
+        return _select(args)
+    if args.command == "gap":
+        return _gap(args)
     if args.command == "peek":
         from fedastro.peek import follow, peek
 
