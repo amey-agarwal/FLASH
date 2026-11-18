@@ -1,0 +1,34 @@
+# Smoke test for test-then-train evaluation (Phase H7) on the cinc15 topology, SYNTHETIC
+# data, SIMULATED location shift on. Arms: local_only + hierarchical (fixed split) +
+# hierarchical_stream (each node's training split streamed; result.stream).
+# Stream: seeded patient order (SIMULATED arrival order), 10% warm-up block labelled,
+# 10% of arrivals labelled, usable 1 round after arrival (the defaults, to be frozen in
+# PREREG.md before any result-producing run). leo_roscosmos is offline in round 3, so its
+# region falls back and the node keeps predicting with older models.
+name: smoke_hier_stream
+seed: 0
+seeds: [0, 1]
+hierarchy: cinc15
+shift:
+  enabled: true
+  kind: both
+  magnitude: 1.0
+data:
+  name: synthetic
+  synthetic:
+    n_subjects: 240
+    windows_per_subject: 10
+    n_groups: 8
+    group_names: [g12ec, ptbxl, ptb, incart, ningbo, chapman, cpsc, cpsc_extra]
+partition:
+  holdout_subjects: 0
+arms: [local_only, hierarchical, hierarchical_stream]
+train:
+  epochs: 3
+fl:
+  rounds: 6
+hier_fl:
+  global_every: 2
+  offline:
+    leo_roscosmos: [3]
+notes: "Test-then-train smoke test (cinc15)."

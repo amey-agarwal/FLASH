@@ -199,6 +199,14 @@ def validate_result(result: dict[str, Any]) -> None:
                     _check(_get(reg, k), types, f"hierarchy.rounds[{i}].regions.{name}.{k}")
         if result["shift"]["provenance"] != "SIMULATED" or result["secagg"]["simulated"] is not True:
             raise SchemaError("shift.provenance must be 'SIMULATED' and secagg.simulated must be true")
+        st = result["stream"]
+        if st["enabled"]:  # Phase H7
+            for k, types in (("label_fraction", _NUM), ("label_delay_rounds", (int,)), ("order", (str,)),
+                             ("audit", (dict,)), ("test_then_train.rounds", (list,)),
+                             ("test_then_train.models", (list,)), ("fixed_test", (dict,))):
+                _check(_get(st, k), types, f"stream.{k}")
+            if st["audit"].get("ok") is not True:
+                raise SchemaError("stream.audit.ok must be true (an example was scored after training on it)")
     if "model_report" in result:  # Phase H6, optional
         for k, types in (("arch", (str,)), ("n_params", (int,)), ("payload_bytes", (int,)), ("rows", (dict,))):
             _check(_get(result, f"model_report.{k}"), types, f"model_report.{k}")

@@ -4,16 +4,131 @@ Handoff log between sessions. Newest phase first. Assume no memory of prior sess
 
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
 removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`), H2 (`9590007`), H3
-(`836bad2`), H4 (`b19f28b`) and H5 (`e9738f9`, `3d5812a`) are committed. Phase H6 is at the gate
-(below). Next: Phase H7 (test-then-train evaluation), in plan mode first.** Everything below the H0 entry is the record of the earlier plans; where it says
+(`836bad2`), H4 (`b19f28b`), H5 (`e9738f9`, `3d5812a`) and H6 (`11906a9`) are committed. Phase H7
+is at the gate (below). Next: Phase H8 (closing the centralized vs federated gap), in plan mode
+first.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H6 — Model comparison — AT THE GATE (2026-11-17)
+## Phase H7 — Test-then-train evaluation — AT THE GATE (2026-11-18)
 
 **Not committed.** Suggested message:
-`feat(models): phase H6 logreg, calibration (ECE) and per-run model report`.
+`feat(eval): phase H7 test-then-train stream evaluation (hierarchical_stream arm)`.
+
+### Built
+- **`data/stream.py` (new):** each node's **training split** becomes a stream (validation and test
+  untouched). Pure, seeded schedule per node (run seed + node index), computed by server and
+  clients alike, so no index lists are sent:
+  - order: `time` (index order = recording time order for WESAD) or `patient_shuffle` (seeded
+    patient order, windows of a patient kept together; SIMULATED arrival order). `auto` = time for
+    one_subject_per_node, patient_shuffle for by_source.
+  - warm-up block = first `max(1, round(warmup_frac * n))` examples, labelled, trained on from
+    round 1, never scored.
+  - the rest in `fl.rounds - 1` equal chunks arriving in rounds 2..R (round 1 = warm-up only, so
+    every arrival has a trained model to score it).
+  - labels: cumulative rounding (`floor(p * arrived + 0.5)` labelled after each chunk; seeded
+    choice within a chunk), usable from `arrival + label_delay_rounds`.
+- **`fl/stream.py` (new):** `StreamRun`, the `stream` hook of `run_rounds`. Start of round r:
+  predict round r's arrivals with the node's local model (trained through r - 1), the last
+  regional and global model **delivered to that node**, and, with the gate on, the deployed
+  versions (version 0 = the warm-up local model); then train each local stream model
+  `fl.local_epochs` on its usable labels (warm-started, own seed stream `STREAM_ID = 9`, own
+  scaler from the warm-up block). `deliver` uses the gate's recipients (H5 decision 4).
+  `audit()` checks from the actual logs that no example was scored after any model trained on it.
+- **`fl/hierarchy.py`:** `run_rounds(..., stream=None)`: per round, merge weights and simulated
+  compute use the usable-label counts, `begin_round`, and `deliver` of each new version.
+  `run_hierarchical(..., streams=None)` builds the `StreamRun` and its gate. With `stream=None`
+  nothing changes (the byte-identical hierarchical run test and the golden tests pass).
+- **`fl/client.py`:** with `streams`, a node trains in round r only on usable labels
+  (`num-examples` = that count) and sends warm-up-only scaler statistics.
+- **`metrics/stream.py` (new):** `stream_report`: per-round accuracy per model, pooled accuracy,
+  balanced accuracy, macro-F1 and AUC per node / region / overall, `n_scored` per model, and
+  the disagreement analysis on the examples all three models scored.
+- **`pipeline.run_stream`:** fills `result.stream`: settings, order + order provenance, per-node
+  schedule summary, audit (a failed audit raises), test_then_train, `fixed_test` (final stream
+  models on each node's own test set), `comparison` (fixed-split hierarchical arm vs final stream
+  models), the stream run's rounds / merges / fallbacks, gate section. Result note added.
+- **Config:** arm `hierarchical_stream` (needs `hierarchical`; `fl.rounds >= 2`; `order: time`
+  rejected for by_source); block `stream` (`label_fraction` 0.1, `label_delay_rounds` 1,
+  `warmup_frac` 0.1, `order` auto), out of the run id unless the arm runs.
+- **Schema:** with `stream.enabled`, required keys and `stream.audit.ok is true`.
+- **Peek:** a test-then-train block (per-round accuracy and n per model) after the rounds.
+- **Configs:** `smoke_hier_stream.yaml` (cinc15, SYNTHETIC, shift on, leo_roscosmos offline in
+  round 3) and `smoke_hier_stream_wesad12.yaml` (wesad12 topology, SYNTHETIC).
+- **PREREG §4a:** stream settings, DRAFT; to be frozen before H9.
+- **Tests:** `tests/test_stream.py` (15; 1 `slow`).
+
+### Acceptance
+| Check | Result |
+|---|---|
+| No example is scored after the model has trained on it (tested) | `test_no_example_is_scored_after_a_model_trained_on_it`: audit 0 violations (local logs and client schedule), every stream example scored exactly once in its arrival round, emulated clients train on exactly the usable labels; `test_the_audit_is_not_vacuous` (an injected earlier training is caught). Smoke run: 1494 scored, 0 violations. |
+| Label fraction 1.0, delay 0 vs fixed-split (reported) | Below. |
+| Fixed-split results unchanged | `test_stream_arm_end_to_end_leaves_the_fixed_split_results_unchanged` (slow): arms, hierarchy, disagreement, calibration, model_report identical with and without the stream arm; golden + flat WESAD lock pass. |
+
+Label fraction 1.0, delay 0, `smoke_hier_stream` (cinc15, **SYNTHETIC**, shift on), seed 0, 6
+rounds (a mechanism check, not a result). Each node's own test set, pooled:
+
+| model | fixed split acc / macro-F1 | final stream models acc / macro-F1 | whole-stream test-then-train acc |
+|---|---|---|---|
+| local | 0.723 / 0.718 | 0.706 / 0.704 | 0.440 |
+| regional | 0.756 / 0.746 | 0.688 / 0.657 | 0.432 |
+| global | 0.656 / 0.637 | 0.577 / 0.525 | 0.378 |
+
+Sensible: with every label usable at once, the final stream models end close to the fixed-split
+ones but below them (early chunks get fewer passes, since the pool grows round by round), and
+test-then-train accuracy rises by round (local 0.33 -> 0.62, regional 0.35 -> 0.58, global
+0.32 -> 0.43, rounds 2 -> 6). At the defaults (0.1, delay 1) a node trains on ~9 labels by the last
+round and test-then-train accuracy stays at 0.33-0.38 (3 classes): the models barely learn.
+wesad12 smoke (SYNTHETIC, defaults): 4 warm-up + 4 stream labels per node; stream acc local 0.353,
+regional 0.312, global 0.318. Real time ~2 min per smoke run (laptop CPU; two Ray runs).
+
+### Decisions (user approved 2026-11-18, "approve as recommended")
+1. Separate `hierarchical_stream` arm (second Ray run); fixed-split arms unchanged.
+2. Only the training split streams. 3. Time order for WESAD; seeded patient shuffle (SIMULATED)
+for CinC / synthetic. 4. Equal chunks; seeded label choice. 5. Labelled warm-up block (10%).
+6. Delay d: usable from round arrival + d (d = 0: after scoring in the same round); default 1.
+7. Cumulative training pool. 8. Scaler from the warm-up block. 9. Local stream model trained
+in-process. 10. Predict with the models last delivered to the node (+ deployed with the gate).
+11. Merge weights by usable labels.
+
+### Decisions made while building (review these)
+1. **Round 1 = warm-up only; the stream arrives in rounds 2..R.** If chunk 1 arrived in round 1,
+   no model would have been trained to score it. Needs `fl.rounds >= 2`.
+2. **No `stream.enabled` key:** the arm is the switch (as `hier_fl` / `hierarchical`); `stream`
+   settings without the arm are rejected. `result.stream.enabled` is still filled.
+3. **Cumulative label rounding**, so 10% of 3-window chunks (WESAD at 20 rounds) still gives
+   labels; per-chunk rounding would give none.
+4. **Models a node has not received score nothing** (global before the first merge reaches it,
+   regional before its first successful regional round); `n_scored` per model is reported and
+   the disagreement analysis uses only examples all three scored.
+5. **Deployed versions are scored on the stream only**; `fixed_test` covers local / regional /
+   global (deployed version 0 there would be the warm-up model, not the final local).
+6. The runner lives in a new `fl/stream.py` (not in the CLAUDE.md layout; hierarchy.py is
+   already ~850 lines).
+7. Stream clients reuse the federated client seeds (common random numbers with the fixed-split arm).
+
+### Tests
+Full suite including slow tests (`pytest -m ""`, 363 collected): 358 passed, 1 skipped,
+1 failed + 3 errors, all in `tests/test_hierarchy_fl.py` and all from one Ray infrastructure crash
+("node marked dead ... missed too many heartbeats", ActorDiedError; the 3 errors share the failed
+smoke fixture). Re-run of that file alone: **15 passed**. Same flake class as H4/H6; no code those
+tests use changed except additive optional hooks (default off).
+
+### Deferrals / open questions
+- **PREREG §4a is a draft.** Confirm the settings and the sensitivity grid (label fraction
+  {0.1, 1.0} x delay {0, 1}; primary 0.1 / 1) and freeze before H9.
+- **WESAD label starvation.** ~45-60 training windows per node; at 10% labels a node trains on
+  a handful of labels, and conditions arrive in blocks. Reported, not adjusted.
+- **Overlapping WESAD windows** (60 s, 30 s stride): a new window overlaps the last labelled one.
+  Realistic for past data; disclosed.
+- `metrics/aggregate.py` (`summarize`, `grid --report`) does not yet summarise `result.stream`
+  across seeds; add it with the H9 runs.
+- Runtime: the stream arm doubles a hierarchical run's Ray time.
+
+---
+
+## Phase H6 — Model comparison — COMMITTED `11906a9` (2026-11-17)
 
 ### Built
 - **`models/model.py`:** `LogReg` (`arch: logreg`), one linear layer, softmax in the loss. With 8

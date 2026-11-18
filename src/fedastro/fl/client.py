@@ -10,6 +10,11 @@ Handlers (message types):
   pairwise-masked update instead.
 - ``evaluate``: score the received global weights on the silo's own training data.
 
+With ``streams`` (Phase H7 test-then-train, data/stream.py) a node trains in round r only on
+the examples whose labels are usable in round r, and its standardisation statistics come
+from its warm-up block only (no future data). The schedule is a pure function the node
+evaluates itself; no index list is sent.
+
 Flower 1.23's Message API replaces the older NumPyClient get_parameters/fit/evaluate
 methods; ``train`` and ``evaluate`` are their equivalents, and initial parameters come
 from the server, so no get_parameters call exists.
@@ -49,7 +54,8 @@ def metric_record(metrics: dict) -> MetricRecord:
     return MetricRecord({k: v for k, v in metrics.items() if v is not None})
 
 
-def make_client_app(silos: list[DatasetBundle], cfg: ExperimentConfig, seed: int, device: str) -> ClientApp:
+def make_client_app(silos: list[DatasetBundle], cfg: ExperimentConfig, seed: int, device: str,
+                    streams: list | None = None) -> ClientApp:
     app = ClientApp()
     n_classes = len(silos[0].class_names)
 
@@ -71,6 +77,8 @@ def make_client_app(silos: list[DatasetBundle], cfg: ExperimentConfig, seed: int
     @app.query("stats")
     def stats(msg: Message, context: Context) -> Message:
         idx, data = _silo(context)
+        if streams is not None:
+            data = data.subset(streams[idx].arrival == 0)
         st = Stats.of(data.X)
         content = RecordDict({
             "arrays": ArrayRecord([st.total, st.total_sq]),
@@ -89,6 +97,8 @@ def make_client_app(silos: list[DatasetBundle], cfg: ExperimentConfig, seed: int
         torch.set_num_threads(1)
         idx, data = _silo(context)
         server_round = int(msg.content["config"]["server-round"])
+        if streams is not None:
+            data = data.subset(streams[idx].train_mask(server_round))
         model = _model(data, msg.content["arrays"].to_numpy_ndarrays())
         X = _scaler(context).transform(data.X)
         # The silo's budget covers every round; noise is calibrated for the total.

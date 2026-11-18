@@ -237,6 +237,8 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict
             result["updates"] = run["gate"].section()
             result["arms"]["hierarchical"].update(n_updates_offered=result["updates"]["n_offered"],
                                                   n_updates_rejected=result["updates"]["n_rejected"])
+        if "hierarchical_stream" in cfg.arms:
+            result["stream"] = run_stream(cfg, hfed, seed, device, metrics)
     notes = []
     if bundle.provenance.kind == SYNTHETIC:
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
@@ -262,10 +264,78 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict
                 notes.append("Injected degraded versions are SCRIPTED faults for testing the gate.")
         if cfg.comms.enabled:
             notes.append("sim_wallclock_s is SIMULATED time, not real time.")
+    if "hierarchical_stream" in cfg.arms:
+        st = result["stream"]
+        notes.append(f"Test-then-train (result.stream): each node's training split streamed in "
+                     f"{st['order']} order ({st['order_provenance']}); {st['warmup_frac']:g} warm-up block "
+                     f"labelled; {st['label_fraction']:g} of arrivals labelled, usable "
+                     f"{st['label_delay_rounds']} round(s) after arrival; every example scored on arrival "
+                     f"before any model trained on it. Fixed-split results are unchanged.")
     if cfg.notes:
         notes.append(cfg.notes)
     result["notes"] = " ".join(notes)
     return result
+
+
+def order_provenance(order: str, kind: str) -> str:
+    if order == "patient_shuffle":
+        return "SIMULATED arrival order (seeded patient shuffle)"
+    if kind == SYNTHETIC:
+        return "index order (SYNTHETIC data has no real time structure)"
+    return "recording time order"
+
+
+def run_stream(cfg: ExperimentConfig, hfed: HierFederation, seed: int, device: str,
+               fixed: dict[str, Any]) -> dict[str, Any]:
+    """The hierarchical_stream arm (Phase H7): the hierarchy again, test-then-train on each
+    node's streamed training split. ``fixed`` is the hierarchical arm's evaluation (the
+    fixed-split comparison). Returns ``result.stream``."""
+    from fedastro.data.stream import make_streams, resolve_order
+    from fedastro.fl.hierarchy import evaluate_hierarchy, run_hierarchical
+    from fedastro.metrics.stream import stream_report
+
+    h = cfg.hierarchy
+    names = [n.name for n in h.nodes]
+    region_of = {n.name: r.name for r in h.regions for n in r.nodes}
+    streams = make_streams(cfg, {n: hfed.nodes[n].train for n in names}, seed)
+    run = run_hierarchical(hfed, cfg, seed, device, streams=streams)
+    st = run["stream"]
+    audit = st.audit()
+    if not audit["ok"]:
+        raise RuntimeError(f"test-then-train leakage check failed: {audit}")
+    # Final stream models on the fixed test sets. Deployed versions are reported on the stream
+    # only (their version 0 is the warm-up local model, not the final one).
+    final = evaluate_hierarchy(hfed, cfg, {**run, "gate": None}, st.final_local_models(), device)
+    order = resolve_order(cfg)
+    three = ("local", "regional", "global")
+    section = {
+        "enabled": True,
+        "label_fraction": cfg.stream.label_fraction,
+        "label_delay_rounds": cfg.stream.label_delay_rounds,
+        "warmup_frac": cfg.stream.warmup_frac,
+        "order": order,
+        "order_provenance": order_provenance(order, hfed.nodes[names[0]].train.provenance.kind),
+        "schedule": {n: streams[n].summary() for n in names},
+        "audit": audit,
+        "test_then_train": stream_report(st.records, region_of, cfg.fl.rounds),
+        "fixed_test": {"per_region": final["per_region"], "global": final["global"],
+                       "scope": "the final stream-trained models on each node's own test set (pooled)"},
+        "comparison": {"fixed_split": {m: fixed["global"][m] for m in three},
+                       "stream_final": {m: final["global"][m] for m in three},
+                       "note": "both on each node's own test set, pooled; fixed_split = the hierarchical arm"},
+        "hierarchy": {"n_merges": run["n_merges"],
+                      "n_fallbacks": sum(e["kind"] == "fallback" for e in run["events"]),
+                      "events": run["events"],
+                      "rounds": [{"round": r["round"], "sim_wallclock_s": r["sim_wallclock_s"],
+                                  "global_aggregated": r["global_aggregated"],
+                                  "fallback": [k for k, v in r["regions"].items() if v["fallback"]]}
+                                 for r in run["rounds"]]},
+        "updates": run["gate"].section() if run["gate"] is not None else None,
+        "note": ("Every streamed example is predicted once, on arrival, before any model has trained on it "
+                 "(audit). A model a node has not received yet scores nothing (n_scored). Fixed-split "
+                 "results are elsewhere in this file and unchanged."),
+    }
+    return section
 
 
 def flat_calibration(cfg: ExperimentConfig, fed: Federation, result: dict[str, Any], capture: dict[str, Any]) -> None:

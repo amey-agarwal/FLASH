@@ -1,0 +1,23 @@
+# Smoke test for test-then-train evaluation (Phase H7) on the wesad12 topology, SYNTHETIC
+# data (12 node subjects + 3 held-out, as in WESAD). Each node's training split is streamed
+# in index (time) order; synthetic windows have no real time structure. Defaults: 10%
+# warm-up labelled, 10% of arrivals labelled, usable 1 round after arrival.
+name: smoke_hier_stream_wesad12
+seed: 0
+seeds: [0, 1]
+hierarchy: wesad12
+data:
+  name: synthetic
+  synthetic:
+    n_subjects: 15
+    windows_per_subject: 60
+partition:
+  holdout_subjects: 3
+arms: [local_only, hierarchical, hierarchical_stream]
+train:
+  epochs: 3
+fl:
+  rounds: 6
+hier_fl:
+  global_every: 2
+notes: "Test-then-train smoke test (wesad12)."

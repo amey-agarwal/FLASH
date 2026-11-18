@@ -355,7 +355,7 @@ def _plan_secagg(cfg, sim, names, idxs, scripted, t, rnd, weights) -> tuple[_Pla
 
 def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train: dict[str, int],
                sim: HierSim, t0: float, score, seed: int = 0, gate=None, diag=None,
-               on_round=None) -> dict[str, Any]:
+               on_round=None, stream=None) -> dict[str, Any]:
     """The regional/global schedule. ``train(dispatch, rnd)`` trains nodes (by index) from
     the given weights and returns their updates; with secure aggregation at the regional
     level it is called as ``train(dispatch, rnd, groups=...)`` and returns each node's masked
@@ -369,7 +369,12 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
       that received it); its accept/reject events go into the output's ``update_events``.
     - ``diag(regional, global | None)``: per-round test-set diagnostic for the log and the
       terminal view (``rec["diagnostic"]``), never used to select anything.
-    - ``on_round(rec, update_events)``: called once each round is complete (progress file)."""
+    - ``on_round(rec, update_events)``: called once each round is complete (progress file).
+    - ``stream`` (Phase H7, fl/stream.StreamRun; the hierarchical_stream arm): at the start of
+      each round ``stream.begin_round(rnd)`` predicts the examples arriving that round, then
+      trains the local models; ``stream.n_train(rnd)`` gives each node's usable labels, which
+      weight the global merge and drive simulated compute time; every new regional / global
+      version is handed to ``stream.deliver`` with the same recipients as the gate's."""
     h, hf, sa = cfg.hierarchy, cfg.hier_fl, cfg.secagg
     sa_regional = sa.enabled and "regional" in sa.levels
     strategy = build_strategy(cfg.fl)
@@ -387,6 +392,11 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
     versions = {r.name: 0 for r in h.regions}  # regional versions published so far
     update_events: list[dict[str, Any]] = []
     for rnd in range(1, cfg.fl.rounds + 1):
+        if stream is not None:
+            counts = stream.n_train(rnd)
+            region_examples = {r.name: sum(counts[n.name] for n in r.nodes) for r in h.regions}
+            sim.n_train = counts
+            stream.begin_round(rnd)
         round_updates: list[dict[str, Any]] = []
         rec: dict[str, Any] = {"round": rnd, "regions": {}, "global_aggregated": False}
         plan, dispatch, groups, t_end = {}, {}, {}, t
@@ -433,6 +443,8 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
             }
             if not p.fallback:
                 versions[region.name] += 1
+                if stream is not None:
+                    stream.deliver("regional", regional[region.name], [names[i] for i in p.parts])
                 if gate is not None:
                     round_updates += gate.offer(rnd, "regional", region.name, versions[region.name],
                                                 regional[region.name], [names[i] for i in p.parts])
@@ -447,6 +459,9 @@ def run_rounds(cfg: ExperimentConfig, train, weights: list[np.ndarray], n_train:
                 global_w = rec.pop("_weights")
                 rec["global"] = _brief(score(global_w, None))
                 rec["global_version"] = n_merges
+                if stream is not None:
+                    for r in rec["global_received"]:
+                        stream.deliver("global", global_w, [names[i] for i in plan[r].parts])
                 if gate is not None:
                     for r in rec["global_received"]:
                         round_updates += gate.offer(rnd, "global", r, n_merges, global_w,
@@ -600,7 +615,7 @@ def _merge(cfg, rnd, rec, events, regional, received, fresh, region_examples, si
 
 def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, device: str,
                      local_models: dict[str, tuple[Any, Standardizer]] | None = None,
-                     on_round=None) -> dict[str, Any]:
+                     on_round=None, streams: dict[str, Any] | None = None) -> dict[str, Any]:
     """Run the hierarchical arm through Flower. Returns the schedule output plus the
     federated scaler, payload, setup bytes and the simulated-link description.
 
@@ -608,7 +623,13 @@ def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, devi
     test-set diagnostic (accuracy of the local, regional and global models and their
     disagreement rate, every node's test set pooled) and, with ``updates.enabled``, the
     version gate runs (fl/versioning.py; ``out["gate"]``). ``on_round`` is passed to
-    ``run_rounds`` (progress file for ``fedastro peek --follow``)."""
+    ``run_rounds`` (progress file for ``fedastro peek --follow``).
+
+    With ``streams`` (node -> data/stream.NodeStream; the hierarchical_stream arm, Phase H7)
+    the same schedule runs test-then-train: nodes train only on usable labels, the scaler
+    comes from the warm-up blocks, and ``out["stream"]`` (fl/stream.StreamRun) holds every
+    on-arrival prediction. Pass ``local_models=None`` then: the stream trains its own local
+    models, and the gate (``updates.enabled``) uses the warm-up local model as version 0."""
     h = cfg.hierarchy
     names = [n.name for n in h.nodes]
     region_of = {n.name: r.name for r in h.regions for n in r.nodes}
@@ -642,7 +663,25 @@ def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, devi
                 set_weights(model, w)
                 return predict_proba(model, X, device).argmax(axis=1)
 
-            gate = diag = None
+            gate = diag = stream = None
+            if streams is not None:
+                from fedastro.fl.stream import StreamRun
+
+                def fed_proba(w, X):
+                    set_weights(model, w)
+                    return predict_proba(model, X, device)
+
+                stream = StreamRun(cfg, seed, device, {n: fed.nodes[n].train for n in names}, streams,
+                                   setup.scaler, fed_proba)
+                if cfg.updates.enabled:
+                    from fedastro.fl.versioning import UpdateGate
+
+                    vals = {n: fed.nodes[n].val for n in names}
+                    X_val = {n: setup.scaler.transform(v.X) for n, v in vals.items()}
+                    gate = UpdateGate(cfg.updates, seed, n_classes, names, {n: v.y for n, v in vals.items()},
+                                      {n: stream.local_v0_classes(n, vals[n].X) for n in names},
+                                      lambda w, n: classes(w, X_val[n]), [r.name for r in h.regions])
+                    stream.gate = gate
             if local_models is not None:
                 from fedastro.fl.versioning import UpdateGate
 
@@ -674,8 +713,9 @@ def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, devi
 
             ctx = _Ctx(grid, setup.ordered_nodes, names, cfg.fl.timeout_s, cfg.secagg.frac_bits)
             sched = run_rounds(cfg, ctx.train, weights, n_train, sim, t0, score, seed=seed, gate=gate,
-                               diag=diag, on_round=on_round)
+                               diag=diag, on_round=on_round, stream=stream)
             out["gate"] = gate
+            out["stream"] = stream
             out.update(sched, scaler=setup.scaler, payload_bytes=payload_bytes(weights),
                        setup_bytes=setup.setup_bytes, setup_sim_s=t0 if sim.on else None,
                        n_params=count_parameters(model), sim=sim)
@@ -685,7 +725,9 @@ def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, devi
 
     logging.getLogger("flwr").setLevel(logging.WARNING)
     run_simulation(
-        server_app=app, client_app=make_client_app(silos, cfg, seed, device), num_supernodes=len(silos),
+        server_app=app, num_supernodes=len(silos),
+        client_app=make_client_app(silos, cfg, seed, device,
+                                   streams=None if streams is None else [streams[n] for n in names]),
         backend_name="ray",
         backend_config={"client_resources": {"num_cpus": cfg.resources.client_num_cpus,
                                              "num_gpus": cfg.resources.client_num_gpus},

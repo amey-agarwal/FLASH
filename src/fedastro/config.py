@@ -42,7 +42,12 @@ FEATURE_ARCHS = ("mlp", "logreg")  # need feature input; cnn1d needs sequences
 OPTIMIZERS = ("adam", "sgd")
 CLASS_WEIGHTING = ("none", "balanced")
 # "hierarchical" (Phase H3, fl/hierarchy.py) needs a hierarchy and the local_only arm.
-ARMS = ("centralized", "local_only", "federated", "ensemble_of_locals", "hierarchical")
+# "hierarchical_stream" (Phase H7, fl/stream.py): the hierarchy again, test-then-train on
+# time-ordered streams; needs the "hierarchical" arm (its fixed-split comparison).
+ARMS = ("centralized", "local_only", "federated", "ensemble_of_locals", "hierarchical", "hierarchical_stream")
+# Arrival order of a node's stream (data/stream.py). auto = time for one_subject_per_node
+# (loaders keep each subject's windows in time order), patient_shuffle for by_source.
+STREAM_ORDERS = ("auto", "time", "patient_shuffle")
 # Paired comparisons (metrics/stats.py): federated minus each of these.
 COMPARATORS = ("local_only", "ensemble_of_locals", "centralized")
 STAT_METRICS = ("accuracy", "balanced_accuracy", "macro_f1", "auc")  # = metrics.classification.METRICS
@@ -522,6 +527,35 @@ class CalibrationConfig:
 
 
 @dataclass(frozen=True)
+class StreamConfig:
+    """Test-then-train evaluation (Phase H7, the ``hierarchical_stream`` arm). Each node's
+    training split becomes a stream: a fully labelled warm-up block (pre-mission data) is
+    available from round 1, the rest arrives in equal chunks in rounds 2..fl.rounds. Every
+    arriving example is predicted before any model has trained on it; a ``label_fraction``
+    of them get a label, usable for training ``label_delay_rounds`` rounds after arrival
+    (0 = in the arrival round, after it was predicted). Settings frozen in PREREG.md."""
+
+    label_fraction: float = 0.1
+    label_delay_rounds: int = 1
+    warmup_frac: float = 0.1
+    order: str = "auto"
+
+    def validate(self) -> None:
+        if not 0 < self.label_fraction <= 1:
+            raise ConfigError("stream.label_fraction must be in (0, 1]")
+        if self.label_delay_rounds < 0:
+            raise ConfigError("stream.label_delay_rounds must be >= 0")
+        if not 0 < self.warmup_frac < 1:
+            raise ConfigError("stream.warmup_frac must be in (0, 1)")
+        if self.order not in STREAM_ORDERS:
+            raise ConfigError(f"stream.order must be one of {STREAM_ORDERS}")
+
+    @property
+    def is_default(self) -> bool:
+        return self == StreamConfig()
+
+
+@dataclass(frozen=True)
 class PartitionConfig:
     method: str = "by_subject"
     # Dirichlet concentration; required (> 0) for the two dirichlet methods.
@@ -898,6 +932,7 @@ class ExperimentConfig:
     # Phase H6: ECE and reliability bins. Always computed in hierarchical runs (with the
     # defaults below); flat runs only with enabled: true, so locked flat results are unchanged.
     calibration: CalibrationConfig = field(default_factory=CalibrationConfig)
+    stream: StreamConfig = field(default_factory=StreamConfig)  # the hierarchical_stream arm only
     # Live demo only: sleep simulated link time x this factor (0 = never sleep).
     # Execution detail, excluded from the run id.
     real_sleep_scale: float = 0.0
@@ -926,6 +961,7 @@ class ExperimentConfig:
         self.secagg.validate()
         self.updates.validate()
         self.calibration.validate()
+        self.stream.validate()
         hier = self.hierarchy
         self._validate_hierarchical_arm()
         if self.shift.enabled and hier is None:
@@ -1030,6 +1066,18 @@ class ExperimentConfig:
 
     def _validate_hierarchical_arm(self) -> None:
         h, hf = self.hierarchy, self.hier_fl
+        if "hierarchical_stream" in self.arms:
+            if "hierarchical" not in self.arms:
+                raise ConfigError("the 'hierarchical_stream' arm needs the 'hierarchical' arm (its fixed-split "
+                                  "comparison)")
+            if self.fl.rounds < 2:
+                raise ConfigError("the 'hierarchical_stream' arm needs fl.rounds >= 2 (round 1 trains on the "
+                                  "warm-up block; the stream arrives in rounds 2..fl.rounds)")
+            if h is not None and h.partition == "by_source" and self.stream.order == "time":
+                raise ConfigError("stream.order 'time': by_source nodes hold many patients with no common "
+                                  "clock; use 'patient_shuffle' (or 'auto')")
+        elif not self.stream.is_default:
+            raise ConfigError("stream is only meaningful with the 'hierarchical_stream' arm")
         if "hierarchical" not in self.arms:
             if not hf.is_default:
                 raise ConfigError("hier_fl is only meaningful with the 'hierarchical' arm")
@@ -1120,6 +1168,8 @@ class ExperimentConfig:
             d.pop("secagg")
         if not self.updates.enabled:  # Phase H5 block, same rule
             d.pop("updates")
+        if "hierarchical_stream" not in self.arms:  # Phase H7 block, same rule
+            d.pop("stream")
         if not self.partition.group_map:
             d["partition"].pop("group_map")
         if not self.partition.holdout_groups:

@@ -93,6 +93,35 @@ that uses the gate (`src/fedastro/fl/versioning.py`, config block `updates`).
 - **Scripted faults** (`updates.inject`) are tests of the gate, labelled SCRIPTED wherever they
   appear; no headline result uses them.
 
+## 4a. Test-then-train stream (Phase H7) — DRAFT, to be frozen before Phase H9
+
+Implemented in `src/fedastro/data/stream.py`, `fl/stream.py`, `metrics/stream.py`
+(arm `hierarchical_stream`, config block `stream`). The values below are the implementation
+defaults; they are **not frozen yet**. They are frozen (this heading changes to FROZEN) before the
+first result-producing stream run, and none of them is chosen from validation or test results.
+
+- **What streams:** each node's training split. Validation (update gate) and test (fixed-split
+  results) are unchanged.
+- **Arrival order:** `auto` = recording time order for WESAD (one subject per node); a seeded
+  patient shuffle (SIMULATED arrival order) for by_source topologies (CinC, synthetic).
+- **Warm-up block:** first 10% of each node's stream (`warmup_frac: 0.1`), fully labelled, trained
+  on from round 1 (pre-mission data). Never scored.
+- **Chunks:** the rest in `fl.rounds - 1` equal chunks, arriving in rounds 2..`fl.rounds`.
+- **Label fraction:** 10% (`label_fraction: 0.1`), cumulative rounding over the stream, seeded
+  choice within a chunk. **Delay:** 1 round (`label_delay_rounds: 1`).
+- **Scoring:** each arriving example is predicted once, at the start of its arrival round, by the
+  local model and by the last regional and global models delivered to that node (and the deployed
+  versions with the gate on); then it may join training once its label is usable. A model a node
+  has not received yet scores nothing (counts reported).
+- **Metrics:** test-then-train accuracy, balanced accuracy, macro-F1, AUC per model, pooled over
+  the stream per node, region and overall; per-round accuracy; agreement / disagreement on the
+  examples all three models scored (H3 on the stream).
+- **Planned sensitivity grid (proposal, to confirm when freezing):** `label_fraction` {0.1, 1.0}
+  x `label_delay_rounds` {0, 1}; primary = (0.1, 1).
+- **Disclosed before any real run:** on WESAD each node holds roughly 45-60 training windows, so at
+  10% labels a node trains on a handful of labels; and WESAD conditions arrive in blocks, so
+  early rounds see only some classes. Both are reported, not adjusted.
+
 ## 5. Gap-closing grid and selection rule (Phase H8)
 
 PLACEHOLDER_ — grid (FedProx μ, local epochs, server optimizer, learning rate) and the selection

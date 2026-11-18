@@ -127,7 +127,25 @@ def from_result(result: dict[str, Any]) -> tuple[dict[str, Any], list[tuple[dict
     if up.get("enabled"):
         foot.append(f"updates: {up['n_offered']} offered, {up['n_rejected']} rejected; deployed versions "
                     + ", ".join(f"{n} r{v['regional']}/g{v['global']}" for n, v in up["deployed"].items()))
+    st = result.get("stream", {})
+    if st.get("enabled"):
+        foot.append(render_stream(st))
     return header, rounds, "\n".join(foot)
+
+
+def render_stream(st: dict[str, Any]) -> str:
+    """Test-then-train view (Phase H7): per round, each model's accuracy on the examples that
+    arrived, scored before any training on them (n = how many that model scored)."""
+    tt = st["test_then_train"]
+    lines = [f"test-then-train ({st['order']} order, {st['order_provenance']}; labels {st['label_fraction']:g}, "
+             f"delay {st['label_delay_rounds']} round(s), warm-up {st['warmup_frac']:g}):"]
+    for r in tt["rounds"]:
+        accs = "  ".join(f"{m} {_f(r['accuracy'][m])} (n {r['n_scored'][m]})" for m in tt["models"])
+        lines.append(f"  round {r['round']:>3}: arrived {r['n_arrived']:>4} | {accs}")
+    g = tt["global"]
+    lines.append("  whole stream: " + "  ".join(
+        f"{m} acc {_f((g[m] or {}).get('accuracy'))}" for m in tt["models"]))
+    return "\n".join(lines)
 
 
 def peek(path: str | Path, out: TextIO = sys.stdout) -> int:
