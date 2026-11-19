@@ -1,8 +1,9 @@
 # PREREG — pre-registration for the `hier-fl` branch
 
 **Status: IN PROGRESS. Frozen so far: §1 hypotheses (wording from CLAUDE.md), §3 location shift,
-§4 update-gate tolerance, §5 gap-closing grid and selection rule (on the H8 commit).
-The other sections are still placeholders.**
+§4 update-gate tolerance, §4a test-then-train stream (on the H9 prep commit), §5 gap-closing grid
+and selection rule (on the H8 commit). §2 and §6 are DRAFTS, frozen after the H8 winners exist and
+before any H9 run.**
 Each section is filled in and frozen (committed) by the phase named in it, **before** any
 result-producing run that it covers (CLAUDE.md rule 9 and §7). After a section is frozen, any
 change to it is a deviation and is listed in the Deviations section and in `PROGRESS.md`.
@@ -33,13 +34,37 @@ deleted on 2026-11-16 at the user's request; it remains in git history (`881045d
 What is already known (disclosed): H1 on flat five-silo WESAD, 5 seeds (the Phase 3 results in
 `PROGRESS.md`, locked by `tests/test_regression_flat.py`).
 
-## 2. Metrics and decision rules
+## 2. Metrics and decision rules (Phase H9) — DRAFT, frozen with §6 before any H9 run
 
-PLACEHOLDER_ — frozen before the first result-producing run (Phase H9 at the latest).
-- Primary metric per hypothesis, and the rule for supported / not supported / inconclusive.
-- Reported alongside accuracy in every table: macro-F1, AUC, ECE, worst-node accuracy.
-- Statistics: at least 5 seeds, mean ± std, hierarchical bootstrap 95% CI
-  (`metrics/aggregate.py`).
+Chosen by the user at the H9 plan ("approve as recommended", 2026-11-19). Code:
+`src/fedastro/metrics/hypotheses.py`, `fedastro hypotheses configs/hypotheses/h9_<dataset>.yaml`.
+
+- **Comparison:** a paired difference between two arms, per evaluation seed (0-4); each arm comes
+  from its own runs at its own validation-selected configuration (§5), paired by seed.
+  Reported: mean, std, and the hierarchical percentile bootstrap 95% CI (one value per seed,
+  `metrics/aggregate.bootstrap_ci`).
+- **Rule:** CI above 0 = **supported**; CI below 0 = **not supported**; CI contains 0 =
+  **inconclusive**. No multiple-comparison correction. Disclosed: with 5 seeds the percentile
+  bootstrap CI excludes 0 whenever all seeds agree in sign, so this rule is lenient.
+- **Primary metric: test accuracy** (continuity with the locked flat H1); macro-F1 reported
+  alongside every comparison. Every table also reports AUC, ECE and worst-node accuracy.
+- **H1:** federated (final model) minus local-only (mean over nodes), no shift (magnitude 0).
+- **H2:** at the primary shift (`both`, magnitude 1.0; §3), on the shifted regions (Moon, Mars)
+  pooled, n_test-weighted: (a) regional minus local-only and (b) regional minus global, regional
+  and global from the hierarchical arm's runs, local-only from its own runs. Supported iff (a)
+  and (b) are both supported; not supported if either is not supported; else inconclusive.
+  **Control clause** (magnitude 0, every region pooled): supported unless regional minus global
+  has its CI above 0.
+- **H3 (descriptive):** accuracy where local, regional and global agree minus where they disagree
+  (`result.disagreement`, headline model regional), the hierarchical arm's runs at the primary
+  shift. The three models in one run share one learning rate (the hierarchical arm's) and share
+  training data, so agreement is correlated: a flag, not independent confirmation.
+- **H4:** the H1 and H2 verdicts per family (logreg, MLP, 1D-CNN): "holds in every family" iff all
+  three are supported; "does not hold" if any is not supported; else "mixed / inconclusive".
+- **Trained, not deployed, models** answer H1-H4. The update gate's deployed versions are reported
+  alongside, in the full-architecture runs only (§6), as the in-mission scenario.
+- Other shift settings (§6) are reported descriptively with the same comparisons; they do not
+  change the verdicts.
 
 ## 3. Location shift (Phase H2) — FROZEN 2026-11-17
 
@@ -93,12 +118,12 @@ that uses the gate (`src/fedastro/fl/versioning.py`, config block `updates`).
 - **Scripted faults** (`updates.inject`) are tests of the gate, labelled SCRIPTED wherever they
   appear; no headline result uses them.
 
-## 4a. Test-then-train stream (Phase H7) — DRAFT, to be frozen before Phase H9
+## 4a. Test-then-train stream (Phase H7) — FROZEN on the H9 prep commit (2026-11-19)
 
 Implemented in `src/fedastro/data/stream.py`, `fl/stream.py`, `metrics/stream.py`
 (arm `hierarchical_stream`, config block `stream`). The values below are the implementation
-defaults; they are **not frozen yet**. They are frozen (this heading changes to FROZEN) before the
-first result-producing stream run, and none of them is chosen from validation or test results.
+defaults, confirmed by the user at the H9 plan ("approve as recommended") and frozen before the
+first result-producing stream run. None of them was chosen from validation or test results.
 
 - **What streams:** each node's training split. Validation (update gate) and test (fixed-split
   results) are unchanged.
@@ -116,8 +141,8 @@ first result-producing stream run, and none of them is chosen from validation or
 - **Metrics:** test-then-train accuracy, balanced accuracy, macro-F1, AUC per model, pooled over
   the stream per node, region and overall; per-round accuracy; agreement / disagreement on the
   examples all three models scored (H3 on the stream).
-- **Planned sensitivity grid (proposal, to confirm when freezing):** `label_fraction` {0.1, 1.0}
-  x `label_delay_rounds` {0, 1}; primary = (0.1, 1).
+- **Sensitivity grid:** `label_fraction` {0.1, 1.0} x `label_delay_rounds` {0, 1}; primary =
+  (0.1, 1). Run at the primary shift, links off (§6, `h9_<dataset>_<family>_stream`).
 - **Disclosed before any real run:** on WESAD each node holds roughly 45-60 training windows, so at
   10% labels a node trains on a handful of labels; and WESAD conditions arrive in blocks, so
   early rounds see only some classes. Both are reported, not adjusted.
@@ -166,11 +191,38 @@ looked at). Code: `src/fedastro/tuning.py`, `metrics/validation.py`, `metrics/ga
   topology's node validation splits, which are small (WESAD: ~10-15 windows per node), so
   selection noise is real; the tolerance rule prefers cheap settings among near-ties.
 
-## 6. Experiment configurations and seeds
+## 6. Experiment configurations and seeds (Phase H9) — DRAFT, frozen before any H9 run
 
-PLACEHOLDER_ — one row per configuration: config file, config hash, topology, dataset, seeds.
-- OSD-435 and WESAD (Phase H9).
-- CinC 2021 (Phase H10).
+Chosen by the user at the H9 plan ("approve as recommended", 2026-11-19). The sweep files are
+**generated** by `fedastro h9-sweeps` from the Phase H8 evaluation sweeps (each arm's validation-
+selected winner, §5), committed to `configs/sweeps/h9_<dataset>_*.yaml`, and listed here with
+their config hashes when this section is frozen. Hyperparameters: `PLACEHOLDER_` until H8 ends.
+
+**WESAD (wesad12), per family (logreg, MLP, 1D-CNN), evaluation seeds 0-4:**
+
+| Sweep | Arms | Settings | Answers |
+|---|---|---|---|
+| `h9_wesad12_<family>_centralized` | centralized | shift grid | reference |
+| `h9_wesad12_<family>_local_only` | local_only | shift grid | H1, H2 |
+| `h9_wesad12_<family>_federated` | federated | shift grid | H1 |
+| `h9_wesad12_<family>_hierarchical` | local_only + hierarchical | shift grid; simulated secure aggregation on | H2, H3 |
+| `h9_wesad12_<family>_full` | local_only + hierarchical + hierarchical_stream | primary shift; links on (Mars `mean` preset, loss of signal, region deadline 120 simulated s), secure aggregation, update gate, test-then-train (§4a primary) | mission scenario, descriptive only |
+| `h9_wesad12_<family>_stream` | local_only + hierarchical + hierarchical_stream | primary shift; links off; §4a sensitivity grid | test-then-train sensitivity |
+
+- **Shift grid** (§3): `both` at magnitudes {0, 0.5, 1, 2}, plus `covariate` and `concept` at 1.0.
+  Magnitude 0 is the control (no shift). Primary: `both` 1.0. SIMULATED.
+- **Links off in the H1-H4 runs:** loss of signal changes which nodes take part, which would mix
+  participation with the statistical comparison. The full-architecture runs report it.
+- **Fixed** (as §5): `fl.rounds` 30, `hier_fl.global_every` 5, batch size 32, Adam, weight
+  decay 1e-4.
+- **Reference:** the locked flat five-silo WESAD results (§1), not re-run.
+- Compute estimate (from the H8 timings, not measured): ~10-14 h sequential CPU; ~1-2 h wall as
+  PACE array jobs.
+
+**OSD-435:** `PLACEHOLDER_` — task proposed after the Phase H9 inspection (PROGRESS.md), added here
+once the user approves it.
+
+**CinC 2021:** Phase H10.
 
 ## 7. Deviations
 

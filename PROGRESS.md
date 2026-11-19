@@ -5,18 +5,88 @@ Handoff log between sessions. Newest phase first. Assume no memory of prior sess
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
 removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`), H2 (`9590007`), H3
 (`836bad2`), H4 (`b19f28b`), H5 (`e9738f9`, `3d5812a`), H6 (`11906a9`) and H7 (`7c556b0`) are
-committed. Phase H8 is built and at the build gate (below); its WESAD tuning runs are pending
-(they need the H8 commit, which freezes PREREG §5). Next: run the H8 grid, report the gap, then
-Phase H9.** Everything below the H0 entry is the record of the earlier plans; where it says
+committed. Phase H8 is committed (`62cf33b`); its WESAD tuning grid is RUNNING on PACE (stage A +
+baselines, job 7167276, 2026-11-19; PACE stays on `62cf33b` until H8's evaluation runs end).
+Phase H9 prep (part 1) is built locally (below): no H9 run exists. Next: finish the H8 grid and
+gap table; the user picks the OSD-435 task; generate the H9 sweeps and freeze PREREG §2/§6.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H8 — Closing the centralized vs federated gap — BUILT, TUNING RUNS PENDING (2026-11-18)
+## Phase H9 (part 1) — WESAD prep and OSD-435 inspection — BUILT, NO RUNS (2026-11-19)
 
-**Not committed.** Suggested message:
-`feat(fl): phase H8 server optimizers, validation-only selection and gap table`.
-Committing freezes PREREG §5 (grid, seeds, rule) **before** any tuning run, as rule 9 requires.
+**Not committed.** Plan approved "as recommended" (2026-11-19), OSDR request approved. Started
+while H8's tuning grid runs on PACE; nothing here touches H8's frozen code or files (`tuning.py`,
+`metrics/gap.py`, the gapA/gapC sweeps, PREREG §5, `scripts/slurm/gap.sbatch`), and PACE does not
+pull it until H8's evaluation runs end. H9's WESAD runs need the H8 winners, so no H9 run exists.
+
+### Built
+- **`metrics/hypotheses.py`, `fedastro hypotheses <spec> [--out]`:** the PREREG §2 rules (paired by
+  seed, bootstrap CI, supported / not supported / inconclusive) for H1, H2 (+ control), H3, H4.
+- **`h9_sweeps.py`, `fedastro h9-sweeps <H8 eval sweeps> --dataset wesad12`:** writes
+  `configs/sweeps/h9_<dataset>_<family>_{centralized,local_only,federated,hierarchical,full,stream}.yaml`
+  (each arm's H8 winner + the PREREG §6 settings) and `configs/hypotheses/h9_<dataset>.yaml` (outside
+  `configs/sweeps/`, which `scripts/golden.py` loads as runnable sweeps).
+- **`metrics/aggregate.py`:** `result.stream` summarised across seeds (deferred from H7).
+- **PREREG:** §2 and §6 DRAFTS; §4a FROZEN on this commit (settings unchanged from H7).
+- **Tests:** `tests/test_hypotheses.py` (9, fabricated inputs).
+
+### Acceptance so far
+- Generated sweeps from 8 hand-written stand-in evaluation sweeps (mlp, cnn1d x 4 arms) all load,
+  including `_full` (links + secure aggregation + gate + stream together) (tested).
+- End-to-end mechanism check, **SYNTHETIC** wesad12 smoke data, 2 seeds, 4 rounds, magnitude 0 and
+  1: `evaluate_hypotheses` ran on real result files (3.5 min laptop). Not a result.
+
+### OSD-435 inspection (OSDR API, 2026-11-19; nothing stored in the repo)
+- Files: ISA metadata zip (2.6 MB) and 5 echocardiography CSVs (LSDS-22, heart and aorta,
+  SUBMITTED and TRANSFORMED, plus a data dictionary). SHA-256 of
+  `LSDS-22_Echocardiography_heart_SUBMITTED.csv`:
+  `5256a1a7f804e65755bd32e96ac4464cfec60da7149416dfdc38768a6bd89924`.
+- **Study (from the OSDR description):** ground-based; male C57BL/6J mice irradiated at the NASA
+  Space Radiation Laboratory (protons, 16O ions, protons then 16O, or 137Cs gamma rays as reference;
+  sham controls); ultrasonography at 3, 5, 7 and 9 months after irradiation. Not a spaceflight
+  study.
+- **Heart table:** 1,152 rows, 385 mice (1-5 rows per mouse), 19 measures (heart rate, wall
+  thicknesses, LV diameters/volumes/mass, SV, EF, FS, CO, mitral valve E/A). Mitral-valve columns
+  are missing in 533 rows; the rest are missing in 2.
+- Columns `RADTYPE` (4 types), `DOSE` (0-3 Gy, 8 levels), `COHORT`, `MONTH` {0, 2, 3, 5, 7, 9}.
+  **Month 0 is in every mouse's rows but not in the study description** (which lists 3, 5, 7, 9
+  months); its meaning (baseline?) is unconfirmed.
+- Rows after month 0 with EF present: 765 rows, 309 mice; sham 223 rows / 90 mice (~29%).
+- The study description reports EF and FS decreases only after 16O (published prior result, not
+  from our data split).
+- **Task: pending the user's choice** (proposal in the session; recorded at approval).
+
+### Decisions (user approved 2026-11-19, "approve as recommended")
+1. §2 rule: paired CI vs 0, no correction; accuracy primary, macro-F1 alongside.
+2. Trained models answer H1-H4; deployed versions alongside (full-architecture runs).
+3. H1/H2 from each arm's own runs; H3 from the hierarchical run's models (one learning rate).
+4. Main runs: links off; secure aggregation on (hierarchical arm only: the code allows it only
+   there); shift grid {0, 0.5, 1, 2} `both` + `covariate`, `concept` at 1.0; 3 families, 5 seeds.
+5. One full-architecture run set per family at the primary shift.
+6. §4a sensitivity grid {0.1, 1.0} x {0, 1} at the primary shift.
+7. OSD-435 settings after the inspection.
+
+### Decisions made while building (review these)
+1. H2's local-only score per region = the n_test-weighted mean of that region's nodes' local-only
+   test scores (exact for accuracy; for macro-F1 a weighted mean of node scores).
+2. The H2 control pools every region; H2 proper pools Moon and Mars only (LEO is unshifted).
+3. Full-architecture region deadline 120 simulated s and global deadline 0 (wait), as in the
+   H3/H4 smoke configs: scenario assumptions.
+4. The PREREG §2 text discloses that the 5-seed bootstrap CI excludes 0 whenever all seeds agree
+   in sign (a lenient rule).
+
+### Open
+- OSD-435 task choice; then `data/osdr.py`, fetch support, flat configs, PREREG §6 rows.
+- After H8: run `fedastro h9-sweeps` on the H8 evaluation sweeps, commit the sweeps with PREREG
+  §2/§6 frozen (config hashes listed), add their run ids to the golden lock, then run on PACE.
+
+---
+
+## Phase H8 — Closing the centralized vs federated gap — COMMITTED `62cf33b`, TUNING RUNNING (2026-11-18)
+
+Committed by the user; PREREG §5 frozen on that commit, before any tuning run. Stage A +
+baselines started on PACE 2026-11-19 (job 7167276; 1 node, 12 cores, 5 h).
 
 ### Built
 - **Server optimizers** (`fl/strategy.ServerOpt`, `fl.server_opt` none | momentum | adam with

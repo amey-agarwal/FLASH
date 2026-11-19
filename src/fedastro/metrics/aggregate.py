@@ -108,7 +108,38 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
         summary["privacy"] = privacy
     if all("model_report" in r for r in results):  # Phase H6
         summary["model_report"] = _summarise_model_report(results)
+    if all((r.get("stream") or {}).get("enabled") for r in results):  # Phase H7, summarised from H9
+        summary["stream"] = _summarise_stream(results)
     return summary
+
+
+STREAM_METRICS = ("accuracy", "balanced_accuracy", "macro_f1", "auc")
+
+
+def _summarise_stream(results: list[dict[str, Any]]) -> dict[str, Any]:
+    """Test-then-train (``result.stream``) across seeds: per model, the stream-pooled scores
+    and how many examples it scored, plus agreement on the examples all three scored. A model
+    a node had not received yet scored nothing, so the models' example sets can differ."""
+    tts = [r["stream"]["test_then_train"] for r in results]
+    models = tts[0]["models"]
+    out: dict[str, Any] = {
+        "label_fraction": results[0]["stream"]["label_fraction"],
+        "label_delay_rounds": results[0]["stream"]["label_delay_rounds"],
+        "scope": tts[0]["scope"],
+        "models": {},
+    }
+    for mod in models:
+        scored = [t["global"][mod] for t in tts if t["global"].get(mod) is not None]
+        out["models"][mod] = {
+            **{m: _mean_std([s[m] for s in scored if s.get(m) is not None]) for m in STREAM_METRICS},
+            "n_scored": _mean_std([t["global"]["n_scored"][mod] for t in tts]),
+            "n_runs_scored": len(scored),
+        }
+    dis = [t["disagreement"] for t in tts if t.get("disagreement")]
+    out["disagreement"] = {k: _mean_std([d[k] for d in dis if d.get(k) is not None])
+                           for k in ("acc_agree", "acc_disagree")}
+    out["n_arrived"] = _mean_std([t["global"]["n_arrived"] for t in tts])
+    return out
 
 
 MODEL_REPORT_METRICS = ("accuracy", "macro_f1", "auc", "ece", "worst_node_accuracy")
@@ -304,6 +335,15 @@ def format_summary(summary: dict[str, Any]) -> str:
         lines.append(f"  {'model':<20}" + "".join(f"{m:>22}" for m in MODEL_REPORT_METRICS))
         for model, row in mr["rows"].items():
             lines.append(f"  {model:<20}" + "".join(f"{fmt(row[m]):>22}" for m in MODEL_REPORT_METRICS))
+    if "stream" in summary:
+        st = summary["stream"]
+        lines.append(f"test-then-train (labels {st['label_fraction']}, delay {st['label_delay_rounds']} rounds; "
+                     f"{fmt(st['n_arrived'])} streamed examples):")
+        for mod, row in st["models"].items():
+            lines.append(f"  {mod:<20} accuracy {fmt(row['accuracy'])}  macro-F1 {fmt(row['macro_f1'])}  "
+                         f"scored {fmt(row['n_scored'])} (in {row['n_runs_scored']} runs)")
+        d = st["disagreement"]
+        lines.append(f"  agree {fmt(d['acc_agree'])}, disagree {fmt(d['acc_disagree'])}")
     if "h1" in summary:
         h = summary["h1"]
         lines.append(f"H1 ({h['metric']}): federated > local_only mean in {h['federated_beats_local_only_mean']}/{h['n_seeds']} runs; "

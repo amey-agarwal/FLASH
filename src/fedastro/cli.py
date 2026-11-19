@@ -68,6 +68,18 @@ def _parser() -> argparse.ArgumentParser:
     gap.add_argument("--output-dir", help="where the runs are (default: each sweep's output_dir)")
     gap.add_argument("--out", help="also write the table as JSON here")
 
+    h9 = sub.add_parser("h9-sweeps", help="write the Phase H9 sweeps from the Phase H8 evaluation sweeps "
+                                          "(PREREG section 6; settings from validation-only selection)")
+    h9.add_argument("eval_sweeps", nargs="+", help="the H8 evaluation sweeps (fedastro select --eval-seeds)")
+    h9.add_argument("--dataset", required=True, help="short dataset name in the file names, e.g. wesad12")
+    h9.add_argument("--out-dir", default="configs/sweeps", help="where the sweeps go (default configs/sweeps)")
+    h9.add_argument("--spec-dir", default="configs/hypotheses", help="where the hypotheses spec goes")
+
+    hyp = sub.add_parser("hypotheses", help="apply the PREREG section 2 rules to H9 results: H1-H4 verdicts")
+    hyp.add_argument("spec", help="configs/hypotheses/h9_<dataset>.yaml (written by h9-sweeps)")
+    hyp.add_argument("--output-dir", help="where the runs are (default: each sweep's output_dir)")
+    hyp.add_argument("--out", help="also write the report as JSON here")
+
     peek = sub.add_parser("peek", help="read-only terminal view of a hierarchical run (writes nothing)")
     peek.add_argument("run_dir", help="runs/<run_id> (or its result.json)")
     peek.add_argument("--follow", action="store_true", help="tail a run in progress until it ends")
@@ -212,6 +224,56 @@ def _gap(args: argparse.Namespace) -> int:
     return 0
 
 
+def _h9_sweeps(args: argparse.Namespace) -> int:
+    from fedastro.h9_sweeps import emit_h9_sweeps
+
+    try:
+        paths = emit_h9_sweeps([Path(p) for p in args.eval_sweeps], Path(args.out_dir), args.dataset,
+                               Path(args.spec_dir))
+    except (ConfigError, ValueError) as e:
+        print(f"h9-sweeps: {e}", file=sys.stderr)
+        return 2
+    for p in paths:
+        print(p)
+    return 0
+
+
+def _sweep_results(sweep: Path, output_dir: str | None) -> list[dict]:
+    from fedastro.grid import load_grid
+    from fedastro.manifest import make_run_id
+
+    _, variants = load_grid(sweep)
+    paths = [Path(output_dir or v.config.output_dir) / make_run_id(v.config, s) / "result.json"
+             for v in variants for s in v.config.seeds]
+    missing = [str(p) for p in paths if not p.is_file()]
+    if missing:
+        raise FileNotFoundError(f"{sweep.name}: {len(missing)} missing runs, e.g. {missing[0]}")
+    return load_results(paths)
+
+
+def _hypotheses(args: argparse.Namespace) -> int:
+    import yaml
+
+    from fedastro.metrics.hypotheses import evaluate_hypotheses, format_hypotheses
+
+    spec_path = Path(args.spec)
+    spec = yaml.safe_load(spec_path.read_text())
+    try:
+        families = {fam: {arm: _sweep_results(spec_path.parent / sw, args.output_dir)
+                          for arm, sw in arms.items() if arm in ("local_only", "federated", "hierarchical")}
+                    for fam, arms in spec["families"].items()}
+        rep = evaluate_hypotheses(families, (spec["primary_shift"]["kind"], float(spec["primary_shift"]["magnitude"])),
+                                  list(spec["shifted_regions"]))
+    except (ConfigError, FileNotFoundError, ValueError, KeyError) as e:
+        print(f"hypotheses: {type(e).__name__}: {e}", file=sys.stderr)
+        return 2
+    print(format_hypotheses(rep))
+    if args.out:
+        Path(args.out).write_text(dumps({"spec": str(spec_path), **rep}))
+        print(args.out)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "summarize":
@@ -223,6 +285,10 @@ def main(argv: list[str] | None = None) -> int:
         return _select(args)
     if args.command == "gap":
         return _gap(args)
+    if args.command == "h9-sweeps":
+        return _h9_sweeps(args)
+    if args.command == "hypotheses":
+        return _hypotheses(args)
     if args.command == "peek":
         from fedastro.peek import follow, peek
 
