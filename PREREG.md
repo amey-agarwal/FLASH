@@ -2,8 +2,8 @@
 
 **Status: IN PROGRESS. Frozen so far: §1 hypotheses (wording from CLAUDE.md), §3 location shift,
 §4 update-gate tolerance, §4a test-then-train stream (on the H9 prep commit), §5 gap-closing grid
-and selection rule (on the H8 commit). §2 and §6 are DRAFTS, frozen after the H8 winners exist and
-before any H9 run.**
+and selection rule (on the H8 commit), the §6 OSD-435 rows (on the OSD-435 commit). §2 and the §6
+WESAD rows are DRAFTS, frozen after the H8 winners exist and before any WESAD H9 run.**
 Each section is filled in and frozen (committed) by the phase named in it, **before** any
 result-producing run that it covers (CLAUDE.md rule 9 and §7). After a section is frozen, any
 change to it is a deviation and is listed in the Deviations section and in `PROGRESS.md`.
@@ -219,7 +219,7 @@ their config hashes when this section is frozen. Hyperparameters: `PLACEHOLDER_`
 - Compute estimate (from the H8 timings, not measured): ~10-14 h sequential CPU; ~1-2 h wall as
   PACE array jobs.
 
-**OSD-435 (flat, two silos), approved 2026-11-19 ("approve as recommended"):** the FLUID setup
+**OSD-435 (flat, two silos) — FROZEN on the OSD-435 commit, approved 2026-11-19 ("approve as recommended"):** the FLUID setup
 as its paper reports it. Code `src/fedastro/data/osdr.py`; config
 `configs/experiments/osd435_fluid.yaml`; sweep `configs/sweeps/h9_osd435.yaml`; seeds 0-4.
 - **Data:** `LSDS-22_Echocardiography_aorta_SUBMITTED.csv`, SHA-256
@@ -236,8 +236,7 @@ as its paper reports it. Code `src/fedastro/data/osdr.py`; config
   holdout seed; no mouse in two splits (FLUID's split method is not known to us; theirs may have
   been by row). No validation split: default settings, no tuning.
 - **Silos:** `earth`, `iss` (scenario labels, `configs/silos/fluid_two.yaml`). (a) FLUID: whole
-  mice, 50 / 50, IID. (b) non-IID: Dirichlet label skew, alpha `PLACEHOLDER_` (0.5 as approved
-  gives single-class silos on some seeds; pending the user's decision, PROGRESS.md).
+  mice, 50 / 50, IID. (b) non-IID: Dirichlet label skew, **alpha 5.0** (deviation 1, §7).
 - **Models / arms:** logreg and MLP (FLUID's CRISP v2.0 is not available: this reproduces FLUID's
   data setup, not its model); centralized, local-only, federated (FedAvg); training defaults.
 - **Reported alongside:** the radiation-type-only majority baseline.
@@ -247,4 +246,8 @@ as its paper reports it. Code `src/fedastro/data/osdr.py`; config
 
 ## 7. Deviations
 
-None yet.
+1. **OSD-435 non-IID split, alpha 0.5 -> 5.0** (2026-11-19, before any OSD-435 result-producing
+   run; user: "approve as recommended"). With two silos, alpha 0.5 left both silos without sham
+   rows on seed 0 and one silo on seed 4; alpha 2.0 still left a silo without sham rows. Alpha
+   5.0 is the smallest value checked (0.5, 1, 2, 5) with no single-class silo on seeds 0-4. Chosen
+   from per-silo label counts only, never from a score. Counts in PROGRESS.md (Phase H9).

@@ -80,8 +80,8 @@ pull it until H8's evaluation runs end. H9's WESAD runs need the H8 winners, so 
   seed 0 leaves both silos with 0 sham rows; seed 4 one silo. Sham rows per silo, seeds 0-4
   (counts only): alpha 0.5 `0/186 0/152 | 94/250 101/113 | 103/108 103/122 | 98/221 108/110 |
   0/187 101/207`; alpha 2.0 still has seed 0 at 4/190 and 0/152; alpha 5.0 has no single-class
-  silo (smallest 30/194). Options: alpha 5.0 (existing code), a fixed mirrored label split, or
-  keep 0.5 and report.
+  silo (smallest 30/194). **User chose alpha 5.0 (2026-11-19, "approve as recommended"); PREREG
+  §7 deviation 1.** Sweep updated.
 - Plan deviation: no 90/10 train/validation split inside silos: the flat pipeline has none and
   nothing here is tuned.
 
