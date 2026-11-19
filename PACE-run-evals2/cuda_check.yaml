@@ -1,0 +1,13 @@
+# Cluster-only CUDA/Ray GPU placement check. SYNTHETIC data; not a result.
+name: cuda_check
+seed: 0
+seeds: [0]
+data:
+  name: synthetic
+train:
+  epochs: 3
+fl:
+  rounds: 3
+device: cuda
+resources:
+  client_num_gpus: 0.2

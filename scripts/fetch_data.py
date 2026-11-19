@@ -1,6 +1,7 @@
 """Download raw datasets into data/raw/. Non-interactive; safe to re-run.
 
     python scripts/fetch_data.py wesad --accept-license
+    python scripts/fetch_data.py osd435 --accept-license
 
 WESAD (Schmidt et al., ICMI 2018) is distributed by the University of Siegen for
 non-commercial academic use. Passing --accept-license records that you have read and
@@ -26,6 +27,13 @@ DATASETS = {
         "filename": "WESAD.zip",
         "landing_page": "https://ubicomp.eti.uni-siegen.de/home/datasets/icmi18/",
         "license_note": "WESAD: non-commercial academic research use only; see landing page.",
+    },
+    "osd435": {  # one 66 KB CSV; its sha256 is also pinned in src/fedastro/data/osdr.py
+        "url": "https://osdr.nasa.gov/geode-py/ws/studies/OSD-435/download?source=datamanager"
+               "&file=LSDS-22_Echocardiography_aorta_SUBMITTED.csv",
+        "filename": "LSDS-22_Echocardiography_aorta_SUBMITTED.csv",
+        "landing_page": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-435",
+        "license_note": "OSD-435 (NASA OSDR, public): cite the study and OSDR; see landing page.",
     },
 }
 

@@ -50,6 +50,8 @@ REGISTRY: dict[str, DatasetSpec] = {
     spec.name: spec for spec in (
         DatasetSpec("synthetic", "SYNTHETIC", "synthetic", "fedastro.data.synthetic"),
         DatasetSpec("wesad", "WESAD", "terrestrial_proxy", "fedastro.data.wesad"),
+        # Ground-based space-radiation study in mice (Phase H9): an analog, not spaceflight.
+        DatasetSpec("osd435", "OSD-435", "terrestrial_analog", "fedastro.data.osdr"),
     )
 }
 

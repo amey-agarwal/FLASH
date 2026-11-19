@@ -219,8 +219,29 @@ their config hashes when this section is frozen. Hyperparameters: `PLACEHOLDER_`
 - Compute estimate (from the H8 timings, not measured): ~10-14 h sequential CPU; ~1-2 h wall as
   PACE array jobs.
 
-**OSD-435:** `PLACEHOLDER_` — task proposed after the Phase H9 inspection (PROGRESS.md), added here
-once the user approves it.
+**OSD-435 (flat, two silos), approved 2026-11-19 ("approve as recommended"):** the FLUID setup
+as its paper reports it. Code `src/fedastro/data/osdr.py`; config
+`configs/experiments/osd435_fluid.yaml`; sweep `configs/sweeps/h9_osd435.yaml`; seeds 0-4.
+- **Data:** `LSDS-22_Echocardiography_aorta_SUBMITTED.csv`, SHA-256
+  `df3286f1660c7adb5b33322f8c153767567524b714b33a86bcf010baa06cc4d0` (pinned). A ground-based mouse
+  space-radiation study (NASA Space Radiation Laboratory): a terrestrial analog, not spaceflight.
+- **Label:** 0 Gy (sham) vs >= 0.5 Gy (irradiated). **Rows:** 0.05-0.25 Gy removed, rows with a
+  missing feature removed: 809 rows, 280 mice, 65% irradiated.
+- **Features (main):** radiation type (one-hot), month post-irradiation, heart rate, aorta peak
+  velocity (`VELOCITY`, mm/s), VTI, mean velocity. **Sensitivity:** no radiation type and no
+  month-0 rows (572 rows, 215 mice). Disclosed before any run: predicting the majority class per
+  radiation type is right on 76% of the main rows (always "irradiated": 65%), so part of the main
+  task's accuracy reflects the study design.
+- **Split:** 30% of mice held out as the shared test set (84 / 280; sensitivity 65 / 215), fixed
+  holdout seed; no mouse in two splits (FLUID's split method is not known to us; theirs may have
+  been by row). No validation split: default settings, no tuning.
+- **Silos:** `earth`, `iss` (scenario labels, `configs/silos/fluid_two.yaml`). (a) FLUID: whole
+  mice, 50 / 50, IID. (b) non-IID: Dirichlet label skew, alpha `PLACEHOLDER_` (0.5 as approved
+  gives single-class silos on some seeds; pending the user's decision, PROGRESS.md).
+- **Models / arms:** logreg and MLP (FLUID's CRISP v2.0 is not available: this reproduces FLUID's
+  data setup, not its model); centralized, local-only, federated (FedAvg); training defaults.
+- **Reported alongside:** the radiation-type-only majority baseline.
+- Compute: ~42 s per run on the laptop (one timing run, scores not read); 40 runs, ~30 min.
 
 **CinC 2021:** Phase H10.
 

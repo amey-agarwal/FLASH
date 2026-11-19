@@ -1,0 +1,178 @@
+---------------------------------------
+Begin Slurm Prolog: Oct-29-2026 16:34:33
+Job ID:    6666040
+User ID:   aagarwal710
+Account:   bios
+Job name:  fedastro-cuda
+Partition: coc-gpu
+QOS:       coc-ice
+---------------------------------------
+Thu Oct 29 16:34:33 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 615.71.09              KMD Version: 615.71.09     CUDA UMD Version: 13.4     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA L40S                    On  |   00000000:41:00.0 Off |                    0 |
+| N/A   34C    P8             34W /  350W |       0MiB /  46068MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+2.2.2+cu121 True 12.1
+[91mERROR [0m:     ServerApp thread raised an exception: Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0! (when checking argument for argument mat1 in method wrapper_CUDA_addmm)
+[91mERROR [0m:     Traceback (most recent call last):
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/flwr/simulation/run_simulation.py", line 284, in server_th_with_start_checks
+    updated_context = _run(
+                      ^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/flwr/server/run_serverapp.py", line 62, in run
+    server_app(grid=grid, context=context)
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/flwr/server/server_app.py", line 176, in __call__
+    self._main(grid, context)
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/fl/server.py", line 166, in main
+    out["init_metrics"] = ctx.score_global(weights)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/fl/server.py", line 225, in score_global
+    return self.holdout_eval(self.model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/baselines/common.py", line 36, in _eval
+    return evaluate(y, predict_proba(model, X, device))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/training.py", line 131, in predict_proba
+    out.append(torch.softmax(model(xb), dim=1).cpu().numpy())
+                             ^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/models/model.py", line 27, in forward
+    return self.net(x)
+           ^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/container.py", line 217, in forward
+    input = module(input)
+            ^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/linear.py", line 116, in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0! (when checking argument for argument mat1 in method wrapper_CUDA_addmm)
+
+Exception in thread Thread-1 (server_th_with_start_checks):
+Traceback (most recent call last):
+  File "/storage/ice1/4/7/aagarwal710/uv/python/cpython-3.11.18-linux-x86_64-gnu/lib/python3.11/threading.py", line 1045, in _bootstrap_inner
+    self.run()
+  File "/storage/ice1/4/7/aagarwal710/uv/python/cpython-3.11.18-linux-x86_64-gnu/lib/python3.11/threading.py", line 982, in run
+    self._target(*self._args, **self._kwargs)
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/flwr/simulation/run_simulation.py", line 284, in server_th_with_start_checks
+    updated_context = _run(
+                      ^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/flwr/server/run_serverapp.py", line 62, in run
+    server_app(grid=grid, context=context)
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/flwr/server/server_app.py", line 176, in __call__
+    self._main(grid, context)
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/fl/server.py", line 166, in main
+    out["init_metrics"] = ctx.score_global(weights)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/fl/server.py", line 225, in score_global
+    return self.holdout_eval(self.model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/baselines/common.py", line 36, in _eval
+    return evaluate(y, predict_proba(model, X, device))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/training.py", line 131, in predict_proba
+    out.append(torch.softmax(model(xb), dim=1).cpu().numpy())
+                             ^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/models/model.py", line 27, in forward
+    return self.net(x)
+           ^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/container.py", line 217, in forward
+    input = module(input)
+            ^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/linear.py", line 116, in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0! (when checking argument for argument mat1 in method wrapper_CUDA_addmm)
+Traceback (most recent call last):
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/bin/fedastro", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/cli.py", line 156, in main
+    run_dir = run_and_write(cfg, seed)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/pipeline.py", line 164, in run_and_write
+    result = run_experiment(cfg, seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/pipeline.py", line 133, in run_experiment
+    capture = run_arms(cfg, fed, seed, result)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/pipeline.py", line 84, in run_arms
+    result["arms"]["federated"] = run_federated(fed, cfg, seed, device, centralized_final, capture)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/fl/server.py", line 411, in run_federated
+    run_simulation(
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/flwr/simulation/run_simulation.py", line 238, in run_simulation
+    _ = _run_simulation(
+        ^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/flwr/simulation/run_simulation.py", line 523, in _run_simulation
+    updated_context = _main_loop(*args)
+                      ^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/flwr/simulation/run_simulation.py", line 421, in _main_loop
+    raise RuntimeError("Exception in ServerApp thread")
+RuntimeError: Exception in ServerApp thread
+---------------------------------------
+Begin Slurm Epilog: Oct-29-2026 16:35:28
+Job ID:        6666040
+User ID:       aagarwal710
+Account:       bios
+Job name:      fedastro-cuda
+Resources:     cpu=4,gres/gpu:l40s=1,mem=16G,node=1
+Rsrc Used:     cput=00:03:56,vmem=0,walltime=00:00:59,mem=6735412K,energy_used=0
+Partition:     coc-gpu
+QOS:           coc-ice
+Nodes:         atl1-1-03-004-27-0
+---------------------------------------

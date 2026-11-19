@@ -141,16 +141,32 @@ class WesadParams:
 
 
 @dataclass(frozen=True)
+class Osd435Params:
+    """OSD-435 (data/osdr.py, Phase H9). Defaults = the FLUID setup; both False = the
+    pre-registered sensitivity variant (PREREG.md section 6)."""
+
+    include_radtype: bool = True  # radiation type as a feature (partly gives the label away)
+    include_month0: bool = True  # month-0 rows (meaning not stated in the study description)
+
+    def validate(self) -> None:
+        for k in ("include_radtype", "include_month0"):
+            if not isinstance(getattr(self, k), bool):
+                raise ConfigError(f"data.osd435.{k} must be true or false")
+
+
+@dataclass(frozen=True)
 class DataConfig:
     name: str = "synthetic"
     synthetic: SyntheticParams = field(default_factory=SyntheticParams)
     wesad: WesadParams = field(default_factory=WesadParams)
+    osd435: Osd435Params = field(default_factory=Osd435Params)
 
     def validate(self) -> None:
         if self.name not in DATASETS:
             raise ConfigError(f"data.name must be one of {DATASETS}, got {self.name!r}")
         self.synthetic.validate()
         self.wesad.validate()
+        self.osd435.validate()
 
     @property
     def is_synthetic(self) -> bool:

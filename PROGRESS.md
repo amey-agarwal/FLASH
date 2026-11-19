@@ -55,7 +55,35 @@ pull it until H8's evaluation runs end. H9's WESAD runs need the H8 winners, so 
 - Rows after month 0 with EF present: 765 rows, 309 mice; sham 223 rows / 90 mice (~29%).
 - The study description reports EF and FS decreases only after 16O (published prior result, not
   from our data split).
-- **Task: pending the user's choice** (proposal in the session; recorded at approval).
+- **Task (user-approved 2026-11-19, "approve as recommended"):** the FLUID setup as its paper
+  reports it (user-supplied summary of the paper): 0 Gy vs >= 0.5 Gy; features radiation type,
+  month, heart rate, peak velocity, VTI, mean velocity; low doses (0.05-0.25 Gy) and missing values
+  removed; 50 / 50 Earth / ISS; 70 / 30 train / test. Plus a pre-registered sensitivity variant
+  (no radiation type, no month-0 rows). Details in PREREG §6.
+- **Findings disclosed before any run** (aorta table, counts only): 809 rows, 280 mice, 65%
+  irradiated. Radiation type 4 has no sham mice; type 2 is 77% sham after the filter; majority
+  class per radiation type is right on 76% of rows. 237 rows are month 0. Mice have 1-5 rows, so
+  we split by mouse (FLUID's split method unknown). FLUID's "peak velocity" is ambiguous
+  (`VELOCITY` mm/s vs `PEAKVEL` cm, r = 0.98): `VELOCITY` used.
+
+### OSD-435 built (part 1b)
+- `data/osdr.py` (loader, pinned SHA-256, filter, one-hot radiation type, mouse = subject),
+  `Osd435Params` (`data.osd435.include_radtype`, `include_month0`; out of every other dataset's
+  run id), registry entry (domain `terrestrial_analog`), `scripts/fetch_data.py osd435`,
+  `configs/silos/fluid_two.yaml`, `configs/experiments/osd435_fluid.yaml`,
+  `configs/sweeps/h9_osd435.yaml` (8 variants), `tests/test_osdr.py` (7).
+- `fedastro inspect`: IID split earth 98 mice / 289 rows (35.6% sham), iss 98 / 255 (40.4%), test
+  84 / 265 (28.3%). Sensitivity: 75 / 75 / 65 mice.
+- One timing run (default MLP, FLUID IID, seed 0): 42 s laptop CPU; scores not read,
+  output deleted.
+- **Deviation found (needs the user):** Dirichlet alpha 0.5 with two silos gives degenerate splits:
+  seed 0 leaves both silos with 0 sham rows; seed 4 one silo. Sham rows per silo, seeds 0-4
+  (counts only): alpha 0.5 `0/186 0/152 | 94/250 101/113 | 103/108 103/122 | 98/221 108/110 |
+  0/187 101/207`; alpha 2.0 still has seed 0 at 4/190 and 0/152; alpha 5.0 has no single-class
+  silo (smallest 30/194). Options: alpha 5.0 (existing code), a fixed mirrored label split, or
+  keep 0.5 and report.
+- Plan deviation: no 90/10 train/validation split inside silos: the flat pipeline has none and
+  nothing here is tuned.
 
 ### Decisions (user approved 2026-11-19, "approve as recommended")
 1. §2 rule: paired CI vs 0, no correction; accuracy primary, macro-F1 alongside.

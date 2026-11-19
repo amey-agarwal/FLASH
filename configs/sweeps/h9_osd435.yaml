@@ -1,0 +1,20 @@
+# Phase H9 OSD-435 runs (PREREG.md section 6), flat two-silo topology, seeds 0-4, default settings.
+# (a) FLUID split: by mouse, 50 / 50, IID.  (b) non-IID: Dirichlet label skew, alpha 0.5.
+# x  main (FLUID features, month-0 rows kept, 84 / 280 mice held out)
+#    or sensitivity (no radiation type, no month-0 rows, 65 / 215 mice held out = 30%)
+# x  logreg, MLP.
+name: h9_osd435
+base: ../experiments/osd435_fluid.yaml
+variants:
+  - {partition.method: by_subject, model.arch: logreg}
+  - {partition.method: by_subject, model.arch: mlp}
+  - {partition.method: dirichlet, partition.alpha: 0.5, model.arch: logreg}
+  - {partition.method: dirichlet, partition.alpha: 0.5, model.arch: mlp}
+  - {partition.method: by_subject, model.arch: logreg, data.osd435.include_radtype: false,
+     data.osd435.include_month0: false, partition.holdout_subjects: 65}
+  - {partition.method: by_subject, model.arch: mlp, data.osd435.include_radtype: false,
+     data.osd435.include_month0: false, partition.holdout_subjects: 65}
+  - {partition.method: dirichlet, partition.alpha: 0.5, model.arch: logreg, data.osd435.include_radtype: false,
+     data.osd435.include_month0: false, partition.holdout_subjects: 65}
+  - {partition.method: dirichlet, partition.alpha: 0.5, model.arch: mlp, data.osd435.include_radtype: false,
+     data.osd435.include_month0: false, partition.holdout_subjects: 65}

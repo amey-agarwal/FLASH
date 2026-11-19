@@ -1,0 +1,169 @@
+---------------------------------------
+Begin Slurm Prolog: Oct-29-2026 16:40:40
+Job ID:    6666072
+User ID:   aagarwal710
+Account:   bios
+Job name:  fedastro-cuda
+Partition: ice-bw-gpu
+QOS:       coc-ice
+---------------------------------------
+Thu Oct 29 16:40:40 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 615.71.09              KMD Version: 615.71.09     CUDA UMD Version: 13.4     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA RTX PRO 6000 Blac...    On  |   00000000:8E:00.0 Off |                   On |
+| N/A   32C    P8             38W /  600W |     256MiB /  97887MiB |     N/A      Default |
+|                                         |                        |              Enabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| MIG devices:                                                                            |
++------------------+----------------------------------+-----------+-----------------------+
+| GPU  GI  CI  MIG |              Shared Memory-Usage |        Vol|        Shared         |
+|      ID  ID  Dev |                Shared BAR1-Usage | SM     Unc| CE ENC  DEC  OFA  JPG |
+|                  |                                  |        ECC|                       |
+|==================+==================================+===========+=======================|
+|  0    1   0   0  |             128MiB / 48512MiB    | 94      0 |  2   2    2    0    2 |
+|                  |               0MiB / 16608MiB    |           |                       |
++------------------+----------------------------------+-----------+-----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+2.2.2+cu121 True 12.1
+/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/cuda/__init__.py:218: UserWarning: 
+NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 2g.48gb with CUDA capability sm_120 is not compatible with the current PyTorch installation.
+The current PyTorch install supports CUDA capabilities sm_50 sm_60 sm_70 sm_75 sm_80 sm_86 sm_90.
+If you want to use the NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 2g.48gb GPU with PyTorch, please check the instructions at https://pytorch.org/get-started/locally/
+
+  warnings.warn(
+Traceback (most recent call last):
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/bin/fedastro", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/cli.py", line 156, in main
+    run_dir = run_and_write(cfg, seed)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/pipeline.py", line 164, in run_and_write
+    result = run_experiment(cfg, seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/pipeline.py", line 133, in run_experiment
+    capture = run_arms(cfg, fed, seed, result)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/pipeline.py", line 76, in run_arms
+    result["arms"]["centralized"] = run_centralized(fed, cfg, seed, device)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/baselines/centralized.py", line 28, in run_centralized
+    history = train_local(
+              ^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/src/fedastro/training.py", line 72, in train_local
+    model.to(device)
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1152, in to
+    return self._apply(convert)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 802, in _apply
+    module._apply(fn)
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 802, in _apply
+    module._apply(fn)
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 825, in _apply
+    param_applied = fn(param)
+                    ^^^^^^^^^
+  File "/storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1150, in convert
+    return t.to(device, dtype if t.is_floating_point() or t.is_complex() else None, non_blocking)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: CUDA error: no kernel image is available for execution on the device
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+F                                                                                                                   [100%]
+======================================================== FAILURES =========================================================
+______________________________________________ test_federated_smoke_on_cuda _______________________________________________
+
+    def test_federated_smoke_on_cuda():
+        """All three arms on a GPU: server and client models must live on the run's device.
+        Skipped where CUDA is absent (the laptop); run it on a cluster GPU node."""
+        import torch
+        if not torch.cuda.is_available():
+            pytest.skip("CUDA not available")
+        from pathlib import Path
+    
+        from fedastro.config import load_config
+        from fedastro.pipeline import run_experiment
+        cfg = load_config(Path(__file__).resolve().parents[1] / "configs/experiments/smoke_fl.yaml",
+                          {"device": "cuda", "resources.client_num_gpus": 0.2})
+>       result = run_experiment(cfg, 0)
+                 ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_fl.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src/fedastro/pipeline.py:133: in run_experiment
+    capture = run_arms(cfg, fed, seed, result)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fedastro/pipeline.py:76: in run_arms
+    result["arms"]["centralized"] = run_centralized(fed, cfg, seed, device)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fedastro/baselines/centralized.py:28: in run_centralized
+    history = train_local(
+src/fedastro/training.py:72: in train_local
+    model.to(device)
+.venv/lib/python3.11/site-packages/torch/nn/modules/module.py:1152: in to
+    return self._apply(convert)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.11/site-packages/torch/nn/modules/module.py:802: in _apply
+    module._apply(fn)
+.venv/lib/python3.11/site-packages/torch/nn/modules/module.py:802: in _apply
+    module._apply(fn)
+.venv/lib/python3.11/site-packages/torch/nn/modules/module.py:825: in _apply
+    param_applied = fn(param)
+                    ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+t = Parameter containing:
+tensor([[-0.3235, -0.1094,  0.0952,  0.0501,  0.0912,  0.3167,  0.0692, -0.0986],
+        [-0.25...-0.0511],
+        [ 0.0053,  0.1033, -0.2737,  0.1904,  0.0070, -0.2565, -0.1676,  0.2002]],
+       requires_grad=True)
+
+    def convert(t):
+        if convert_to_format is not None and t.dim() in (4, 5):
+            return t.to(device, dtype if t.is_floating_point() or t.is_complex() else None,
+                        non_blocking, memory_format=convert_to_format)
+>       return t.to(device, dtype if t.is_floating_point() or t.is_complex() else None, non_blocking)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       RuntimeError: CUDA error: no kernel image is available for execution on the device
+E       CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+E       For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+E       Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+.venv/lib/python3.11/site-packages/torch/nn/modules/module.py:1150: RuntimeError
+==================================================== warnings summary =====================================================
+tests/test_fl.py::test_federated_smoke_on_cuda
+  /storage/ice1/4/7/aagarwal710/FLASH/.venv/lib/python3.11/site-packages/torch/cuda/__init__.py:218: UserWarning: 
+  NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 2g.48gb with CUDA capability sm_120 is not compatible with the current PyTorch installation.
+  The current PyTorch install supports CUDA capabilities sm_50 sm_60 sm_70 sm_75 sm_80 sm_86 sm_90.
+  If you want to use the NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 2g.48gb GPU with PyTorch, please check the instructions at https://pytorch.org/get-started/locally/
+  
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------------------------------------
+Begin Slurm Epilog: Oct-29-2026 16:41:43
+Job ID:        6666072
+User ID:       aagarwal710
+Account:       bios
+Job name:      fedastro-cuda
+Resources:     cpu=4,gres/gpu:rtx_pro_6000_blackwell=1,mem=16G,node=1
+Rsrc Used:     cput=00:04:28,vmem=0,walltime=00:01:07,mem=852984K,energy_used=0
+Partition:     ice-bw-gpu
+QOS:           coc-ice
+Nodes:         atl1-1-02-014-27-0
+---------------------------------------

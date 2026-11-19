@@ -1,0 +1,15 @@
+# OSD-435 in the FLUID setup (Phase H9, PREREG.md section 6): 0 Gy vs >= 0.5 Gy, FLUID's features
+# and row filter (data/osdr.py), two silos "earth" / "iss" (scenario labels), 50 / 50 random split
+# by mouse, 30% of mice held out as the shared test set (84 of 280; fixed holdout seed).
+# Ground-based mouse radiation study: a terrestrial analog, not spaceflight or human data.
+# Default training settings, no tuning (too few mice for a validation split). Runs on CPU.
+name: osd435_fluid
+seeds: [0, 1, 2, 3, 4]
+silos: fluid_two
+data:
+  name: osd435
+partition:
+  method: by_subject
+  holdout_subjects: 84
+arms: [centralized, local_only, federated]
+notes: "OSD-435, FLUID setup (radiation dose, 2 silos)."

@@ -1,0 +1,14 @@
+# Two-silo federation in the FLUID setup (Casaletto et al., bioRxiv 10.1101/2025.01.14.633017):
+# data split 50 / 50 between an Earth and an ISS collaborator. Phase H9, OSD-435.
+# Silo names are SCENARIO LABELS for a simulation, not real deployments or data holders.
+# Links are not simulated in the OSD-435 runs (comms off); the profiles only document the scenario.
+name: fluid_two
+silos:
+  - name: earth
+    data_share: 0.5
+    one_way_latency_s: 0.0
+    los_profile: none
+  - name: iss
+    data_share: 0.5
+    one_way_latency_s: 0.25           # as iss_commercial in five_agency.yaml (scenario assumption)
+    los_profile: short_occasional
