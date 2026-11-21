@@ -45,9 +45,33 @@ the registry without `osd435`, and `scripts/run_report.LEGACY_DOMAINS` lacked `O
 now probes the unregistered `cinc2021`; mapping added); `test_registry_groups.py` 21 passed. Golden,
 hypotheses and OSD-435 tests: 25 passed.
 
+### OSD-435 results (2026-11-21, laptop, commit `7174a1e`, 40/40 runs, REAL, seeds 0-4)
+`fedastro grid configs/sweeps/h9_osd435.yaml --report` (saved: `runs/h9_osd435_report.txt`,
+`runs/h9_osd435-grid.json`). Test accuracy / macro-F1, mean +/- std over seeds; held-out mice.
+
+| Split | Features | Model | Federated acc | Fed. macro-F1 | Local-only acc | Centralized acc | Fed > local (seeds) |
+|---|---|---|---|---|---|---|---|
+| FLUID IID | main | logreg | 0.774 ± 0.017 | 0.683 | 0.765 ± 0.035 | 0.802 ± 0.002 | 3/5 |
+| FLUID IID | main | mlp | 0.790 ± 0.012 | 0.696 | 0.763 ± 0.018 | 0.772 ± 0.014 | 4/5 |
+| non-IID a 5 | main | logreg | 0.692 ± 0.043 | 0.610 | 0.716 ± 0.060 | 0.775 ± 0.056 | 1/5 |
+| non-IID a 5 | main | mlp | 0.788 ± 0.038 | 0.693 | 0.742 ± 0.043 | 0.779 ± 0.048 | 4/5 |
+| FLUID IID | sensitivity | logreg | 0.617 ± 0.076 | 0.503 | 0.620 ± 0.075 | 0.677 ± 0.047 | 1/5 |
+| FLUID IID | sensitivity | mlp | 0.730 ± 0.019 | 0.474 | 0.697 ± 0.018 | 0.707 ± 0.009 | 5/5 |
+| non-IID a 5 | sensitivity | logreg | 0.567 ± 0.172 | 0.474 | 0.617 ± 0.049 | 0.702 ± 0.090 | 2/5 |
+| non-IID a 5 | sensitivity | mlp | 0.753 ± 0.018 | 0.449 | 0.667 ± 0.106 | 0.710 ± 0.081 | 4/5 |
+
+- **Against the disclosed baselines** (whole dataset, not the test split): radiation-type majority
+  76% of main rows, always "irradiated" 65% (main) / 64% (sensitivity). Main-task accuracy
+  (0.69-0.80) is about what radiation type alone gives; sensitivity macro-F1 (0.45-0.50) is near
+  the always-"irradiated" level (~0.39), i.e. the echo / heart-rate measures alone separate sham
+  from irradiated only weakly.
+- MLP federated beats local-only in 4-5 of 5 seeds in every setting; logreg does not (1-3 of 5).
+- H1 verdicts by the PREREG §2 rule are not computed here (OSD-435 has no hypotheses spec; the
+  `H1` column is the per-seed count from `--report`).
+
 ### Next
-1. User commits (suggested: `feat(eval): phase H9 WESAD sweeps generated from H8 winners, PREREG §2/§6 frozen`).
-2. OSD-435 locally on that clean commit (~30 min): `caffeinate -i uv run --frozen fedastro grid configs/sweeps/h9_osd435.yaml --resume`.
+1. ~~User commits~~ done (`7174a1e`).
+2. ~~OSD-435 locally~~ done (above).
 3. Copy the H8 evaluation results from PACE, run `fedastro gap`, close the H8 gate, update the
    presentation page.
 4. PACE pulls this commit (after step 3's files are collected), runs the 18 H9 sweeps
