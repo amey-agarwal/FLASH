@@ -7,11 +7,94 @@ removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`), 
 (`836bad2`), H4 (`b19f28b`), H5 (`e9738f9`, `3d5812a`), H6 (`11906a9`) and H7 (`7c556b0`) are
 committed. Phase H8 is committed (`62cf33b`); its tuning (468 runs) and evaluation (60 runs, seeds
 0-4) are DONE and the gap table is computed (2026-11-21, H8 "Evaluation"): **these are the numbers
-for presentations**; the earlier tuning-seed page is superseded. H9 WESAD (435 runs, `84a40ec`) is
-RUNNING on PACE.**
-Phase H9 prep (part 1) is built locally (below): no H9 run exists. Next: finish the H8 grid and
-gap table; the user picks the OSD-435 task; generate the H9 sweeps and freeze PREREG §2/§6.** Everything below the H0 entry is the record of the earlier plans; where it says
+for presentations**; the earlier tuning-seed page is superseded. H9 is DONE: OSD-435 (40 runs)
+and WESAD (435 runs, `84a40ec`, H1-H4 verdicts in "Phase H9 (part 3)"). Next: Phase H10 (CinC).**
+Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
+
+---
+
+## Phase H9 (part 3) — WESAD results, H1-H4 answered — DONE (2026-11-21; numbers for presentations)
+
+435/435 runs from PACE (18 jobs 7226543-60, commit `84a40ec`, provenance REAL WESAD, no failures),
+copied to `runs/h9-84a40ec/` (git-ignored) and checked identical to the download. Seeds 0-4, test
+set; nothing tuned on these. **All location shifts are SIMULATED** (shifted regions: moon, mars).
+Saved alongside the runs: `hypotheses_wesad12.txt` / `.json` (`fedastro hypotheses
+configs/hypotheses/h9_wesad12.yaml --output-dir runs/h9-84a40ec`) and `h9_summary.txt` (every
+table below, read from the per-sweep summary files).
+
+### Verdicts (PREREG §2 rule: paired by seed, hierarchical bootstrap 95% CI, no multiple-comparison correction)
+| | logreg | mlp | cnn1d |
+|---|---|---|---|
+| **H1** fed − local acc, no shift | +0.128 [0.110, 0.145] | +0.251 [0.217, 0.279] | +0.215 [0.184, 0.267] |
+| **H2a** regional − local acc, moon+mars, shift 1.0 | +0.443 [0.402, 0.480] | +0.368 [0.333, 0.404] | +0.386 [0.351, 0.420] |
+| **H2b** regional − global acc, moon+mars, shift 1.0 | +0.036 [0.026, 0.047] | +0.018 [0.015, 0.021] | +0.178 [0.096, 0.258] |
+| H2 control: regional − global, all regions, no shift | −0.018 [−0.044, 0.009] | +0.020 [−0.004, 0.039] | −0.025 [−0.097, 0.042] |
+| **H3** acc agree − acc disagree, shift 1.0 | +0.127 [0.081, 0.178] | +0.212 [0.135, 0.289] | +0.233 [0.171, 0.296] |
+| Verdict | H1, H2, H3 supported | H1, H2, H3 supported | H1, H2, H3 supported |
+
+**H4:** H1 and H2 hold in every family. Macro-F1 gives the same verdicts (in the `.txt`).
+
+### Test accuracy, all nodes, mean ± std (5 seeds); "both" = covariate + concept shift
+| Family | Shift | Centralized | Flat FL | Hier. global | Hier. regional | Local-only |
+|---|---|---|---|---|---|---|
+| logreg | none (0) | 0.794 ± 0.010 | 0.619 ± 0.015 | 0.680 ± 0.047 | 0.663 ± 0.023 | 0.491 ± 0.015 |
+| logreg | both 1.0 | 0.836 ± 0.005 | 0.796 ± 0.010 | 0.801 ± 0.041 | 0.852 ± 0.009 | 0.533 ± 0.017 |
+| mlp | none (0) | 0.861 ± 0.022 | 0.779 ± 0.035 | 0.676 ± 0.061 | 0.696 ± 0.035 | 0.528 ± 0.009 |
+| mlp | both 1.0 | 0.854 ± 0.015 | 0.808 ± 0.028 | 0.782 ± 0.024 | 0.829 ± 0.017 | 0.585 ± 0.025 |
+| cnn1d | none (0) | 0.748 ± 0.082 | 0.704 ± 0.074 | 0.567 ± 0.104 | 0.542 ± 0.074 | 0.488 ± 0.024 |
+| cnn1d | both 1.0 | 0.817 ± 0.059 | 0.779 ± 0.052 | 0.731 ± 0.090 | 0.787 ± 0.060 | 0.562 ± 0.024 |
+
+Magnitudes 0.5 and 2.0, and covariate-only and concept-only at 1.0, are in `h9_summary.txt` (also macro-F1).
+At shift 1.0 the hierarchical regional model has the best federated accuracy for logreg and mlp, and
+is level with flat FL for cnn1d. The regional model beats centralized in three places: logreg at
+both 1.0 (0.852 against 0.836), logreg at concept 1.0 (0.853 against 0.819), and every family at
+magnitude 2.0. Everywhere else, centralized is highest.
+
+### Per region, shift both 1.0, test accuracy (local / regional / global)
+| Family | LEO (unshifted) | Moon | Mars |
+|---|---|---|---|
+| logreg | 0.443 / 0.599 / 0.519 | 0.692 / 0.975 / 0.930 | 0.792 / 0.982 / 0.954 |
+| mlp | 0.516 / 0.575 / 0.471 | 0.715 / 0.954 / 0.932 | 0.793 / 0.958 / 0.943 |
+| cnn1d | 0.474 / 0.451 / 0.638 | 0.649 / 0.950 / 0.751 | 0.649 / 0.960 / 0.804 |
+
+### Full architecture (Mars mean latency, LOS, 120 s regional deadline, secagg + update gate; shift both 1.0)
+| Family | Hier. global | Hier. regional | Local-only | Gate rejected | Secagg overhead / run |
+|---|---|---|---|---|---|
+| logreg | 0.784 ± 0.024 | 0.847 ± 0.029 | 0.534 ± 0.017 | 69 of 355 (19.5%) | 0.51 MB, 8.3 h sim. |
+| mlp | 0.775 ± 0.022 | 0.823 ± 0.022 | 0.570 ± 0.018 | 80 of 355 (22.6%) | 7.15 MB, 8.3 h sim. |
+| cnn1d | 0.802 ± 0.056 | 0.755 ± 0.065 | 0.549 ± 0.021 | 107 of 355 (30.1%) | 4.84 MB, 8.3 h sim. |
+
+The update gate's rejections are all real updates: no scripted faults were injected in these runs.
+Each run has 15 regional fallbacks (a region below `min_participants` during LOS) and 11.3 h of
+total simulated time. All times here are SIMULATED, not wall-clock.
+
+### Test-then-train stream (accuracy on examples scored before their label was used; local / regional / global)
+| Family | 10% labels, delay 0 | 10% labels, delay 1 | 100% labels, delay 0 | 100% labels, delay 1 |
+|---|---|---|---|---|
+| logreg | 0.572 / 0.662 / 0.508 | 0.518 / 0.625 / 0.474 | 0.729 / 0.741 / 0.613 | 0.655 / 0.691 / 0.568 |
+| mlp | 0.510 / 0.516 / 0.406 | 0.505 / 0.512 / 0.406 | 0.609 / 0.617 / 0.479 | 0.582 / 0.588 / 0.464 |
+| cnn1d | 0.598 / 0.543 / 0.454 | 0.570 / 0.541 / 0.444 | 0.697 / 0.594 / 0.469 | 0.648 / 0.580 / 0.469 |
+
+With 10% labels the MLP sits near the 3-class level. This is reported as it is.
+
+### Caveats to state with these numbers
+- **The simulated shift makes the shifted regions easier, not harder.** Moon and Mars reach 0.95+
+  regional accuracy, against LEO at 0.45–0.60, and every arm's accuracy rises with the magnitude.
+  So H2(a)'s large margins partly reflect the injected, label-correlated shift. H2(b), regional
+  beating global on its own region, is the more meaningful result. For mlp it is small (+0.018).
+- **LEO, the unshifted region, is the weak point.** There, cnn1d's regional model (0.451) is worse
+  than its global model (0.638) and its local models (0.474).
+- **Coverage:** the update gate (full arm) and the stream arm run only at the primary shift, as
+  PREREG froze them.
+- **Reproducibility check against H8:** the magnitude-0 cells reproduce the H8 evaluation
+  (`runs/h8-62cf33b_backup.zip`) seed for seed, for centralized, flat FL and local-only in every
+  family, and for logreg hierarchical. Three hierarchical seeds differ by 0.005–0.009 accuracy:
+  mlp seeds 0 and 2, cnn1d seed 3. This is small run-to-run nondeterminism in the hierarchical arm
+  on PACE (different nodes and CPU types). It is not investigated yet, and the H8 table keeps its
+  own numbers.
+- H3 is descriptive. The three models share training data, so their agreement is a flag, not
+  independent confirmation.
 
 ---
 
