@@ -5,11 +5,10 @@ Handoff log between sessions. Newest phase first. Assume no memory of prior sess
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
 removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`), H2 (`9590007`), H3
 (`836bad2`), H4 (`b19f28b`), H5 (`e9738f9`, `3d5812a`), H6 (`11906a9`) and H7 (`7c556b0`) are
-committed. Phase H8 is committed (`62cf33b`); stage A + baselines (180 runs) and stage B (288
-runs) finished on PACE and are selected; the 12 evaluation sweeps (60 runs, seeds 0-4) RAN on PACE
-2026-11-20 but their result files are **NOT YET COPIED to the laptop** (see H8 "Evaluation"). **Do
-not present or report any H8/H9 number beyond the preliminary tuning-seed page until those 60 files
-are copied and `fedastro gap` is run on them.**
+committed. Phase H8 is committed (`62cf33b`); its tuning (468 runs) and evaluation (60 runs, seeds
+0-4) are DONE and the gap table is computed (2026-11-21, H8 "Evaluation"): **these are the numbers
+for presentations**; the earlier tuning-seed page is superseded. H9 WESAD (435 runs, `84a40ec`) is
+RUNNING on PACE.**
 Phase H9 prep (part 1) is built locally (below): no H9 run exists. Next: finish the H8 grid and
 gap table; the user picks the OSD-435 task; generate the H9 sweeps and freeze PREREG §2/§6.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
@@ -285,14 +284,47 @@ each stage is ~1 h of wall time.
   extended: a PREREG §5 deviation).
 - Generated (git-ignored): `runs/h8-62cf33b/generated/eval_gapB_*` (6) + `eval_gapC_*` (6), seeds 0-4.
 
-### Evaluation on PACE (2026-11-20) — RAN, FILES NOT YET ON THE LAPTOP
-- 12 jobs `h8E-*` (one evaluation sweep each), 60 runs. On PACE in
-  `/storage/ice1/4/7/aagarwal710/FLASH/runs/h8-62cf33b/eval_gap*-seed<0-4>-<hash>/` (+ `*-summary.json`;
-  logs `runs/slurm/h8E-*.out`).
-- **To do before the next presentation of results:** collect them on PACE
-  (`ls -d eval_*/ | wc -l` = 60, `grep -l FAILED runs/slurm/h8E-*.out` empty,
-  `zip -qr ../../h8E_results.zip eval_*`), copy into `runs/h8-62cf33b/`, then run `fedastro gap`.
-  The published presentation page (tuning seeds 100-102, n = 3) is PRELIMINARY until then.
+### Evaluation (seeds 0-4) — DONE 2026-11-21 (the numbers for presentations)
+- 12 jobs `h8E-*` on PACE (2026-11-20), 60/60 runs, all `git_sha` 62cf33b, REAL/WESAD, 5 seeds per
+  sweep. Copied from `PACE-run-evals3/` into `runs/h8-62cf33b/`. Test set = the 3 held-out WESAD
+  subjects (13, 16, 17). Each arm at its own validation-selected settings (§5).
+- Saved: `runs/h8-62cf33b/gap_wesad12.json` (`fedastro gap runs/h8-62cf33b/generated/gap_wesad12.yaml
+  --output-dir runs/h8-62cf33b --out ...`), `runs/h8-62cf33b/eval_summary.txt` (per-arm table below).
+
+**Test scores, mean ± std over seeds 0-4:**
+
+| Family | Centralized acc | Flat FL (12 nodes) acc | Hier. global acc | Hier. regional acc | Local-only acc |
+|---|---|---|---|---|---|
+| logreg | 0.794 ± 0.010 | 0.619 ± 0.015 | **0.680 ± 0.047** | 0.663 ± 0.023 | 0.491 ± 0.015 |
+| mlp | **0.861 ± 0.022** | 0.779 ± 0.035 | 0.676 ± 0.059 | 0.697 ± 0.037 | 0.528 ± 0.009 |
+| cnn1d | 0.748 ± 0.082 | 0.704 ± 0.074 | 0.565 ± 0.102 | 0.530 ± 0.072 | 0.488 ± 0.024 |
+
+(macro-F1, same order: logreg 0.729 / 0.563 / 0.640 / 0.613 / 0.417; mlp 0.798 / 0.726 / 0.639 /
+0.654 / 0.420; cnn1d 0.673 / 0.660 / 0.511 / 0.473 / 0.377.)
+
+**Gap table (centralized − other, accuracy, paired by seed, hierarchical bootstrap 95% CI, n = 5):**
+
+| Family | − flat FL | − hier. global | − hier. regional |
+|---|---|---|---|
+| logreg | +0.175 [+0.157, +0.192] | +0.114 [+0.078, +0.157] | +0.132 [+0.119, +0.150] |
+| mlp | +0.082 [+0.043, +0.125] | +0.185 [+0.141, +0.228] | +0.164 [+0.141, +0.192] |
+| cnn1d | +0.044 [−0.056, +0.144] | +0.183 [+0.049, +0.281] | +0.218 [+0.106, +0.295] |
+
+(macro-F1 and AUC rows in `gap_wesad12.json`.)
+
+- **Remaining gap, honestly:** the centralized model beats every federated arm on every family; the
+  only CI that includes 0 is CNN centralized − flat FL (CNN is noisy: std 0.07-0.10). Gap closing
+  (stage B) raised validation scores 2-8 points but did not close the test gap.
+- **Flat vs hierarchical depends on the family:** flat FL beats the hierarchy for MLP (0.779 vs
+  0.676) and CNN (0.704 vs 0.565); for logreg the hierarchy's global model beats flat FL (0.680 vs
+  0.619). This reverses the preliminary tuning-seed picture for logreg (flat 0.632 vs hier 0.604,
+  different settings and seeds); the earlier presentation page is superseded.
+- Every federated arm beats local-only on mean accuracy: flat FL by 13-25 points, the hierarchy's
+  global model by 8-19 (CNN regional only +4). No CI computed here; H1 is answered in H9.
+- **Disagreement (descriptive, H3-style, hierarchical runs):** accuracy where local, regional and
+  global agree vs disagree: logreg 0.773 vs 0.583, mlp 0.789 vs 0.624, cnn1d 0.702 vs 0.441. The
+  three models share training data, so agreement is a flag, not independent confirmation.
+- No regression to report: these runs use no shift (H9 adds it).
 
 ### Decisions (user approved 2026-11-18, "approve as recommended")
 1. WESAD12 tuning in H8; CinC in H10 with the same rule. 2. Tuning seeds 100-102, evaluation
