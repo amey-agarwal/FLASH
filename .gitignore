@@ -12,6 +12,8 @@ runs/
 data/raw/
 data/cache/
 PACE-runs-eval/
+PACE-run-evals2/
+recentPACEruns/
 
 # OS / editors
 .DS_Store

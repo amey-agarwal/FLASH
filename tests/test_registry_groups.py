@@ -39,10 +39,10 @@ def _grouped(n_subjects=24, n_groups=8, seed=0) -> GroupedDatasetBundle:
 
 # -- registry ------------------------------------------------------------------------
 def test_registry_drives_config_validation():
-    assert config_mod.DATASETS == dataset_names() == ("synthetic", "wesad")
+    assert config_mod.DATASETS == dataset_names() == ("synthetic", "wesad", "osd435")
     assert all(spec.domain in DOMAINS for spec in REGISTRY.values())
     with pytest.raises(KeyError):
-        get_dataset("osd435")
+        get_dataset("cinc2021")  # not registered until Phase H10
 
 
 def test_registry_path_gives_identical_data_and_byte_identical_smoke(tmp_path, smoke_config):

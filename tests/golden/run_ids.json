@@ -103,6 +103,1086 @@
     }
   },
   "sweeps": {
+    "configs/sweeps/h9_wesad12_cnn1d_centralized.yaml": {
+      "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "0c641d56f07645e2f2419d99ae111ab0ef0c719d2cc00b17e6fa02fddcb6d5f4",
+        "run_ids": [
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed0-0c641d56f0",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed1-0c641d56f0",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed2-0c641d56f0",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed3-0c641d56f0",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed4-0c641d56f0"
+        ]
+      },
+      "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "fe051311eec0b88a998f4938b12b18c58a7522b212a955caaa9e255691944de8",
+        "run_ids": [
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed0-fe051311ee",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed1-fe051311ee",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed2-fe051311ee",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed3-fe051311ee",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed4-fe051311ee"
+        ]
+      },
+      "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "3390d9978b38baf13ac86d4de103f749d7516a2b0d4aa23d484ac0e1e4269f2d",
+        "run_ids": [
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed0-3390d9978b",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed1-3390d9978b",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed2-3390d9978b",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed3-3390d9978b",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed4-3390d9978b"
+        ]
+      },
+      "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "6e4c169a6ffbd54053cfeb17525ad0767a13f6fc9bb14d0ed4abc9df79ecc7e6",
+        "run_ids": [
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed0-6e4c169a6f",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed1-6e4c169a6f",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed2-6e4c169a6f",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed3-6e4c169a6f",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed4-6e4c169a6f"
+        ]
+      },
+      "h9_wesad12_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "568fae60d853f78fbd0854b71d78c18251ada9eb102f19c9aec04f3a2b3f4a41",
+        "run_ids": [
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed0-568fae60d8",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed1-568fae60d8",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed2-568fae60d8",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed3-568fae60d8",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed4-568fae60d8"
+        ]
+      },
+      "h9_wesad12_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "18e77ea11b46000f736c08560d09ffc0222ba786dee0cbe76072721ef38aee89",
+        "run_ids": [
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed0-18e77ea11b",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed1-18e77ea11b",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed2-18e77ea11b",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed3-18e77ea11b",
+          "h9_wesad12_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed4-18e77ea11b"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_cnn1d_federated.yaml": {
+      "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "5a80ebbac6eb535f2e5b8502e4fd73f95d377cbc44715eb65def1c8f066346f9",
+        "run_ids": [
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed0-5a80ebbac6",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed1-5a80ebbac6",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed2-5a80ebbac6",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed3-5a80ebbac6",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed4-5a80ebbac6"
+        ]
+      },
+      "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "7afdfd106e5d659f689816b7dfdbad4e5ae98583c299c8cce3c68dccb7474dcb",
+        "run_ids": [
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed0-7afdfd106e",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed1-7afdfd106e",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed2-7afdfd106e",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed3-7afdfd106e",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed4-7afdfd106e"
+        ]
+      },
+      "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "0c8ac07834058c906f12c56c4a3be3f5e67fb2b22970c9498b9332d5db87d54e",
+        "run_ids": [
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed0-0c8ac07834",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed1-0c8ac07834",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed2-0c8ac07834",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed3-0c8ac07834",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed4-0c8ac07834"
+        ]
+      },
+      "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "bf41c61c87d759f78d79f72ecc4603ca827fa0286120c76dcf2fbc047f9e1f67",
+        "run_ids": [
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed0-bf41c61c87",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed1-bf41c61c87",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed2-bf41c61c87",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed3-bf41c61c87",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed4-bf41c61c87"
+        ]
+      },
+      "h9_wesad12_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "a5d5c7f5cf1d1efc57971e74a470d998f779ba12c0dc6d2c86a5c8e8cc4fa94f",
+        "run_ids": [
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed0-a5d5c7f5cf",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed1-a5d5c7f5cf",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed2-a5d5c7f5cf",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed3-a5d5c7f5cf",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed4-a5d5c7f5cf"
+        ]
+      },
+      "h9_wesad12_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "3bb921de3de74450c8c3da72ac561beff2f4ea52ce73d3600f3df6abba527125",
+        "run_ids": [
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed0-3bb921de3d",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed1-3bb921de3d",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed2-3bb921de3d",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed3-3bb921de3d",
+          "h9_wesad12_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed4-3bb921de3d"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_cnn1d_full.yaml": {
+      "h9_wesad12_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue": {
+        "index": 0,
+        "name": "h9_wesad12_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue",
+        "config_hash": "f4927d3313008efac20a567b9eef8822f1ad43cdac9f09c03a6bed0edfe654ae",
+        "run_ids": [
+          "h9_wesad12_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed0-f4927d3313",
+          "h9_wesad12_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed1-f4927d3313",
+          "h9_wesad12_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed2-f4927d3313",
+          "h9_wesad12_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed3-f4927d3313",
+          "h9_wesad12_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed4-f4927d3313"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_cnn1d_hierarchical.yaml": {
+      "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "ec6ffeababbb326c6e07451ae7baf3ce1d0046c7909be39ffb40555dd2e0b0f1",
+        "run_ids": [
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed0-ec6ffeabab",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed1-ec6ffeabab",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed2-ec6ffeabab",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed3-ec6ffeabab",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed4-ec6ffeabab"
+        ]
+      },
+      "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "dec7a98d72cefd089f881b0e0ee0c5ff954651041fc9bc2900c5622a9d45f076",
+        "run_ids": [
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed0-dec7a98d72",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed1-dec7a98d72",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed2-dec7a98d72",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed3-dec7a98d72",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed4-dec7a98d72"
+        ]
+      },
+      "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "42837ddd9f861ffd6f6f4fc28bed6f449aba0d713d01d50d98aff3b4a166c58b",
+        "run_ids": [
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed0-42837ddd9f",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed1-42837ddd9f",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed2-42837ddd9f",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed3-42837ddd9f",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed4-42837ddd9f"
+        ]
+      },
+      "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "504d8e9aa96b2c615b993f322d5fafae08b2dd05873c936ab62001990a97a118",
+        "run_ids": [
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed0-504d8e9aa9",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed1-504d8e9aa9",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed2-504d8e9aa9",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed3-504d8e9aa9",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed4-504d8e9aa9"
+        ]
+      },
+      "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "fa3a9fffb2d0ff3bd860e16f6176610724083e60f5796c3ea07bbf7e383f6715",
+        "run_ids": [
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed0-fa3a9fffb2",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed1-fa3a9fffb2",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed2-fa3a9fffb2",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed3-fa3a9fffb2",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed4-fa3a9fffb2"
+        ]
+      },
+      "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "271cb8d0e4b787b742a3db1196e0e3d2110718184e5ee1c2df7c014d9af745d4",
+        "run_ids": [
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed0-271cb8d0e4",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed1-271cb8d0e4",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed2-271cb8d0e4",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed3-271cb8d0e4",
+          "h9_wesad12_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed4-271cb8d0e4"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_cnn1d_local_only.yaml": {
+      "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "c2c01fadaca8782b84f9d7b2396532180aedd7e7f62f87f4ee156aa27e1df42c",
+        "run_ids": [
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed0-c2c01fadac",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed1-c2c01fadac",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed2-c2c01fadac",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed3-c2c01fadac",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed4-c2c01fadac"
+        ]
+      },
+      "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "fa866476853240a4a36bbf03fbc9fb3b1c2a75852a7670d350973897eac07e09",
+        "run_ids": [
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed0-fa86647685",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed1-fa86647685",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed2-fa86647685",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed3-fa86647685",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed4-fa86647685"
+        ]
+      },
+      "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "7d720ef779f21d572e81bdeaaae28b2a72846bf326bf142da794547aa9449c37",
+        "run_ids": [
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed0-7d720ef779",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed1-7d720ef779",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed2-7d720ef779",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed3-7d720ef779",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed4-7d720ef779"
+        ]
+      },
+      "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "022795d978b898088a885344bd8f3157aba8aaee41049a5e045f753cf5b75c78",
+        "run_ids": [
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed0-022795d978",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed1-022795d978",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed2-022795d978",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed3-022795d978",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed4-022795d978"
+        ]
+      },
+      "h9_wesad12_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "410622f9024df3e93b5301e26a7ca3c8074ca659b280789b01ed4137d11f45db",
+        "run_ids": [
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed0-410622f902",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed1-410622f902",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed2-410622f902",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed3-410622f902",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed4-410622f902"
+        ]
+      },
+      "h9_wesad12_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "e35205ea3cd991ee84bf93d576ef02ba22c8337e56fbf5103ce5e893baac81bf",
+        "run_ids": [
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed0-e35205ea3c",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed1-e35205ea3c",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed2-e35205ea3c",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed3-e35205ea3c",
+          "h9_wesad12_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed4-e35205ea3c"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_cnn1d_stream.yaml": {
+      "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds0": {
+        "index": 0,
+        "name": "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds0",
+        "config_hash": "eef43bbdbfc83994b569ba26626e012505d3d445a261f70252c84cdf0b6a8f1c",
+        "run_ids": [
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed0-eef43bbdbf",
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed1-eef43bbdbf",
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed2-eef43bbdbf",
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed3-eef43bbdbf",
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed4-eef43bbdbf"
+        ]
+      },
+      "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds1": {
+        "index": 1,
+        "name": "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds1",
+        "config_hash": "5e9bd6ec60f986284c3b565d473ac9bf7aff4e763cd380838b135be70cf45e33",
+        "run_ids": [
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed0-5e9bd6ec60",
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed1-5e9bd6ec60",
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed2-5e9bd6ec60",
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed3-5e9bd6ec60",
+          "h9_wesad12_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed4-5e9bd6ec60"
+        ]
+      },
+      "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds0": {
+        "index": 2,
+        "name": "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds0",
+        "config_hash": "9c3225b2639aba4a5a0259740a453f7be14f1dcc38d2efcdef88394ba8784f7d",
+        "run_ids": [
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed0-9c3225b263",
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed1-9c3225b263",
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed2-9c3225b263",
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed3-9c3225b263",
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed4-9c3225b263"
+        ]
+      },
+      "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds1": {
+        "index": 3,
+        "name": "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds1",
+        "config_hash": "6745e17742d193b2b1641c663aa58274dae650dc439f33775dca896af43aabf7",
+        "run_ids": [
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed0-6745e17742",
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed1-6745e17742",
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed2-6745e17742",
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed3-6745e17742",
+          "h9_wesad12_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed4-6745e17742"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_logreg_centralized.yaml": {
+      "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "e85aed7dfe719854728e2350c21d98ef09ab828c3e5de798d8adf8a952b37ccc",
+        "run_ids": [
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed0-e85aed7dfe",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed1-e85aed7dfe",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed2-e85aed7dfe",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed3-e85aed7dfe",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed4-e85aed7dfe"
+        ]
+      },
+      "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "802c8766fd7a98eaba4fc97d9f78ebf76cc4a9354ae092a4e6038cc7ecde7f3f",
+        "run_ids": [
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed0-802c8766fd",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed1-802c8766fd",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed2-802c8766fd",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed3-802c8766fd",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed4-802c8766fd"
+        ]
+      },
+      "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "5469dd867d483f2730417090003f66c9ccc52b9e5612e3ac9062cdbe8817ca61",
+        "run_ids": [
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed0-5469dd867d",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed1-5469dd867d",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed2-5469dd867d",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed3-5469dd867d",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed4-5469dd867d"
+        ]
+      },
+      "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "56a82b9bb2b81ccf4fde5388174fbc8803e356322a66a57ddd678e5619a3b288",
+        "run_ids": [
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed0-56a82b9bb2",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed1-56a82b9bb2",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed2-56a82b9bb2",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed3-56a82b9bb2",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed4-56a82b9bb2"
+        ]
+      },
+      "h9_wesad12_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "4b1bbb0ddbcc90640105947c34fbb90fdb7e5a2a04406809e80866859565dd7e",
+        "run_ids": [
+          "h9_wesad12_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed0-4b1bbb0ddb",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed1-4b1bbb0ddb",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed2-4b1bbb0ddb",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed3-4b1bbb0ddb",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed4-4b1bbb0ddb"
+        ]
+      },
+      "h9_wesad12_logreg_centralized-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_logreg_centralized-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "de6f753630377658ad6f3747d8806f2e473cdc7473b53540dc4e28cf458343cc",
+        "run_ids": [
+          "h9_wesad12_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed0-de6f753630",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed1-de6f753630",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed2-de6f753630",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed3-de6f753630",
+          "h9_wesad12_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed4-de6f753630"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_logreg_federated.yaml": {
+      "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "28b6b7ab71eadccaf27651e6b0b3563c81107e7c2d097ae8d1d88b263f546411",
+        "run_ids": [
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed0-28b6b7ab71",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed1-28b6b7ab71",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed2-28b6b7ab71",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed3-28b6b7ab71",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed4-28b6b7ab71"
+        ]
+      },
+      "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "381aa89f95b8dad4bdfc8a8c39dc8626b1621691634d7c5d29d7e016d50e3e18",
+        "run_ids": [
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed0-381aa89f95",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed1-381aa89f95",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed2-381aa89f95",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed3-381aa89f95",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed4-381aa89f95"
+        ]
+      },
+      "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "f385f2a86ee0807014a8c0af447a1dc6177bbbf7ea1a08d39f1f9119369bc147",
+        "run_ids": [
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed0-f385f2a86e",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed1-f385f2a86e",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed2-f385f2a86e",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed3-f385f2a86e",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed4-f385f2a86e"
+        ]
+      },
+      "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "fd30b3c3aaad38f64e76af47768467463f3f23d7a96f38d0092642c605a84c44",
+        "run_ids": [
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed0-fd30b3c3aa",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed1-fd30b3c3aa",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed2-fd30b3c3aa",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed3-fd30b3c3aa",
+          "h9_wesad12_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed4-fd30b3c3aa"
+        ]
+      },
+      "h9_wesad12_logreg_federated-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_logreg_federated-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "29b511408c2550d9f4ce8b121858e322be890ab97657029d1b9d16dabaabb4d3",
+        "run_ids": [
+          "h9_wesad12_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed0-29b511408c",
+          "h9_wesad12_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed1-29b511408c",
+          "h9_wesad12_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed2-29b511408c",
+          "h9_wesad12_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed3-29b511408c",
+          "h9_wesad12_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed4-29b511408c"
+        ]
+      },
+      "h9_wesad12_logreg_federated-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_logreg_federated-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "a58175e4966cb459a071365a20e4aced5eb8fa8ebff2d8b7438c02faa90e7524",
+        "run_ids": [
+          "h9_wesad12_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed0-a58175e496",
+          "h9_wesad12_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed1-a58175e496",
+          "h9_wesad12_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed2-a58175e496",
+          "h9_wesad12_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed3-a58175e496",
+          "h9_wesad12_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed4-a58175e496"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_logreg_full.yaml": {
+      "h9_wesad12_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue": {
+        "index": 0,
+        "name": "h9_wesad12_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue",
+        "config_hash": "944c4e570975196ce56258ffbde624cf4765cc3e4729d62c6b662120effbc7b1",
+        "run_ids": [
+          "h9_wesad12_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed0-944c4e5709",
+          "h9_wesad12_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed1-944c4e5709",
+          "h9_wesad12_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed2-944c4e5709",
+          "h9_wesad12_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed3-944c4e5709",
+          "h9_wesad12_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed4-944c4e5709"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_logreg_hierarchical.yaml": {
+      "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "e1f44b5ad8be490c5547837e03ce460ffa80ff75b5964ba2a8999c94558f60b3",
+        "run_ids": [
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed0-e1f44b5ad8",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed1-e1f44b5ad8",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed2-e1f44b5ad8",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed3-e1f44b5ad8",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed4-e1f44b5ad8"
+        ]
+      },
+      "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "42cd42152fc85df9675a8c8b7dea56e9c897bd688bcfb38f10c0eb4387b69a5c",
+        "run_ids": [
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed0-42cd42152f",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed1-42cd42152f",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed2-42cd42152f",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed3-42cd42152f",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed4-42cd42152f"
+        ]
+      },
+      "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "1002796be0f7cef484018ee975df404539c28a316377435e846722421a1a4c31",
+        "run_ids": [
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed0-1002796be0",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed1-1002796be0",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed2-1002796be0",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed3-1002796be0",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed4-1002796be0"
+        ]
+      },
+      "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "c9f918be42e7c851b96da678f2792dd702d29cf161063adb637218810e797251",
+        "run_ids": [
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed0-c9f918be42",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed1-c9f918be42",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed2-c9f918be42",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed3-c9f918be42",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed4-c9f918be42"
+        ]
+      },
+      "h9_wesad12_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "e851978c0f0336ccf1e32421852920843ec0eb18a9a55a6b1060f69fb3ff00a0",
+        "run_ids": [
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed0-e851978c0f",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed1-e851978c0f",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed2-e851978c0f",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed3-e851978c0f",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed4-e851978c0f"
+        ]
+      },
+      "h9_wesad12_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "d69058b32b1ccb130174754e9eb6a1b518d3dbfbf41a989644f4ff5d1689a345",
+        "run_ids": [
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed0-d69058b32b",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed1-d69058b32b",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed2-d69058b32b",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed3-d69058b32b",
+          "h9_wesad12_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed4-d69058b32b"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_logreg_local_only.yaml": {
+      "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "d8cdb59742c6b7156f999890e2a3d38585916c5deaa5c5fd120a264fb1b8b4ae",
+        "run_ids": [
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed0-d8cdb59742",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed1-d8cdb59742",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed2-d8cdb59742",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed3-d8cdb59742",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed4-d8cdb59742"
+        ]
+      },
+      "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "c15e8ecf753de7f7089fa5296e41e725e40e828923cf59d8be2271d8a3e79758",
+        "run_ids": [
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed0-c15e8ecf75",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed1-c15e8ecf75",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed2-c15e8ecf75",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed3-c15e8ecf75",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed4-c15e8ecf75"
+        ]
+      },
+      "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "3b2130111810721d13e3d0f337bb3627449fe34ec334958efcb251770b6ef787",
+        "run_ids": [
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed0-3b21301118",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed1-3b21301118",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed2-3b21301118",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed3-3b21301118",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed4-3b21301118"
+        ]
+      },
+      "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "083127e3bea9650b62710c0dab27daa5d974e202108c35d4713f93e23c9bd300",
+        "run_ids": [
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed0-083127e3be",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed1-083127e3be",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed2-083127e3be",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed3-083127e3be",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed4-083127e3be"
+        ]
+      },
+      "h9_wesad12_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "3dd077f2d95c9508fe5aa35789d8e863759a126b9fb17db5bdd658dd0fec12de",
+        "run_ids": [
+          "h9_wesad12_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed0-3dd077f2d9",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed1-3dd077f2d9",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed2-3dd077f2d9",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed3-3dd077f2d9",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed4-3dd077f2d9"
+        ]
+      },
+      "h9_wesad12_logreg_local_only-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_logreg_local_only-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "119ff3b277ccabac31f3abc843b556ae81ff3d18b11c2a59c33e436b55a69d96",
+        "run_ids": [
+          "h9_wesad12_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed0-119ff3b277",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed1-119ff3b277",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed2-119ff3b277",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed3-119ff3b277",
+          "h9_wesad12_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed4-119ff3b277"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_logreg_stream.yaml": {
+      "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds0": {
+        "index": 0,
+        "name": "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds0",
+        "config_hash": "584a94202065b8841642898e1a2c1cb9fa38c6bab5104788e5447d25387008c3",
+        "run_ids": [
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds0-seed0-584a942020",
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds0-seed1-584a942020",
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds0-seed2-584a942020",
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds0-seed3-584a942020",
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds0-seed4-584a942020"
+        ]
+      },
+      "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds1": {
+        "index": 1,
+        "name": "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds1",
+        "config_hash": "bfb97f6c09555163f79b02b0d3e8a2fe72f60a629d21adf11d7ab5b918bf9d17",
+        "run_ids": [
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds1-seed0-bfb97f6c09",
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds1-seed1-bfb97f6c09",
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds1-seed2-bfb97f6c09",
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds1-seed3-bfb97f6c09",
+          "h9_wesad12_logreg_stream-label_fraction0p1-label_delay_rounds1-seed4-bfb97f6c09"
+        ]
+      },
+      "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds0": {
+        "index": 2,
+        "name": "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds0",
+        "config_hash": "db053a836e3a2aa5993bfff47e0c0151ca0cd000c5e37c507915e5064bde0461",
+        "run_ids": [
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds0-seed0-db053a836e",
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds0-seed1-db053a836e",
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds0-seed2-db053a836e",
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds0-seed3-db053a836e",
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds0-seed4-db053a836e"
+        ]
+      },
+      "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds1": {
+        "index": 3,
+        "name": "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds1",
+        "config_hash": "ccc9fe000959553057ff48b1aa1c126fa380a9299f1c0a561fceaf003b92731c",
+        "run_ids": [
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds1-seed0-ccc9fe0009",
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds1-seed1-ccc9fe0009",
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds1-seed2-ccc9fe0009",
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds1-seed3-ccc9fe0009",
+          "h9_wesad12_logreg_stream-label_fraction1p0-label_delay_rounds1-seed4-ccc9fe0009"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_mlp_centralized.yaml": {
+      "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "372e061f7bba4ee105fb6da94ed89e336f612b7fc620b2bedba64ed2395ebbb4",
+        "run_ids": [
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed0-372e061f7b",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed1-372e061f7b",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed2-372e061f7b",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed3-372e061f7b",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed4-372e061f7b"
+        ]
+      },
+      "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "55f5fc46a22353798c4284adc7b0de2191a75d2d601707b66694be210f56881d",
+        "run_ids": [
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed0-55f5fc46a2",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed1-55f5fc46a2",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed2-55f5fc46a2",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed3-55f5fc46a2",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed4-55f5fc46a2"
+        ]
+      },
+      "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "33363c5ea647302683a1b825a307ba11427ce3a7460c895891ee265720869631",
+        "run_ids": [
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed0-33363c5ea6",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed1-33363c5ea6",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed2-33363c5ea6",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed3-33363c5ea6",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed4-33363c5ea6"
+        ]
+      },
+      "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "ee60c08a540934ba13f6b65e1d14a38bd35e3e171aaaff648d4586d8c1fcad2d",
+        "run_ids": [
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed0-ee60c08a54",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed1-ee60c08a54",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed2-ee60c08a54",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed3-ee60c08a54",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed4-ee60c08a54"
+        ]
+      },
+      "h9_wesad12_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "5e596723c3165cdf5eb4660e3dd93d79c3ac6c6b7c79d8b8367f8f74cbf5e39f",
+        "run_ids": [
+          "h9_wesad12_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed0-5e596723c3",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed1-5e596723c3",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed2-5e596723c3",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed3-5e596723c3",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed4-5e596723c3"
+        ]
+      },
+      "h9_wesad12_mlp_centralized-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_mlp_centralized-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "798654c37f0d84d88a54bd7948fd1b6da6c3f945470f6d1fbcbda7a892b7b8d3",
+        "run_ids": [
+          "h9_wesad12_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed0-798654c37f",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed1-798654c37f",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed2-798654c37f",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed3-798654c37f",
+          "h9_wesad12_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed4-798654c37f"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_mlp_federated.yaml": {
+      "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "a150e95c9f28a1b18ae9fbbd6389b6f836716947e3c5564ca77c7b835db892d5",
+        "run_ids": [
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed0-a150e95c9f",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed1-a150e95c9f",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed2-a150e95c9f",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed3-a150e95c9f",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed4-a150e95c9f"
+        ]
+      },
+      "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "4076a9806f93e88cb516936d3d15940c0d5ace6169204c19f7a1232b61fc6551",
+        "run_ids": [
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed0-4076a9806f",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed1-4076a9806f",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed2-4076a9806f",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed3-4076a9806f",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed4-4076a9806f"
+        ]
+      },
+      "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "1cebd03076839fc9948ddb18274a01506f3d085953f138d716c5628c3b8f3c51",
+        "run_ids": [
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed0-1cebd03076",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed1-1cebd03076",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed2-1cebd03076",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed3-1cebd03076",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed4-1cebd03076"
+        ]
+      },
+      "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "a150d6d9f92e84c5bfaaa1af929a1a26b9b24f58f0fdcdfea9b2a422ab8c7f8c",
+        "run_ids": [
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed0-a150d6d9f9",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed1-a150d6d9f9",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed2-a150d6d9f9",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed3-a150d6d9f9",
+          "h9_wesad12_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed4-a150d6d9f9"
+        ]
+      },
+      "h9_wesad12_mlp_federated-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_mlp_federated-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "d8cf63afdd92dc2fc7ad0e20a74aac3c7e453478cdbd186dd548d3716b78d1de",
+        "run_ids": [
+          "h9_wesad12_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed0-d8cf63afdd",
+          "h9_wesad12_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed1-d8cf63afdd",
+          "h9_wesad12_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed2-d8cf63afdd",
+          "h9_wesad12_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed3-d8cf63afdd",
+          "h9_wesad12_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed4-d8cf63afdd"
+        ]
+      },
+      "h9_wesad12_mlp_federated-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_mlp_federated-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "217fe2994efb4f10522094d196bea502d18f6658f6df96b0295dc48aace1cfa4",
+        "run_ids": [
+          "h9_wesad12_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed0-217fe2994e",
+          "h9_wesad12_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed1-217fe2994e",
+          "h9_wesad12_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed2-217fe2994e",
+          "h9_wesad12_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed3-217fe2994e",
+          "h9_wesad12_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed4-217fe2994e"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_mlp_full.yaml": {
+      "h9_wesad12_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue": {
+        "index": 0,
+        "name": "h9_wesad12_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue",
+        "config_hash": "ad97bae69ae8ae2595caa96203dc9111c2eaa55cbea92a81796dc6e25051f856",
+        "run_ids": [
+          "h9_wesad12_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed0-ad97bae69a",
+          "h9_wesad12_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed1-ad97bae69a",
+          "h9_wesad12_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed2-ad97bae69a",
+          "h9_wesad12_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed3-ad97bae69a",
+          "h9_wesad12_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed4-ad97bae69a"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_mlp_hierarchical.yaml": {
+      "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "05328df0a4e7dfe2975377b985283431ec48f6c6628c8b6036a3e47e087154d0",
+        "run_ids": [
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed0-05328df0a4",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed1-05328df0a4",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed2-05328df0a4",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed3-05328df0a4",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed4-05328df0a4"
+        ]
+      },
+      "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "515acca1a590b3cb15b20c17deb697952f2101f25a223885475339385de95d1c",
+        "run_ids": [
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed0-515acca1a5",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed1-515acca1a5",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed2-515acca1a5",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed3-515acca1a5",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed4-515acca1a5"
+        ]
+      },
+      "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "61732c51fdac93f3f733cae15f728de7401f661cbb166cf2d084fda804671771",
+        "run_ids": [
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed0-61732c51fd",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed1-61732c51fd",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed2-61732c51fd",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed3-61732c51fd",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed4-61732c51fd"
+        ]
+      },
+      "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "77dd2c9a2a5f27d20ca1887c32be042be562fc069b9751490da1800dfa53909b",
+        "run_ids": [
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed0-77dd2c9a2a",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed1-77dd2c9a2a",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed2-77dd2c9a2a",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed3-77dd2c9a2a",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed4-77dd2c9a2a"
+        ]
+      },
+      "h9_wesad12_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "0c217f9d042f748cb5f464fe914b52cf8d056d6a615142e82447266737346b40",
+        "run_ids": [
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed0-0c217f9d04",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed1-0c217f9d04",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed2-0c217f9d04",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed3-0c217f9d04",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed4-0c217f9d04"
+        ]
+      },
+      "h9_wesad12_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "181aac5ecf4edb47cc6261047c0e210c05c1c053154911be641fdfa48af2c83e",
+        "run_ids": [
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed0-181aac5ecf",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed1-181aac5ecf",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed2-181aac5ecf",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed3-181aac5ecf",
+          "h9_wesad12_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed4-181aac5ecf"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_mlp_local_only.yaml": {
+      "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p0": {
+        "index": 0,
+        "name": "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p0",
+        "config_hash": "19c2b5aade4a3f238f24aa67742154b9ef2016508ec5f639099c2cf187637549",
+        "run_ids": [
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed0-19c2b5aade",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed1-19c2b5aade",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed2-19c2b5aade",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed3-19c2b5aade",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed4-19c2b5aade"
+        ]
+      },
+      "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p5": {
+        "index": 1,
+        "name": "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p5",
+        "config_hash": "d323ba55f5b2e0802027f8f78519c8779b2e6e5f11f43b9a8ce19fbda9a32cef",
+        "run_ids": [
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed0-d323ba55f5",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed1-d323ba55f5",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed2-d323ba55f5",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed3-d323ba55f5",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed4-d323ba55f5"
+        ]
+      },
+      "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude1p0": {
+        "index": 2,
+        "name": "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude1p0",
+        "config_hash": "0ff5e73d0a9a867aa3e6726f0255c6f6b2b807dd330606a3aaa08d1589a086b4",
+        "run_ids": [
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed0-0ff5e73d0a",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed1-0ff5e73d0a",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed2-0ff5e73d0a",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed3-0ff5e73d0a",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed4-0ff5e73d0a"
+        ]
+      },
+      "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude2p0": {
+        "index": 3,
+        "name": "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude2p0",
+        "config_hash": "c50bc340310a85fc9f8a9b0318f04bee775e607ee3a79bb147a6062418a09416",
+        "run_ids": [
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed0-c50bc34031",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed1-c50bc34031",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed2-c50bc34031",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed3-c50bc34031",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed4-c50bc34031"
+        ]
+      },
+      "h9_wesad12_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0": {
+        "index": 4,
+        "name": "h9_wesad12_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0",
+        "config_hash": "bad839595699062f8bd51c19a08d46b735ce9998ef3694e4bd5b1d618de9213b",
+        "run_ids": [
+          "h9_wesad12_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed0-bad8395956",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed1-bad8395956",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed2-bad8395956",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed3-bad8395956",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed4-bad8395956"
+        ]
+      },
+      "h9_wesad12_mlp_local_only-enabledTrue-kindconcept-magnitude1p0": {
+        "index": 5,
+        "name": "h9_wesad12_mlp_local_only-enabledTrue-kindconcept-magnitude1p0",
+        "config_hash": "b41c06b4eec494415cacf3b805211ccfee5a7babe2bc37ddf941be9945513c5b",
+        "run_ids": [
+          "h9_wesad12_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed0-b41c06b4ee",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed1-b41c06b4ee",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed2-b41c06b4ee",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed3-b41c06b4ee",
+          "h9_wesad12_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed4-b41c06b4ee"
+        ]
+      }
+    },
+    "configs/sweeps/h9_wesad12_mlp_stream.yaml": {
+      "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds0": {
+        "index": 0,
+        "name": "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds0",
+        "config_hash": "90dc2a3dcd5ba250c9924faeb6af6bd5517945d8eb0286752de504558c67a0d3",
+        "run_ids": [
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds0-seed0-90dc2a3dcd",
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds0-seed1-90dc2a3dcd",
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds0-seed2-90dc2a3dcd",
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds0-seed3-90dc2a3dcd",
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds0-seed4-90dc2a3dcd"
+        ]
+      },
+      "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds1": {
+        "index": 1,
+        "name": "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds1",
+        "config_hash": "dc45ae9d4c17d79345268d754134ebf0e07a306205518c4be9f2ee6911bfacb3",
+        "run_ids": [
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds1-seed0-dc45ae9d4c",
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds1-seed1-dc45ae9d4c",
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds1-seed2-dc45ae9d4c",
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds1-seed3-dc45ae9d4c",
+          "h9_wesad12_mlp_stream-label_fraction0p1-label_delay_rounds1-seed4-dc45ae9d4c"
+        ]
+      },
+      "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds0": {
+        "index": 2,
+        "name": "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds0",
+        "config_hash": "b8bd1356a37926c373b1d42826f2b4527c04badc10b63e016fb803e100ba0467",
+        "run_ids": [
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds0-seed0-b8bd1356a3",
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds0-seed1-b8bd1356a3",
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds0-seed2-b8bd1356a3",
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds0-seed3-b8bd1356a3",
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds0-seed4-b8bd1356a3"
+        ]
+      },
+      "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds1": {
+        "index": 3,
+        "name": "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds1",
+        "config_hash": "4aa799050691211875682da32b90584284ff452c241010150efceab69082181a",
+        "run_ids": [
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds1-seed0-4aa7990506",
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds1-seed1-4aa7990506",
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds1-seed2-4aa7990506",
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds1-seed3-4aa7990506",
+          "h9_wesad12_mlp_stream-label_fraction1p0-label_delay_rounds1-seed4-4aa7990506"
+        ]
+      }
+    },
     "configs/sweeps/phase4_alpha.yaml": {
       "p4alpha-a0p1-dirichlet-fedavg": {
         "config_hash": "51351f4a1adea7f28a415c355ac11d91acd1bb72df535c8b0417db6ad5f47fc3",

@@ -2,8 +2,9 @@
 
 **Status: IN PROGRESS. Frozen so far: §1 hypotheses (wording from CLAUDE.md), §3 location shift,
 §4 update-gate tolerance, §4a test-then-train stream (on the H9 prep commit), §5 gap-closing grid
-and selection rule (on the H8 commit), the §6 OSD-435 rows (on the OSD-435 commit). §2 and the §6
-WESAD rows are DRAFTS, frozen after the H8 winners exist and before any WESAD H9 run.**
+and selection rule (on the H8 commit), the §6 OSD-435 rows (on the OSD-435 commit), §2 and the §6
+WESAD rows (on the H9 WESAD sweeps commit, after the H8 winners existed and before any WESAD H9
+run). CinC (Phase H10) rows are still to be written.**
 Each section is filled in and frozen (committed) by the phase named in it, **before** any
 result-producing run that it covers (CLAUDE.md rule 9 and §7). After a section is frozen, any
 change to it is a deviation and is listed in the Deviations section and in `PROGRESS.md`.
@@ -34,7 +35,7 @@ deleted on 2026-11-16 at the user's request; it remains in git history (`881045d
 What is already known (disclosed): H1 on flat five-silo WESAD, 5 seeds (the Phase 3 results in
 `PROGRESS.md`, locked by `tests/test_regression_flat.py`).
 
-## 2. Metrics and decision rules (Phase H9) — DRAFT, frozen with §6 before any H9 run
+## 2. Metrics and decision rules (Phase H9) — FROZEN with §6 on the H9 WESAD sweeps commit (2026-11-21), before any H9 run
 
 Chosen by the user at the H9 plan ("approve as recommended", 2026-11-19). Code:
 `src/fedastro/metrics/hypotheses.py`, `fedastro hypotheses configs/hypotheses/h9_<dataset>.yaml`.
@@ -190,13 +191,18 @@ looked at). Code: `src/fedastro/tuning.py`, `metrics/validation.py`, `metrics/ga
 - **Known limitation, disclosed now:** the federated arms are selected on the hierarchical
   topology's node validation splits, which are small (WESAD: ~10-15 windows per node), so
   selection noise is real; the tolerance rule prefers cheap settings among near-ties.
+- **Observed after selection (2026-11-20; an observation, not a deviation):** the WESAD winners
+  sit on the grid edge: the top learning rate (0.01) for 5 of 6 federated / hierarchical arms, 60
+  epochs for 5 of 6 baseline arms, and FedProx mu 0.1 (the largest mu) for all 6 stage B winners.
+  Better settings may lie outside the grid; the grid was not extended. Winners and scores:
+  PROGRESS.md, Phase H8.
 
-## 6. Experiment configurations and seeds (Phase H9) — DRAFT, frozen before any H9 run
+## 6. Experiment configurations and seeds (Phase H9) — WESAD rows FROZEN on the H9 WESAD sweeps commit (2026-11-21), before any H9 run
 
 Chosen by the user at the H9 plan ("approve as recommended", 2026-11-19). The sweep files are
 **generated** by `fedastro h9-sweeps` from the Phase H8 evaluation sweeps (each arm's validation-
-selected winner, §5), committed to `configs/sweeps/h9_<dataset>_*.yaml`, and listed here with
-their config hashes when this section is frozen. Hyperparameters: `PLACEHOLDER_` until H8 ends.
+selected winner, §5), committed to `configs/sweeps/h9_<dataset>_*.yaml`, and listed below with
+file hashes; every variant's config hash and run ids are in `tests/golden/run_ids.json`.
 
 **WESAD (wesad12), per family (logreg, MLP, 1D-CNN), evaluation seeds 0-4:**
 
@@ -216,8 +222,29 @@ their config hashes when this section is frozen. Hyperparameters: `PLACEHOLDER_`
 - **Fixed** (as §5): `fl.rounds` 30, `hier_fl.global_every` 5, batch size 32, Adam, weight
   decay 1e-4.
 - **Reference:** the locked flat five-silo WESAD results (§1), not re-run.
-- Compute estimate (from the H8 timings, not measured): ~10-14 h sequential CPU; ~1-2 h wall as
-  PACE array jobs.
+- **Selected settings (H8, validation only; Adam client optimizer throughout):**
+
+| Family | centralized | local_only | federated | hierarchical (+ its local_only) |
+|---|---|---|---|---|
+| logreg | lr 0.003, 60 ep | lr 0.01, 60 ep | lr 0.01, E 2, FedProx mu 0.1, FedAdam server lr 0.1 | lr 0.01, E 1, FedProx mu 0.1, server momentum |
+| mlp | lr 0.003, 60 ep | lr 0.001, 60 ep | lr 0.01, E 1, FedProx mu 0.1, server momentum | lr 0.01, E 1, FedProx mu 0.1 |
+| cnn1d | lr 0.003, 60 ep | lr 0.001, 30 ep | lr 0.01, E 1, FedProx mu 0.1, server momentum | lr 0.003, E 2, FedProx mu 0.1, server momentum |
+
+  The `_full` and `_stream` sweeps use the hierarchical arm's settings. In the hierarchical,
+  `_full` and `_stream` runs the local-only model shares the hierarchical arm's learning rate
+  (one `train.lr` per run, PROGRESS.md H8 decision 2); H1 and H2 use the `_local_only` sweep's
+  own winner.
+- **Files (SHA-256, first 12 hex)**, 435 runs in total (per family: 4 x 30 + 5 + 20):
+
+| Family | centralized | local_only | federated | hierarchical | full | stream |
+|---|---|---|---|---|---|---|
+| logreg | `ad80739b30bc` | `8973b386cac5` | `a6b2f3bcbed2` | `7ccf596e62bd` | `61d85238336e` | `9089141015d1` |
+| mlp | `c2ae544501d8` | `30ccc58ea734` | `497d892ab19c` | `af0aecd4027d` | `f3676caca8d9` | `7f4a477f707e` |
+| cnn1d | `a954aef7b641` | `ede5cba7262f` | `b58427a7574d` | `0096e6c576fc` | `47821cb0799e` | `1d650657ab06` |
+
+  Hypotheses spec: `configs/hypotheses/h9_wesad12.yaml`.
+- Compute estimate (from the H8 stage A/B timings on PACE, not an H9 measurement): ~2-3 min per
+  federated or hierarchical run; ~1-2 h wall as 18 parallel PACE jobs (one sweep each).
 
 **OSD-435 (flat, two silos) — FROZEN on the OSD-435 commit, approved 2026-11-19 ("approve as recommended"):** the FLUID setup
 as its paper reports it. Code `src/fedastro/data/osdr.py`; config

@@ -5,11 +5,53 @@ Handoff log between sessions. Newest phase first. Assume no memory of prior sess
 **Current plan (2026-11-15): branch `hier-fl`, the new CLAUDE.md, Phases H0–H11. CLAUDE2.md is
 removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`), H2 (`9590007`), H3
 (`836bad2`), H4 (`b19f28b`), H5 (`e9738f9`, `3d5812a`), H6 (`11906a9`) and H7 (`7c556b0`) are
-committed. Phase H8 is committed (`62cf33b`); its WESAD tuning grid is RUNNING on PACE (stage A +
-baselines, job 7167276, 2026-11-19; PACE stays on `62cf33b` until H8's evaluation runs end).
+committed. Phase H8 is committed (`62cf33b`); stage A + baselines (180 runs) and stage B (288
+runs) finished on PACE and are selected; the 12 evaluation sweeps (60 runs, seeds 0-4) RAN on PACE
+2026-11-20 but their result files are **NOT YET COPIED to the laptop** (see H8 "Evaluation"). **Do
+not present or report any H8/H9 number beyond the preliminary tuning-seed page until those 60 files
+are copied and `fedastro gap` is run on them.**
 Phase H9 prep (part 1) is built locally (below): no H9 run exists. Next: finish the H8 grid and
 gap table; the user picks the OSD-435 task; generate the H9 sweeps and freeze PREREG §2/§6.** Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
+
+---
+
+## Phase H9 (part 2) — WESAD sweeps generated, PREREG §2/§6 frozen — NOT COMMITTED, NO RUNS (2026-11-21)
+
+Plan approved 2026-11-21 (user approved the plan file). No H9 WESAD run exists; nothing here uses
+a test score (the H8 evaluation runs are not on the laptop yet).
+
+### Built
+- `fedastro h9-sweeps runs/h8-62cf33b/generated/eval_*.yaml --dataset wesad12` -> 18 sweeps
+  `configs/sweeps/h9_wesad12_<family>_{centralized,local_only,federated,hierarchical,full,stream}.yaml`
+  (generated, not hand-edited) and `configs/hypotheses/h9_wesad12.yaml`. **435 runs** (per family
+  4 x 6 shifts x 5 seeds + full 5 + stream 4 x 5).
+- **PREREG:** §2 and the §6 WESAD rows FROZEN (selected settings table, file hashes); §5 gains an
+  observation (winners on the grid edge, not extended). Status line updated.
+- **Golden lock:** the 18 sweeps' run ids added to `tests/golden/run_ids.json` (additions only,
+  1080 lines, no existing entry changed; written by a targeted merge, not `ids --write --force`,
+  so unlocked older sweeps stay unlocked).
+- `.gitignore`: `PACE-run-evals2/`, `recentPACEruns/` (PACE logs carry the scratch path and user
+  name). `PACE-run-evals2/` is still tracked (committed in `e506fcf`): the user runs
+  `git rm -r --cached PACE-run-evals2`.
+- Git-ignored: `runs/h8-62cf33b/generated/gap_wesad12.yaml` (gap spec; `fedastro gap` loads it and
+  reports the 60 evaluation runs missing, as expected). Run with
+  `fedastro gap runs/h8-62cf33b/generated/gap_wesad12.yaml --output-dir runs/h8-62cf33b --out runs/h8-62cf33b/gap_wesad12.json`.
+
+### Tests
+Full suite (2026-11-21, disk 98% full): 2 failed, the rest passed. Both failures were from the
+OSD-435 commit (`2e8327d`, which ran targeted tests only): `test_registry_groups.py` still expected
+the registry without `osd435`, and `scripts/run_report.LEGACY_DOMAINS` lacked `OSD-435`. Fixed (test
+now probes the unregistered `cinc2021`; mapping added); `test_registry_groups.py` 21 passed. Golden,
+hypotheses and OSD-435 tests: 25 passed.
+
+### Next
+1. User commits (suggested: `feat(eval): phase H9 WESAD sweeps generated from H8 winners, PREREG §2/§6 frozen`).
+2. OSD-435 locally on that clean commit (~30 min): `caffeinate -i uv run --frozen fedastro grid configs/sweeps/h9_osd435.yaml --resume`.
+3. Copy the H8 evaluation results from PACE, run `fedastro gap`, close the H8 gate, update the
+   presentation page.
+4. PACE pulls this commit (after step 3's files are collected), runs the 18 H9 sweeps
+   (`OUT_PREFIX=h9`), then `fedastro hypotheses configs/hypotheses/h9_wesad12.yaml`.
 
 ---
 
@@ -163,6 +205,70 @@ centralized + local_only: **7.4 s**. Estimated grid: stage A 108 runs (~4-6 h; 5
 the CNN are slower), stage B 2 arms x 144 runs (~5-6 h), baselines 72 runs (~10 min), evaluation
 ~45 runs (~1 h): **about 11-14 h sequential on the laptop.** On PACE (one variant per array task)
 each stage is ~1 h of wall time.
+
+### Stage A + baselines on PACE (2026-11-19, copied to the laptop 2026-11-20)
+- Jobs 7167276 (baselines + logreg, cancelled at 1h59 to avoid overlap), 7168448 (MLP), 7168433
+  (CNN, 1h08, no errors, peak 12.5 GiB). 180/180 runs finished on PACE and copied (the last 2 CNN zips
+  arrived 2026-11-20). All 180: `git_sha` 62cf33b, REAL/WESAD, `result.validation`
+  present. Laptop copy: `runs/h8-62cf33b/` (git-ignored); raw zips in `recentPACEruns/`.
+- **Selection (validation macro-F1, pooled, mean over seeds 100-102; `fedastro select`):**
+
+| Family | Arm | Winner | Val. macro-F1 | Best (if not winner) |
+|---|---|---|---|---|
+| logreg | federated | lr 0.01, E 2 | 0.688 | |
+| logreg | hierarchical | lr 0.01, E 1 | 0.680 | 0.683 (lr 0.003, E 5): cheaper within 0.005 |
+| mlp | federated | lr 0.01, E 1 | 0.765 | |
+| mlp | hierarchical | lr 0.01, E 1 | 0.723 | |
+| cnn1d | federated | lr 0.01, E 1 | 0.725 | |
+| cnn1d | hierarchical | lr 0.003, E 2 | 0.641 | |
+| logreg | centralized | lr 0.003, 60 ep | 0.773 | |
+| logreg | local_only | lr 0.01, 60 ep | 0.942 | |
+| mlp | centralized | lr 0.003, 60 ep | 0.912 | |
+| mlp | local_only | lr 0.001, 60 ep | 0.947 | |
+| cnn1d | centralized | lr 0.003, 60 ep | 0.984 | |
+| cnn1d | local_only | lr 0.001, 30 ep | 0.987 | 0.990 (lr 3e-4, 60 ep): cheaper within 0.005 |
+
+- **Winners on the grid edge:** every logreg/MLP federated and hierarchical winner is at the top
+  learning rate (0.01), and 5 of 6 baseline winners at the top epoch count (60). The best setting
+  may lie outside the frozen grid; reported, not extended (extending would be a PREREG §5
+  deviation).
+- **Validation scores are not comparable across arms:** WESAD node validation is the tail of the
+  node's own subject, so local-only (0.94-0.99) scores far above federated (0.69-0.77) there, while
+  the test set is held-out subjects. Selection compares variants within one arm only, so it is
+  unaffected; the gap is measured on test data in the evaluation runs.
+- Generated (git-ignored): `runs/h8-62cf33b/generated/` stage B sweeps for every family x federated /
+  hierarchical, evaluation sweeps for the baselines. Test scores of the tuning runs were not used
+  and are not reported.
+
+### Stage B on PACE (2026-11-20, copied to the laptop)
+- Jobs 7201421-7201426 (one sweep each, 1 node, 12 cores, 32 GB; a first submission 7201162-67
+  failed in seconds because the generated sweeps had not been uploaded). 287/288 runs; the missing
+  one (cnn1d federated, FedAvg + Adam server lr 0.01, seed 102) was a Flower/Ray crash before any
+  training (`query.stats: 0/12 replies within 600s`, node on `ice-bw-cpu`), rerun as job 7203022:
+  288/288. All `git_sha` 62cf33b, REAL/WESAD.
+- **Selection (validation macro-F1, mean over seeds 100-102):**
+
+| Family | Arm | Winner (on stage A's lr / E) | Val. macro-F1 | Stage A |
+|---|---|---|---|---|
+| logreg | federated | FedProx mu 0.1 + Adam (server lr 0.1) | 0.734 | 0.688 |
+| logreg | hierarchical | FedProx mu 0.1 + momentum | 0.715 | 0.680 |
+| mlp | federated | FedProx mu 0.1 + momentum | 0.800 | 0.765 |
+| mlp | hierarchical | FedProx mu 0.1 (best 0.749, cheaper within 0.005) | 0.747 | 0.723 |
+| cnn1d | federated | FedProx mu 0.1 + momentum | 0.808 | 0.725 |
+| cnn1d | hierarchical | FedProx mu 0.1 + momentum | 0.665 | 0.641 |
+
+- **All six winners use mu 0.1, the largest mu in the frozen grid** (grid edge again; reported, not
+  extended: a PREREG §5 deviation).
+- Generated (git-ignored): `runs/h8-62cf33b/generated/eval_gapB_*` (6) + `eval_gapC_*` (6), seeds 0-4.
+
+### Evaluation on PACE (2026-11-20) — RAN, FILES NOT YET ON THE LAPTOP
+- 12 jobs `h8E-*` (one evaluation sweep each), 60 runs. On PACE in
+  `/storage/ice1/4/7/aagarwal710/FLASH/runs/h8-62cf33b/eval_gap*-seed<0-4>-<hash>/` (+ `*-summary.json`;
+  logs `runs/slurm/h8E-*.out`).
+- **To do before the next presentation of results:** collect them on PACE
+  (`ls -d eval_*/ | wc -l` = 60, `grep -l FAILED runs/slurm/h8E-*.out` empty,
+  `zip -qr ../../h8E_results.zip eval_*`), copy into `runs/h8-62cf33b/`, then run `fedastro gap`.
+  The published presentation page (tuning seeds 100-102, n = 3) is PRELIMINARY until then.
 
 ### Decisions (user approved 2026-11-18, "approve as recommended")
 1. WESAD12 tuning in H8; CinC in H10 with the same rule. 2. Tuning seeds 100-102, evaluation
