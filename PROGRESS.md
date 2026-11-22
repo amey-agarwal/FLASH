@@ -8,9 +8,93 @@ removed; its Phases 13–18 are dropped. Phases H0 (`881045d`), H1 (`f3eac96`), 
 committed. Phase H8 is committed (`62cf33b`); its tuning (468 runs) and evaluation (60 runs, seeds
 0-4) are DONE and the gap table is computed (2026-11-21, H8 "Evaluation"): **these are the numbers
 for presentations**; the earlier tuning-seed page is superseded. H9 is DONE: OSD-435 (40 runs)
-and WESAD (435 runs, `84a40ec`, H1-H4 verdicts in "Phase H9 (part 3)"). Next: Phase H10 (CinC).**
+and WESAD (435 runs, `84a40ec`, H1-H4 verdicts in "Phase H9 (part 3)"). H10a (CinC inspection) is
+done, with its decisions made; next is H10b (the loader and smoke test).**
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
+
+---
+
+## Phase H10 (part a) — CinC 2021 inspection — DONE, AWAITING DECISIONS (2026-11-21)
+
+Plan approved 2026-11-21: inspect first, write no loader code until the decisions below are
+approved. Only headers and metadata were downloaded; no signal file. They live in
+`data/raw/cinc2021/` (git-ignored, ~350 MB of `.hea` files) and come from PhysioNet
+`challenge-2021/1.0.3`, open access. The inspection scripts were throwaway (scratchpad), so
+everything they found is recorded here.
+
+- **Listings:** 88,253 records are listed (93 blank lines removed from the per-group `RECORDS`
+  files). Headers were fetched for **88,168**. **85 listed records return 404** on both
+  PhysioNet and its S3 mirror: ningbo 35, ptb-xl 21, chapman 10, georgia 10, cpsc 6,
+  cpsc_extra 3. The list is in `data/raw/cinc2021/unavailable_records.txt`; these records
+  can't be used.
+- **Label mapping:** the Challenge's `dx_mapping_scored.csv` (sha256 `fad13ad9f7ca…`, 30 codes)
+  and `dx_mapping_unscored.csv` (`ce53c9e35406…`), from `physionetchallenges/evaluation-2021`
+  on GitHub (branch main).
+
+### Per source (all leads I and II present in every record)
+Binary labels: normal = NSR and no other scored code; abnormal = any scored code other than
+NSR; dropped = only unscored codes.
+
+| Source | Topology name | Records | Hz | Duration (s, min / median / max) | Normal | Abnormal | Dropped | < 10 s |
+|---|---|---|---|---|---|---|---|---|
+| Chapman-Shaoxing | chapman | 10,237 | 500 | 10 / 10 / 10 | 1,490 | 8,211 | 536 | 0 |
+| CPSC 2018 | cpsc | 6,871 | 500 | 6 / 12 / 144 | 918 | 4,356 | 1,597 | 10 |
+| CPSC 2018 extra | cpsc_extra | 3,450 | 500 | 8 / 12 / 98 | 3 | 1,272 | 2,175 | 12 |
+| Georgia | g12ec | 10,334 | 500 | 5 / 10 / 10 | 1,750 | 7,699 | 885 | 52 |
+| Ningbo | ningbo | 34,870 | 500 | 10 / 10 / 10 | 4,976 | 29,476 | 418 | 0 |
+| PTB | ptb | 516 | 1000 | 32 / 115 / 120 | 80 | 36 | 400 | 0 |
+| PTB-XL | ptbxl | 21,816 | 500 | 10 / 10 / 10 | 9,257 | 12,326 | 233 | 0 |
+| St Petersburg INCART | incart | 74 | 257 | 1800 / 1800 / 1800 | 0 | 34 | 40 | 0 |
+| **Total** | | 88,168 | | | 18,474 | 63,410 | 6,284 | 74 |
+
+### Patient IDs (CinC headers have none)
+- **PTB-XL:** CinC `HR<n>` is PTB-XL 1.0.1 `ecg_id` *n*.
+  - Verified on age and sex for **all 21,816 records**. CinC codes ages ≥ 90 as 300; with that
+    rule there are 0 disagreements.
+  - **18,868 patients**: 2,123 of them have more than one record, up to 6+ each.
+  - Patient IDs come from PTB-XL 1.0.1's `ptbxl_database.csv` (1.0.3 has 21,799 rows, so 1.0.1 is
+    the matching release).
+- **PTB:** CinC `S<n>` is line *n* of `ptbdb/1.0.0/RECORDS` (`patientNNN/sNNNN…`).
+  - Verified for **all 516 records**: age and sex agree where both are stated (507, the other 9
+    are n/a in the original), and the CinC length is ≤ the original's.
+  - The 33 missing S-numbers are records CinC left out.
+  - **262 patients** (up to 7 records each). After the label filter: 116 records, 83 patients;
+    no patient has both labels.
+  - Two other mappings failed: by the sNNNN number in the original names (8/516 agree), and by
+    signal checksum (CinC rescaled the gains).
+- **INCART:** CinC `I00nn` is INCART `Inn`. I0036 is absent from CinC.
+  - Verified for **all 74 records** on age, sex and length.
+  - Patients from `incartdb/1.0.0/files-patients-diagnoses.txt`: **32 patients**, 1–4 records
+    each. After the label filter: 34 records from 21 patients, **all abnormal** (0 normal). The
+    40 dropped records carry only unscored codes (VEB 25, VPVC 14, PVT 11, …).
+- **Georgia, Chapman, Ningbo, CPSC, CPSC-extra:** there is no patient ID in the headers or the
+  metadata, so each record is treated as one patient. This is a disclosed limitation.
+  Identical (age, sex, full Dx set) profiles repeat often (e.g. ningbo 25,543 of 34,870), but
+  common profiles repeat by chance, so that isn't evidence of repeat patients.
+
+### Findings that affect the decisions
+1. **INCART (the Roscosmos node) has only one class** under any target that uses the CinC
+   labels: its local-only model is trivial.
+2. **The planned target drops 6,284 records.** That includes 400 of PTB's 516, mostly MI, which
+   is unscored in 2021, and 2,175 of CPSC-extra's 3,450.
+3. **CPSC-extra has 3 normal records**, so its records are almost all abnormal.
+4. **74 records are shorter than 10 s.** Under the plan they are dropped.
+
+### Decisions (user, 2026-11-21)
+- **Target: scored only**, as recommended. Normal = NSR and no other scored code; abnormal = any
+  scored code other than NSR; records with only unscored codes are dropped. That leaves 81,884
+  records before the 10 s filter.
+- **INCART: kept and disclosed**, as recommended. It is a single-class, tiny Roscosmos silo, and
+  its segments inherit their record's labels.
+- The rest of the plan's table stands: leads I and II; 10 s at 100 Hz; INCART 10 segments per
+  record; 17 features; (n, 2, 1000) sequences; patient-complete stratified subsets of ~2k and
+  ~20k; per-file download; `scipy==1.17.1` as a direct pin.
+- **Patient grouping:** PTB-XL `patient_id` (1.0.1), PTB `patientNNN` (by RECORDS line), INCART
+  from `files-patients-diagnoses.txt`. All other sources: one record = one patient.
+
+### Next
+H10b: the loader, fetch, tests and smoke test, as in the approved plan.
 
 ---
 
