@@ -9,13 +9,155 @@ committed. Phase H8 is committed (`62cf33b`); its tuning (468 runs) and evaluati
 0-4) are DONE and the gap table is computed (2026-11-21, H8 "Evaluation"): **these are the numbers
 for presentations**; the earlier tuning-seed page is superseded. H9 is DONE: OSD-435 (40 runs)
 and WESAD (435 runs, `84a40ec`, H1-H4 verdicts in "Phase H9 (part 3)"). H10a (CinC inspection) is
-done, with its decisions made; next is H10b (the loader and smoke test).**
+done, with its decisions made. H10b (the CinC loader and smoke test) is built and not yet
+committed; next is H10c (PACE).**
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H10 (part a) — CinC 2021 inspection — DONE, AWAITING DECISIONS (2026-11-21)
+## Phase H10 (part b) — CinC 2021 loader, fetch and smoke test — BUILT, NOT COMMITTED (2026-11-22)
+
+Built to the approved plan, with the H10a decisions. No result-producing CinC run exists. The 3
+smoke runs use tuning seed 100, and their scores were not read.
+
+### Built
+- **`src/fedastro/data/cinc2021.py`.** Reads `.hea` headers (text) and `.mat` signals
+  (`scipy.io.loadmat`); no `wfdb`. Returns a `GroupedDatasetBundle` with groups = the 8
+  sources (cinc15 names) and `subject_id` = patient.
+  - Every metadata file's SHA-256 is pinned. So is the set of 85 unavailable records, by count
+    and by the digest of its sorted names. Any other missing header is refused, as an
+    incomplete download.
+  - The record index (labels, patients, lengths) is cached. Its cache key covers the pinned
+    metadata and every header's name and size: 30 s cold, 1.8 s warm.
+  - Per-record processed windows are cached under `cache_dir()/cinc2021/<key>/`, with both
+    representations stored; processing runs in a process pool (`FEDASTRO_CINC_WORKERS`).
+  - Provenance: REAL, domain `terrestrial_proxy`. `checksum` is the subset index's hash;
+    `version` is `challenge-2021/1.0.3+subset<N>+cinc2021-v1`.
+- **`config.py`:**
+  - `Cinc2021Params`: subset 2000, leads (I, II), window_s 10, sequence_hz 100, incart_segments
+    10, representation; validated, and lead II is required.
+  - The 1D-CNN's sequence-input rule now covers `cinc2021`.
+  - The unused dataset block is dropped from `experiment_dict`, so earlier run ids are unchanged.
+- **Registry:** `cinc2021` registered as `CinC2021`, `terrestrial_proxy`.
+- **`scripts/run_report.LEGACY_DOMAINS`:** a `CinC2021` entry.
+- **`pyproject.toml`:** `scipy==1.17.1` as a direct pin. It was already locked transitively;
+  `uv.lock` gains 2 lines and no version changes.
+- **`scripts/fetch_data.py cinc2021 --subset N --accept-license`** downloads, all resumable:
+  1. the metadata, checked against the pins
+  2. the 92 group listings
+  3. every header (8 threads)
+  4. the signals of the chosen subset
+
+  It also writes `subset_<N>.txt` (path, source, patient, label).
+- **Configs:** `configs/experiments/cinc15_hier.yaml` (2k subset, `holdout_subjects: 0`, all
+  arms) and `configs/sweeps/smoke_cinc15_models.yaml` (logreg, MLP, 1D-CNN; seed 100).
+
+### Subsets (real data)
+- **Usable records:** 81,830. That is 81,884 labelled minus 54 shorter than 10 s: 63,373
+  abnormal, 18,457 normal.
+- **Patients:** PTB-XL 18,691, PTB 83, INCART 21; every other source counts one patient per
+  record.
+- **2k subset:** 2,000 records and 1,888 patients (2,306 windows, counting INCART's 10 windows
+  per record), 1.2 GB.
+- **Nesting:** the 2k subset is inside the 20k subset (tested). The 20k selection is 20,001
+  records (whole patients).
+
+### Per-node table (2k subset, features; patients and windows as train / validation / test)
+| Node | Sources | Patients | Windows | Abnormal share (train) |
+|---|---|---|---|---|
+| leo_nasa | g12ec | 30/4/8 | 30/4/8 | 0.80 |
+| leo_esa | ptb+ptbxl | 96/14/28 | 119/15/39 | 0.46 |
+| leo_roscosmos | incart | 15/2/4 | 230/30/80 | 1.00 |
+| leo_cmsa1 | ningbo | 83/12/24 | 83/12/24 | 0.89 |
+| leo_partner | cpsc+cpsc_extra | 44/6/13 | 44/6/13 | 0.93 |
+| moon_nasa | g12ec | 84/12/24 | 84/12/24 | 0.86 |
+| moon_esa | ptb+ptbxl | 66/10/19 | 78/10/21 | 0.41 |
+| moon_cmsa1 | ningbo | 178/25/51 | 178/25/51 | 0.85 |
+| moon_cmsa2 | chapman | 65/9/18 | 65/9/18 | 0.83 |
+| moon_partner | cpsc+cpsc_extra | 21/3/6 | 21/3/6 | 0.86 |
+| mars_nasa | g12ec | 36/5/10 | 36/5/10 | 0.83 |
+| mars_esa | ptb+ptbxl | 191/27/55 | 225/32/66 | 0.52 |
+| mars_cmsa1 | ningbo | 285/41/81 | 285/41/81 | 0.85 |
+| mars_cmsa2 | chapman | 89/13/26 | 89/13/26 | 0.89 |
+| mars_partner | cpsc+cpsc_extra | 38/6/11 | 38/6/11 | 0.84 |
+
+The data shows natural quantity skew (21 to 285 patients per node) and natural label skew (an
+abnormal share of 0.41 to 1.00).
+
+- **Single-class validation sets.** 4 nodes have a validation set with one class: leo_roscosmos,
+  leo_cmsa1, moon_cmsa1 and mars_partner. That's expected with 2–6 validation patients. It
+  makes their validation macro-F1 noisy, which matters for H8-style selection (disclosed).
+- **INCART inflates its window count.** Its 10 windows per record give the Roscosmos node more
+  windows (230) than patients (15).
+- **Features:** no non-finite values. Heart rate: median 73 bpm, 44–165 between the 1st and 99th
+  percentiles; one window has fewer than 3 detected beats.
+
+### Smoke and timing (laptop CPU, 8 cores, 2k subset, all 5 arms, 30 rounds, `global_every` 5)
+All 3 runs finished end to end: REAL provenance, every arm in `result.json`. `runs/h10b_smoke/`
+is git-ignored.
+
+| Family | Wall time per run (includes ~20 s data load) |
+|---|---|
+| logreg | ~1.8 min |
+| mlp | ~1.6 min |
+| cnn1d | ~4.0 min |
+
+**Cost of the H10c grid.** It is the same design as WESAD: per family, 36 stage A runs + 24
+baseline runs + 96 stage B + 20 evaluation + 145 H9-style runs = 321; 963 runs in all.
+- **On the 2k subset:** about 40 CPU-hours.
+- **On the ~20k main subset (10× the records), if run time scales linearly (not measured):**
+  ~17 min per logreg/MLP run and ~40 min per 1D-CNN run. That's ≈ 400 job-hours, roughly a day of
+  wall time as 18 parallel PACE jobs. Each run is then above CLAUDE.md's 15 min threshold.
+- **CLAUDE.md's fallback (3 seeds or 20 rounds):** 3 seeds would conflict with rule 3 (≥ 5 seeds
+  for presented numbers). If a cut is needed, the options are 20 rounds, a ~10k main subset, or
+  tuning on the 2k subset and evaluating on 20k. This is to be decided at the H10c plan, after
+  **one timed 20k run on PACE** replaces the linear guess.
+
+### Tests
+- `tests/test_cinc2021.py` (new, 9 tests, plus 1 that checks the real headers). A synthetic
+  miniature of the Challenge's file layout covers:
+  - labels and drops (MI-only records, < 10 s records)
+  - patient grouping for PTB-XL, PTB and INCART
+  - a missing header, a changed unavailable set, and a changed metadata file, each refused
+  - subsets: patient-complete, nested, whole PTB and INCART, seeded
+  - feature and sequence shapes, and INCART's 10 windows per record keeping their patient
+  - heart rate recovered (60 bpm), and the cache reproduces the arrays
+  - missing signals refused
+  - cinc15 nodes patient-disjoint for both representations
+  - the config rules
+
+  The real-data test checks the H10a counts.
+- `test_registry_groups.py` updated: the registry now has 4 datasets, and the unknown-name
+  probe is now `mimic`.
+- Targeted runs: `test_cinc2021` + `test_registry_groups` 31 passed; golden + config +
+  hierarchy config + node partition all passed.
+- **Full suite (default selection, `pytest -q`), 2026-11-22.**
+  - First run: 1 failure in `tests/test_evaluation.py`, near test 119. The output was cut off
+    before the summary, so the traceback wasn't captured.
+  - Rerun: **everything passed**, 1 skipped (CUDA).
+  - `test_evaluation.py` then passed 3 times out of 3. The failure is recorded as intermittent
+    and unexplained.
+- **TO DO before the H10b gate closes:** the 4 slow flat-WESAD regression seeds
+  (`caffeinate -i uv run --frozen pytest -m slow`). This run was started and then stopped by the
+  user (laptop closing), so it hasn't finished.
+
+### Data on the laptop
+`data/raw/cinc2021/` is git-ignored: all headers, the metadata, and the 2k signals, 1.6 GB in
+all. It still holds files left over from the H10a inspection (`hea.curl`, `hea_errors.log`,
+`inspection.json`, `orig/ptbdb_hea/`, `orig/incart_hea/`, `orig/ptbxl_database.csv`). The
+loader doesn't use them; delete them when convenient.
+
+### Next
+H10c in plan mode:
+1. one timed 20k run on PACE
+2. the compute decision
+3. freeze the PREREG §5/§6 CinC rows
+4. tuning, evaluation and H9-style runs on PACE
+
+---
+
+## Phase H10 (part a) — CinC 2021 inspection — DONE, DECISIONS MADE (2026-11-21)
 
 Plan approved 2026-11-21: inspect first, write no loader code until the decisions below are
 approved. Only headers and metadata were downloaded; no signal file. They live in

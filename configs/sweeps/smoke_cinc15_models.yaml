@@ -1,0 +1,10 @@
+# Phase H10b smoke + timing on hierarchical CinC 2021 (cinc15, 2k-record subset): one run per
+# model family, every arm, default training settings, TUNING seed 100 (never an evaluation
+# seed). Used only to check the pipeline end to end and to time a run; scores are not read.
+name: smoke_cinc15_models
+base: ../experiments/cinc15_hier.yaml
+seeds: [100]
+variants:
+  - {model.arch: logreg}
+  - {model.arch: mlp}
+  - {model.arch: cnn1d, data.cinc2021.representation: sequence}

@@ -228,6 +228,7 @@ dependencies = [
     { name = "pytest" },
     { name = "pyyaml" },
     { name = "scikit-learn" },
+    { name = "scipy" },
     { name = "streamlit" },
     { name = "torch" },
 ]
@@ -241,6 +242,7 @@ requires-dist = [
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pyyaml", specifier = "==6.0.3" },
     { name = "scikit-learn", specifier = "==1.9.1" },
+    { name = "scipy", specifier = "==1.17.1" },
     { name = "streamlit", specifier = "==1.60.0" },
     { name = "torch", specifier = "==2.2.2" },
 ]

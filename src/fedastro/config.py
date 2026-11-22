@@ -154,12 +154,45 @@ class Osd435Params:
                 raise ConfigError(f"data.osd435.{k} must be true or false")
 
 
+CINC_LEADS = ("I", "II", "III", "AVR", "AVL", "AVF", "V1", "V2", "V3", "V4", "V5", "V6")
+
+
+@dataclass(frozen=True)
+class Cinc2021Params:
+    """PhysioNet/CinC 2021 (data/cinc2021.py, Phase H10). Decisions: PROGRESS.md Phase H10a."""
+
+    subset: int = 2000  # records in the fixed patient-complete sample; 0 = every usable record
+    leads: tuple[str, ...] = ("I", "II")
+    window_s: float = 10.0
+    sequence_hz: float = 100.0
+    incart_segments: int = 10  # evenly spaced windows per 30 min INCART Holter record
+    representation: str = "features"  # "features": stats + RR intervals; "sequence": resampled leads
+
+    def validate(self) -> None:
+        if not isinstance(self.subset, int) or self.subset < 0:
+            raise ConfigError("data.cinc2021.subset must be an integer >= 0 (0 = all records)")
+        if not self.leads or any(ld.upper() not in CINC_LEADS for ld in self.leads) \
+                or len({ld.upper() for ld in self.leads}) != len(self.leads):
+            raise ConfigError(f"data.cinc2021.leads must be distinct leads from {CINC_LEADS}")
+        if "II" not in [ld.upper() for ld in self.leads]:
+            raise ConfigError("data.cinc2021.leads must include II (RR intervals are measured on lead II)")
+        if not 0 < self.window_s <= 30:
+            raise ConfigError("data.cinc2021.window_s must be in (0, 30]")
+        if not 0 < self.sequence_hz <= 250 or (self.window_s * self.sequence_hz) % 1:
+            raise ConfigError("data.cinc2021.sequence_hz must be in (0, 250] with window_s * sequence_hz an integer")
+        if not isinstance(self.incart_segments, int) or self.incart_segments < 1:
+            raise ConfigError("data.cinc2021.incart_segments must be an integer >= 1")
+        if self.representation not in REPRESENTATIONS:
+            raise ConfigError(f"data.cinc2021.representation must be one of {REPRESENTATIONS}")
+
+
 @dataclass(frozen=True)
 class DataConfig:
     name: str = "synthetic"
     synthetic: SyntheticParams = field(default_factory=SyntheticParams)
     wesad: WesadParams = field(default_factory=WesadParams)
     osd435: Osd435Params = field(default_factory=Osd435Params)
+    cinc2021: Cinc2021Params = field(default_factory=Cinc2021Params)
 
     def validate(self) -> None:
         if self.name not in DATASETS:
@@ -167,6 +200,7 @@ class DataConfig:
         self.synthetic.validate()
         self.wesad.validate()
         self.osd435.validate()
+        self.cinc2021.validate()
 
     @property
     def is_synthetic(self) -> bool:
@@ -1067,7 +1101,8 @@ class ExperimentConfig:
         if any(a not in ARMS for a in self.arms) or len(set(self.arms)) != len(self.arms):
             raise ConfigError(f"arms must be distinct entries from {ARMS}")
         sequence_input = (self.data.name == "wesad" and self.data.wesad.representation == "sequence") or \
-            (self.data.name == "synthetic" and self.data.synthetic.representation == "sequence")
+            (self.data.name == "synthetic" and self.data.synthetic.representation == "sequence") or \
+            (self.data.name == "cinc2021" and self.data.cinc2021.representation == "sequence")
         if self.model.arch == "cnn1d" and not sequence_input:
             raise ConfigError("model.arch 'cnn1d' needs sequence input (data.<dataset>.representation 'sequence')")
         if self.model.arch in FEATURE_ARCHS and sequence_input:

@@ -52,6 +52,8 @@ REGISTRY: dict[str, DatasetSpec] = {
         DatasetSpec("wesad", "WESAD", "terrestrial_proxy", "fedastro.data.wesad"),
         # Ground-based space-radiation study in mice (Phase H9): an analog, not spaceflight.
         DatasetSpec("osd435", "OSD-435", "terrestrial_analog", "fedastro.data.osdr"),
+        # Clinical 12-lead ECGs from eight hospital / Holter databases (Phase H10).
+        DatasetSpec("cinc2021", "CinC2021", "terrestrial_proxy", "fedastro.data.cinc2021"),
     )
 }
 

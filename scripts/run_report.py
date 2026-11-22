@@ -38,7 +38,8 @@ PACKAGES = ("torch", "flwr", "ray", "opacus", "numpy", "scikit-learn")
 # provenance.domain (CLAUDE2.md rule 10) for artifacts written before Phase 11, which have
 # no domain field. A copy of the registry in fedastro/data/__init__.py (this script is
 # standard-library only); a test keeps the two in step.
-LEGACY_DOMAINS = {"SYNTHETIC": "synthetic", "WESAD": "terrestrial_proxy", "OSD-435": "terrestrial_analog"}
+LEGACY_DOMAINS = {"SYNTHETIC": "synthetic", "WESAD": "terrestrial_proxy", "OSD-435": "terrestrial_analog",
+                  "CinC2021": "terrestrial_proxy"}
 
 
 def domain(prov: dict) -> str:

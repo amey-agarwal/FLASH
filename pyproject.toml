@@ -21,6 +21,7 @@ dependencies = [
     "numpy==1.26.4",
     "pandas==3.0.6",
     "scikit-learn==1.9.1",
+    "scipy==1.17.1",  # Phase H10: ECG resampling and R-peak detection (already a transitive pin)
     "pyyaml==6.0.3",
     "streamlit==1.60.0",
     "pytest==9.1.1",

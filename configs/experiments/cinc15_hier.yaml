@@ -1,0 +1,16 @@
+# Hierarchical CinC 2021 (CLAUDE.md section 4b): 15 nodes, 5 per region, each node with its own
+# patient-disjoint 70 / 10 / 20 train / validation / test split. Phase H10b smoke and timing
+# base: the 2k-record subset (data/cinc2021.py). Rounds, seeds, the shift arms and the main
+# 20k subset are fixed in PREREG.md before any result-producing CinC run (Phase H10c).
+name: cinc15_hier
+seed: 0
+seeds: [0, 1, 2, 3, 4]
+hierarchy: cinc15
+data:
+  name: cinc2021
+  cinc2021:
+    subset: 2000
+partition:
+  holdout_subjects: 0   # by_source: every node has its own test split
+arms: [centralized, local_only, federated, ensemble_of_locals, hierarchical]
+notes: "Hierarchical CinC 2021 (cinc15), 2k-record smoke subset."
