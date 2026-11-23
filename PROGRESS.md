@@ -16,7 +16,7 @@ Everything below the H0 entry is the record of the earlier plans; where it says
 
 ---
 
-## Phase H10 (part b) — CinC 2021 loader, fetch and smoke test — BUILT, NOT COMMITTED (2026-11-22)
+## Phase H10 (part b) — CinC 2021 loader, fetch and smoke test — DONE, AWAITING COMMIT (2026-11-22)
 
 Built to the approved plan, with the H10a decisions. No result-producing CinC run exists. The 3
 smoke runs use tuning seed 100, and their scores were not read.
@@ -138,9 +138,9 @@ baseline runs + 96 stage B + 20 evaluation + 145 H9-style runs = 321; 963 runs i
   - Rerun: **everything passed**, 1 skipped (CUDA).
   - `test_evaluation.py` then passed 3 times out of 3. The failure is recorded as intermittent
     and unexplained.
-- **TO DO before the H10b gate closes:** the 4 slow flat-WESAD regression seeds
-  (`caffeinate -i uv run --frozen pytest -m slow`). This run was started and then stopped by the
-  user (laptop closing), so it hasn't finished.
+- **Slow tests (`pytest -m slow`), 2026-11-22: 8 passed**, 395 deselected, in 10 min 43 s.
+  These are the 4 flat-WESAD regression seeds plus 4 slow end-to-end tests. The locked flat
+  results still reproduce. Combined with the default selection, the full suite passes.
 
 ### Data on the laptop
 `data/raw/cinc2021/` is git-ignored: all headers, the metadata, and the 2k signals, 1.6 GB in
