@@ -1,0 +1,12 @@
+# Phase H10c step 1: time one run per model family on the ~20k CinC main subset on PACE (CPU),
+# before the compute decision (Gate 1). Stage-A arm set (local_only, federated, hierarchical),
+# default training settings, TUNING seed 100. Timing only: scores are not read or used.
+name: timing_cinc15_main
+base: ../experiments/cinc15_main.yaml
+seeds: [100]
+fixed:
+  arms: [local_only, federated, hierarchical]
+variants:
+  - {model.arch: logreg}
+  - {model.arch: mlp}
+  - {model.arch: cnn1d, data.cinc2021.representation: sequence}

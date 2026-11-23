@@ -9,14 +9,42 @@ committed. Phase H8 is committed (`62cf33b`); its tuning (468 runs) and evaluati
 0-4) are DONE and the gap table is computed (2026-11-21, H8 "Evaluation"): **these are the numbers
 for presentations**; the earlier tuning-seed page is superseded. H9 is DONE: OSD-435 (40 runs)
 and WESAD (435 runs, `84a40ec`, H1-H4 verdicts in "Phase H9 (part 3)"). H10a (CinC inspection) is
-done, with its decisions made. H10b (the CinC loader and smoke test) is built and not yet
-committed; next is H10c (PACE).**
+done, with its decisions made. H10b (the CinC loader and smoke test) is committed
+(`8090ece`). H10c step 1 (the 20k timing run on PACE) is built.**
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H10 (part b) — CinC 2021 loader, fetch and smoke test — DONE, AWAITING COMMIT (2026-11-22)
+## Phase H10 (part c) — CinC 2021 on PACE — STEP 1 BUILT (timing), NOT COMMITTED (2026-11-22)
+
+Plan approved 2026-11-22. The steps are:
+1. time one 20k run per family on PACE
+2. Gate 1, the compute decision (20k at 30 rounds / tune on 2k and evaluate on 20k / 20 rounds /
+   ~10k; never fewer than 5 seeds, rule 3)
+3. freeze the PREREG §5 CinC rows, then tuning, evaluation and the gap
+4. the H9-style sweeps and the H1–H4 verdicts
+
+### Step 1 built
+- **`data/cinc2021.py`:** cache writes (per-record windows and the index) now use a
+  per-process temporary name and an atomic `replace`. Parallel PACE jobs that build the same
+  cache can't clash on a shared `.tmp` name. Tested: another writer's half-written temporary
+  files are neither read nor in the way.
+- **`configs/experiments/cinc15_main.yaml`:** the ~20k main subset (20,001 records). It contains
+  the 2k smoke subset; the topology and splits are the same.
+- **`configs/sweeps/timing_cinc15_main.yaml`:** logreg, MLP, 1D-CNN (sequence); seed 100 (a
+  tuning seed); the stage-A arms (local_only, federated, hierarchical). For timing only:
+  scores are not read.
+- **Tests:** `test_cinc2021.py` (11) + `test_golden.py` all pass; run ids unchanged.
+
+### Next (PACE, user)
+Pull this commit, then fetch the 20k subset on the login node into `$SCR/FLASH/data/raw/cinc2021`
+(headers ~40 min, signals ~3 GB). Then run one CPU job (12 cores, 32 GB, 6 h) for the timing
+sweep, `OUT_PREFIX=h10t`. Send back the log and the result folder timestamps. Gate 1 follows.
+
+---
+
+## Phase H10 (part b) — CinC 2021 loader, fetch and smoke test — DONE, COMMITTED `8090ece` (2026-11-22)
 
 Built to the approved plan, with the H10a decisions. No result-producing CinC run exists. The 3
 smoke runs use tuning seed 100, and their scores were not read.

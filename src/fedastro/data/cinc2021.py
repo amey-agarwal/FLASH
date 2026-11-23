@@ -389,9 +389,9 @@ def _process_chunk(root: str, rows: list[dict], params: Cinc2021Params, cdir: st
         if out.exists():
             continue
         f, s = process_record(Path(root), row, params)
-        tmp = out.with_name(out.stem + ".tmp.npz")
+        tmp = out.with_name(f"{out.stem}.tmp{os.getpid()}.npz")  # unique per writer: parallel jobs
         np.savez(tmp, features=f, sequence=s)
-        tmp.rename(out)
+        tmp.replace(out)  # atomic; concurrent writers produce identical files
 
 
 def _n_workers(n_jobs: int) -> int:
@@ -411,9 +411,9 @@ def cached_index(root: Path, window_s: float) -> list[dict]:
         return json.loads(f.read_text())
     rows = build_index(root, window_s)
     f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_name(f.name + ".tmp")
+    tmp = f.with_name(f"{f.name}.tmp{os.getpid()}")
     tmp.write_text(json.dumps(rows))
-    tmp.rename(f)
+    tmp.replace(f)
     return rows
 
 

@@ -186,6 +186,22 @@ def test_features_sequences_and_incart_segments(fake):
     assert again.provenance.processed_checksum == f.provenance.processed_checksum
 
 
+def test_another_writers_temporary_files_do_not_break_the_cache(fake):
+    """Parallel PACE jobs may build one cache at once: a half-written temporary file from
+    another process (another pid) must neither be read nor block this writer."""
+    params = Cinc2021Params(subset=0)
+    rows = c.cached_index(fake, params.window_s)
+    cdir = c.cache_dir() / "cinc2021" / c._cache_key(params)
+    cdir.mkdir(parents=True)
+    for r in rows[:5]:
+        (cdir / f"{r['source']}_{r['record']}.tmp99999999.npz").write_bytes(b"half written")
+    idx = next(iter(cdir.parent.glob("index-*.json")))
+    idx.with_name(idx.name + ".tmp99999999").write_text("[")
+    b = c.load_cinc2021(params, fake)
+    assert np.isfinite(b.X).all() and len(b) == len(c.load_cinc2021(params, fake))
+    assert not [p for p in cdir.glob("*.tmp*") if "99999999" not in p.name]  # ours were renamed into place
+
+
 def test_missing_signals_are_refused(fake):
     (fake / "training/ningbo/g1/JN00001.mat").unlink()
     with pytest.raises(FileNotFoundError, match="signal files"):
