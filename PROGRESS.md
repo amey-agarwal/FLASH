@@ -16,7 +16,7 @@ Everything below the H0 entry is the record of the earlier plans; where it says
 
 ---
 
-## Phase H10 (part c) — CinC 2021 on PACE — STEP 1 BUILT (timing), NOT COMMITTED (2026-11-22)
+## Phase H10 (part c) — CinC 2021 on PACE — STEP 1 DONE (timed on PACE), AT GATE 1 (2026-11-23)
 
 Plan approved 2026-11-22. The steps are:
 1. time one 20k run per family on PACE
@@ -37,10 +37,27 @@ Plan approved 2026-11-22. The steps are:
   scores are not read.
 - **Tests:** `test_cinc2021.py` (11) + `test_golden.py` all pass; run ids unchanged.
 
-### Next (PACE, user)
-Pull this commit, then fetch the 20k subset on the login node into `$SCR/FLASH/data/raw/cinc2021`
-(headers ~40 min, signals ~3 GB). Then run one CPU job (12 cores, 32 GB, 6 h) for the timing
-sweep, `OUT_PREFIX=h10t`. Send back the log and the result folder timestamps. Gate 1 follows.
+### Step 1 measured on PACE (2026-11-23)
+- **20k fetch:** 20,001 records, 19,240 patients, index `sha256:b57091b7…`; identical to the
+  laptop's subset. The first fetch died on a PhysioNet 502, so `_get` in `scripts/fetch_data.py`
+  now backs off for up to ~5 min (9 tries, capped at 60 s).
+- **The first timing job (7253497) failed** before the fetch existed (no data); there are no results.
+- **Timing job 7255811** (CPU, 12 cores, 36 GB): COMPLETED in 31:55, peak RSS 26.5 GB, 0 failures.
+  Results in `runs/h10t-e51b0ad`. Stage-A arms, 30 rounds, default settings; `real_elapsed_s`:
+
+  | Family | Real time | Note |
+  |---|---|---|
+  | logreg | 1126 s | includes the one-off 20k signal-cache build |
+  | MLP | 145 s | cache already built |
+  | 1D-CNN (sequence) | 527 s | cache already built |
+
+  Logreg's own training time is not separated from the cache build. It is assumed to be about
+  the MLP's (as on the laptop smoke test) until the tuning jobs measure it.
+- Every run is under CLAUDE.md's 15 min threshold. Peak memory may come from the cache build,
+  not training; the tuning jobs' MaxRSS will tell.
+
+### Next
+Gate 1 (the compute decision): the user chooses.
 
 ---
 
