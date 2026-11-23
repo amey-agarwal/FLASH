@@ -104,8 +104,10 @@ CINC_LICENSE = ("PhysioNet/CinC Challenge 2021 v1.0.3 (open access, CC BY 4.0): 
                 "(Reyna et al. 2021) and the source databases; see https://physionet.org/content/challenge-2021/1.0.3/")
 
 
-def _get(url: str, dest: Path, retries: int = 4) -> bool:
-    """Download url to dest (atomic). False on HTTP 404; raises after retries otherwise."""
+def _get(url: str, dest: Path, retries: int = 9) -> bool:
+    """Download url to dest (atomic). False on HTTP 404; raises after retries otherwise.
+
+    Backoff doubles up to 60 s (~5 min in all), enough to ride out a PhysioNet 502/503 spell."""
     import urllib.error
 
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -126,7 +128,7 @@ def _get(url: str, dest: Path, retries: int = 4) -> bool:
         except (urllib.error.URLError, TimeoutError):
             if attempt == retries - 1:
                 raise
-        time.sleep(2 * (attempt + 1))
+        time.sleep(min(60, 2 ** (attempt + 1)))
     return False
 
 
