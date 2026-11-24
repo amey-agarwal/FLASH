@@ -10,13 +10,14 @@ committed. Phase H8 is committed (`62cf33b`); its tuning (468 runs) and evaluati
 for presentations**; the earlier tuning-seed page is superseded. H9 is DONE: OSD-435 (40 runs)
 and WESAD (435 runs, `84a40ec`, H1-H4 verdicts in "Phase H9 (part 3)"). H10a (CinC inspection) is
 done, with its decisions made. H10b (the CinC loader and smoke test) is committed
-(`8090ece`). H10c step 1 (the 20k timing run on PACE) is built.**
+(`8090ece`). H10c step 1 (20k timing on PACE) is done; Gate 1 chose option A (20k, 30 rounds).
+H10c step 2 (the CinC tuning sweeps, PREREG §5a frozen) is built.**
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H10 (part c) — CinC 2021 on PACE — STEP 1 DONE (timed on PACE), AT GATE 1 (2026-11-23)
+## Phase H10 (part c) — CinC 2021 on PACE — STEP 2 BUILT (tuning sweeps frozen), NOT COMMITTED (2026-11-24)
 
 Plan approved 2026-11-22. The steps are:
 1. time one 20k run per family on PACE
@@ -56,8 +57,27 @@ Plan approved 2026-11-22. The steps are:
 - Every run is under CLAUDE.md's 15 min threshold. Peak memory may come from the cache build,
   not training; the tuning jobs' MaxRSS will tell.
 
-### Next
-Gate 1 (the compute decision): the user chooses.
+### Gate 1 (2026-11-24)
+The user chose **option A**: tune and evaluate on the 20k subset, at 30 rounds, on CPU.
+
+### Step 2 built
+- **Six tuning sweeps:** `configs/sweeps/gapA_cinc15_{logreg,mlp,cnn1d}.yaml` (12 variants each)
+  and `gapC_cinc15_{logreg,mlp,cnn1d}.yaml` (8 each). They mirror the WESAD H8 files, with base
+  `cinc15_main.yaml`; the 1D-CNN uses sequences. 60 variants, 180 runs (seeds 100–102). The fixed
+  settings were checked against WESAD: 30 rounds, `global_every` 5, batch size 32, Adam, weight
+  decay 1e-4.
+- **PREREG §5a (CinC rows)** FROZEN on this commit: the data and subset checksum, the compute
+  choice, and full sha256s of the sweep files. The grid and rule are unchanged; disclosures fixed.
+- **Golden lock:** the six sweeps' 60 variants added to `tests/golden/run_ids.json`, additions
+  only (672 lines added, 0 deleted; targeted merge).
+- **Tests:** `pytest -q` (default, non-slow) exit 0, no failures (the count line was cut off by
+  `tail`). `golden.py ids`: every locked run id unchanged.
+- **Open disclosure:** the number of 20k nodes with a single-class validation split. Taken on
+  PACE with `fedastro inspect` before selection.
+
+### Next (PACE, user)
+Six array jobs (`scripts/slurm/gap.sbatch`, `OUT_PREFIX=h10`), then `fedastro select` → the
+stage B sweeps (288 runs) → evaluation sweeps → `fedastro gap`. Each round trip is a gate.
 
 ---
 

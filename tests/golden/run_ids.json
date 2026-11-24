@@ -1832,6 +1832,678 @@
           "p6pre-moon-fedbuff-seed4-651be63007"
         ]
       }
+    },
+    "configs/sweeps/gapA_cinc15_cnn1d.yaml": {
+      "gapA_cinc15_cnn1d-lr0p0003-local_epochs1": {
+        "index": 0,
+        "name": "gapA_cinc15_cnn1d-lr0p0003-local_epochs1",
+        "config_hash": "4e2afc9d99c6277753489d96e4cf578631f0680059ebd2db579760c559e5d60d",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs1-seed0-4e2afc9d99",
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs1-seed100-4e2afc9d99",
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs1-seed101-4e2afc9d99",
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs1-seed102-4e2afc9d99"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p0003-local_epochs2": {
+        "index": 1,
+        "name": "gapA_cinc15_cnn1d-lr0p0003-local_epochs2",
+        "config_hash": "fdf178e5751d4c98a3739c940f8ffccc6a7a3d03c9f19ea49f662447ed355b00",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs2-seed0-fdf178e575",
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs2-seed100-fdf178e575",
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs2-seed101-fdf178e575",
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs2-seed102-fdf178e575"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p0003-local_epochs5": {
+        "index": 2,
+        "name": "gapA_cinc15_cnn1d-lr0p0003-local_epochs5",
+        "config_hash": "957cd5687dd8d801aa257710c388d7f53d314ac7de8974fbb4c76b095d226bc4",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs5-seed0-957cd5687d",
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs5-seed100-957cd5687d",
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs5-seed101-957cd5687d",
+          "gapA_cinc15_cnn1d-lr0p0003-local_epochs5-seed102-957cd5687d"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p001-local_epochs1": {
+        "index": 3,
+        "name": "gapA_cinc15_cnn1d-lr0p001-local_epochs1",
+        "config_hash": "62409b3d88a718a2753425c27e5ab5f9880fdf8545d220a4a12fa7aaa7b23744",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs1-seed0-62409b3d88",
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs1-seed100-62409b3d88",
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs1-seed101-62409b3d88",
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs1-seed102-62409b3d88"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p001-local_epochs2": {
+        "index": 4,
+        "name": "gapA_cinc15_cnn1d-lr0p001-local_epochs2",
+        "config_hash": "88ce484bc901ab9174ae78e4f7b1018952f9cbc06d3848c678aa1ba38ccb2515",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs2-seed0-88ce484bc9",
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs2-seed100-88ce484bc9",
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs2-seed101-88ce484bc9",
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs2-seed102-88ce484bc9"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p001-local_epochs5": {
+        "index": 5,
+        "name": "gapA_cinc15_cnn1d-lr0p001-local_epochs5",
+        "config_hash": "731d739eae6a51ca4ddb11acd5e4c3f7a8a505588de501986d8f2a97036869f9",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs5-seed0-731d739eae",
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs5-seed100-731d739eae",
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs5-seed101-731d739eae",
+          "gapA_cinc15_cnn1d-lr0p001-local_epochs5-seed102-731d739eae"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p003-local_epochs1": {
+        "index": 6,
+        "name": "gapA_cinc15_cnn1d-lr0p003-local_epochs1",
+        "config_hash": "d88a4eb3879016ef13b116a3c8a8cd8c99b4b116edaefe37c18609476c913a5d",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs1-seed0-d88a4eb387",
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs1-seed100-d88a4eb387",
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs1-seed101-d88a4eb387",
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs1-seed102-d88a4eb387"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p003-local_epochs2": {
+        "index": 7,
+        "name": "gapA_cinc15_cnn1d-lr0p003-local_epochs2",
+        "config_hash": "d7419db59207ab89eedb9e8eb315ec5503e9d7f8c0c354883a3627bb614aa310",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs2-seed0-d7419db592",
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs2-seed100-d7419db592",
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs2-seed101-d7419db592",
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs2-seed102-d7419db592"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p003-local_epochs5": {
+        "index": 8,
+        "name": "gapA_cinc15_cnn1d-lr0p003-local_epochs5",
+        "config_hash": "8121468dfd81045500b2fb19252a82bf448d38ae3fdc6ef44d27cd45194f0339",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs5-seed0-8121468dfd",
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs5-seed100-8121468dfd",
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs5-seed101-8121468dfd",
+          "gapA_cinc15_cnn1d-lr0p003-local_epochs5-seed102-8121468dfd"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p01-local_epochs1": {
+        "index": 9,
+        "name": "gapA_cinc15_cnn1d-lr0p01-local_epochs1",
+        "config_hash": "da561cbe691f31c6b47aa0d12e824d6cea4955943178fe93ee525b2a6b08eaca",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs1-seed0-da561cbe69",
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs1-seed100-da561cbe69",
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs1-seed101-da561cbe69",
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs1-seed102-da561cbe69"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p01-local_epochs2": {
+        "index": 10,
+        "name": "gapA_cinc15_cnn1d-lr0p01-local_epochs2",
+        "config_hash": "d9353db97252245ef061fbc660e2373373fcca1ce75f41e7e3e6579658306ef8",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs2-seed0-d9353db972",
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs2-seed100-d9353db972",
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs2-seed101-d9353db972",
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs2-seed102-d9353db972"
+        ]
+      },
+      "gapA_cinc15_cnn1d-lr0p01-local_epochs5": {
+        "index": 11,
+        "name": "gapA_cinc15_cnn1d-lr0p01-local_epochs5",
+        "config_hash": "562b2b125072ba714dfee23090f5412250e9b0bd690cf183ed79ab6429c0c2f0",
+        "run_ids": [
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs5-seed0-562b2b1250",
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs5-seed100-562b2b1250",
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs5-seed101-562b2b1250",
+          "gapA_cinc15_cnn1d-lr0p01-local_epochs5-seed102-562b2b1250"
+        ]
+      }
+    },
+    "configs/sweeps/gapA_cinc15_logreg.yaml": {
+      "gapA_cinc15_logreg-lr0p0003-local_epochs1": {
+        "index": 0,
+        "name": "gapA_cinc15_logreg-lr0p0003-local_epochs1",
+        "config_hash": "99ba3e653862bf5715923ac6689202d8ae1d51d4884371a3ac0e0d73318bdda2",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p0003-local_epochs1-seed0-99ba3e6538",
+          "gapA_cinc15_logreg-lr0p0003-local_epochs1-seed100-99ba3e6538",
+          "gapA_cinc15_logreg-lr0p0003-local_epochs1-seed101-99ba3e6538",
+          "gapA_cinc15_logreg-lr0p0003-local_epochs1-seed102-99ba3e6538"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p0003-local_epochs2": {
+        "index": 1,
+        "name": "gapA_cinc15_logreg-lr0p0003-local_epochs2",
+        "config_hash": "f85c15ca196363bad94f9b2423889dd6324693d897d69bfd4981ccca79fce1dd",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p0003-local_epochs2-seed0-f85c15ca19",
+          "gapA_cinc15_logreg-lr0p0003-local_epochs2-seed100-f85c15ca19",
+          "gapA_cinc15_logreg-lr0p0003-local_epochs2-seed101-f85c15ca19",
+          "gapA_cinc15_logreg-lr0p0003-local_epochs2-seed102-f85c15ca19"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p0003-local_epochs5": {
+        "index": 2,
+        "name": "gapA_cinc15_logreg-lr0p0003-local_epochs5",
+        "config_hash": "62eb78ddde98f7e07f07b75b242c63649f17aec5018d2fd3b23985ef50cda548",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p0003-local_epochs5-seed0-62eb78ddde",
+          "gapA_cinc15_logreg-lr0p0003-local_epochs5-seed100-62eb78ddde",
+          "gapA_cinc15_logreg-lr0p0003-local_epochs5-seed101-62eb78ddde",
+          "gapA_cinc15_logreg-lr0p0003-local_epochs5-seed102-62eb78ddde"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p001-local_epochs1": {
+        "index": 3,
+        "name": "gapA_cinc15_logreg-lr0p001-local_epochs1",
+        "config_hash": "7f985756215536e8de5f1c76e4197704c9d506d4135260fc6e0f15c6937e1740",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p001-local_epochs1-seed0-7f98575621",
+          "gapA_cinc15_logreg-lr0p001-local_epochs1-seed100-7f98575621",
+          "gapA_cinc15_logreg-lr0p001-local_epochs1-seed101-7f98575621",
+          "gapA_cinc15_logreg-lr0p001-local_epochs1-seed102-7f98575621"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p001-local_epochs2": {
+        "index": 4,
+        "name": "gapA_cinc15_logreg-lr0p001-local_epochs2",
+        "config_hash": "6e4a13fca15be01bf7ca0e016ad66ea3bd6497929a037c79022dd0d19418b9ef",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p001-local_epochs2-seed0-6e4a13fca1",
+          "gapA_cinc15_logreg-lr0p001-local_epochs2-seed100-6e4a13fca1",
+          "gapA_cinc15_logreg-lr0p001-local_epochs2-seed101-6e4a13fca1",
+          "gapA_cinc15_logreg-lr0p001-local_epochs2-seed102-6e4a13fca1"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p001-local_epochs5": {
+        "index": 5,
+        "name": "gapA_cinc15_logreg-lr0p001-local_epochs5",
+        "config_hash": "b207e2d167b1b1f922c1c1587892ff6b74e5dbe518f5b9fddac2a2e764d6d916",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p001-local_epochs5-seed0-b207e2d167",
+          "gapA_cinc15_logreg-lr0p001-local_epochs5-seed100-b207e2d167",
+          "gapA_cinc15_logreg-lr0p001-local_epochs5-seed101-b207e2d167",
+          "gapA_cinc15_logreg-lr0p001-local_epochs5-seed102-b207e2d167"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p003-local_epochs1": {
+        "index": 6,
+        "name": "gapA_cinc15_logreg-lr0p003-local_epochs1",
+        "config_hash": "0ecd600aba615e6fb1cf7242fd8f302d4657283bede9c5102f4dc4272e001bc0",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p003-local_epochs1-seed0-0ecd600aba",
+          "gapA_cinc15_logreg-lr0p003-local_epochs1-seed100-0ecd600aba",
+          "gapA_cinc15_logreg-lr0p003-local_epochs1-seed101-0ecd600aba",
+          "gapA_cinc15_logreg-lr0p003-local_epochs1-seed102-0ecd600aba"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p003-local_epochs2": {
+        "index": 7,
+        "name": "gapA_cinc15_logreg-lr0p003-local_epochs2",
+        "config_hash": "724faa0793b72543c4392e9cb04a6b658b04db64d30dc2c43d0fe154d1b0c3cd",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p003-local_epochs2-seed0-724faa0793",
+          "gapA_cinc15_logreg-lr0p003-local_epochs2-seed100-724faa0793",
+          "gapA_cinc15_logreg-lr0p003-local_epochs2-seed101-724faa0793",
+          "gapA_cinc15_logreg-lr0p003-local_epochs2-seed102-724faa0793"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p003-local_epochs5": {
+        "index": 8,
+        "name": "gapA_cinc15_logreg-lr0p003-local_epochs5",
+        "config_hash": "6dd954766bb8d83c953206e731689c6a959fefeb79708b3d06991eac4588fbc2",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p003-local_epochs5-seed0-6dd954766b",
+          "gapA_cinc15_logreg-lr0p003-local_epochs5-seed100-6dd954766b",
+          "gapA_cinc15_logreg-lr0p003-local_epochs5-seed101-6dd954766b",
+          "gapA_cinc15_logreg-lr0p003-local_epochs5-seed102-6dd954766b"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p01-local_epochs1": {
+        "index": 9,
+        "name": "gapA_cinc15_logreg-lr0p01-local_epochs1",
+        "config_hash": "61cc83e165eff7130b8d5f0e3a6980d69a44c0f6459e7be7c84be7242d19f045",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p01-local_epochs1-seed0-61cc83e165",
+          "gapA_cinc15_logreg-lr0p01-local_epochs1-seed100-61cc83e165",
+          "gapA_cinc15_logreg-lr0p01-local_epochs1-seed101-61cc83e165",
+          "gapA_cinc15_logreg-lr0p01-local_epochs1-seed102-61cc83e165"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p01-local_epochs2": {
+        "index": 10,
+        "name": "gapA_cinc15_logreg-lr0p01-local_epochs2",
+        "config_hash": "1a62f21a05d15c46a5e6517f89dc79b7906a76babf2f4e258a49e261c4325f45",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p01-local_epochs2-seed0-1a62f21a05",
+          "gapA_cinc15_logreg-lr0p01-local_epochs2-seed100-1a62f21a05",
+          "gapA_cinc15_logreg-lr0p01-local_epochs2-seed101-1a62f21a05",
+          "gapA_cinc15_logreg-lr0p01-local_epochs2-seed102-1a62f21a05"
+        ]
+      },
+      "gapA_cinc15_logreg-lr0p01-local_epochs5": {
+        "index": 11,
+        "name": "gapA_cinc15_logreg-lr0p01-local_epochs5",
+        "config_hash": "a3fdf2176b1645293030407a41b7cb6380a186e64536e153ab1d4339abbe67a2",
+        "run_ids": [
+          "gapA_cinc15_logreg-lr0p01-local_epochs5-seed0-a3fdf2176b",
+          "gapA_cinc15_logreg-lr0p01-local_epochs5-seed100-a3fdf2176b",
+          "gapA_cinc15_logreg-lr0p01-local_epochs5-seed101-a3fdf2176b",
+          "gapA_cinc15_logreg-lr0p01-local_epochs5-seed102-a3fdf2176b"
+        ]
+      }
+    },
+    "configs/sweeps/gapA_cinc15_mlp.yaml": {
+      "gapA_cinc15_mlp-lr0p0003-local_epochs1": {
+        "index": 0,
+        "name": "gapA_cinc15_mlp-lr0p0003-local_epochs1",
+        "config_hash": "49aaaa51a18d1ddb2344caf626cf684bbf22823c57c82b83a8c44a1f713acade",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p0003-local_epochs1-seed0-49aaaa51a1",
+          "gapA_cinc15_mlp-lr0p0003-local_epochs1-seed100-49aaaa51a1",
+          "gapA_cinc15_mlp-lr0p0003-local_epochs1-seed101-49aaaa51a1",
+          "gapA_cinc15_mlp-lr0p0003-local_epochs1-seed102-49aaaa51a1"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p0003-local_epochs2": {
+        "index": 1,
+        "name": "gapA_cinc15_mlp-lr0p0003-local_epochs2",
+        "config_hash": "3f1367fc697055a865229365a01ccc041fea92fb3e5552e89444885f59545de4",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p0003-local_epochs2-seed0-3f1367fc69",
+          "gapA_cinc15_mlp-lr0p0003-local_epochs2-seed100-3f1367fc69",
+          "gapA_cinc15_mlp-lr0p0003-local_epochs2-seed101-3f1367fc69",
+          "gapA_cinc15_mlp-lr0p0003-local_epochs2-seed102-3f1367fc69"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p0003-local_epochs5": {
+        "index": 2,
+        "name": "gapA_cinc15_mlp-lr0p0003-local_epochs5",
+        "config_hash": "5f774c90ce4a6981ef9b61c6c9a05a050060ca0feee40da4302023c210919ea7",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p0003-local_epochs5-seed0-5f774c90ce",
+          "gapA_cinc15_mlp-lr0p0003-local_epochs5-seed100-5f774c90ce",
+          "gapA_cinc15_mlp-lr0p0003-local_epochs5-seed101-5f774c90ce",
+          "gapA_cinc15_mlp-lr0p0003-local_epochs5-seed102-5f774c90ce"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p001-local_epochs1": {
+        "index": 3,
+        "name": "gapA_cinc15_mlp-lr0p001-local_epochs1",
+        "config_hash": "177b7cb19bba253ed404ef156c6d4aa73a878475959dae9ca0f12e3290f6d749",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p001-local_epochs1-seed0-177b7cb19b",
+          "gapA_cinc15_mlp-lr0p001-local_epochs1-seed100-177b7cb19b",
+          "gapA_cinc15_mlp-lr0p001-local_epochs1-seed101-177b7cb19b",
+          "gapA_cinc15_mlp-lr0p001-local_epochs1-seed102-177b7cb19b"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p001-local_epochs2": {
+        "index": 4,
+        "name": "gapA_cinc15_mlp-lr0p001-local_epochs2",
+        "config_hash": "db094ef5ccd0a33703d0a35ec3b2ab8f2ef9df2ad8daa530245ee02590c47ba9",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p001-local_epochs2-seed0-db094ef5cc",
+          "gapA_cinc15_mlp-lr0p001-local_epochs2-seed100-db094ef5cc",
+          "gapA_cinc15_mlp-lr0p001-local_epochs2-seed101-db094ef5cc",
+          "gapA_cinc15_mlp-lr0p001-local_epochs2-seed102-db094ef5cc"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p001-local_epochs5": {
+        "index": 5,
+        "name": "gapA_cinc15_mlp-lr0p001-local_epochs5",
+        "config_hash": "a35089f99f96cb1e34e6dda2746ed8def9837273bc99355e20ea780605cd7ef8",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p001-local_epochs5-seed0-a35089f99f",
+          "gapA_cinc15_mlp-lr0p001-local_epochs5-seed100-a35089f99f",
+          "gapA_cinc15_mlp-lr0p001-local_epochs5-seed101-a35089f99f",
+          "gapA_cinc15_mlp-lr0p001-local_epochs5-seed102-a35089f99f"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p003-local_epochs1": {
+        "index": 6,
+        "name": "gapA_cinc15_mlp-lr0p003-local_epochs1",
+        "config_hash": "fcff1226f6b0f44c648e5b31625355584cbf5772cf6f4387e020c0e97dbfa8da",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p003-local_epochs1-seed0-fcff1226f6",
+          "gapA_cinc15_mlp-lr0p003-local_epochs1-seed100-fcff1226f6",
+          "gapA_cinc15_mlp-lr0p003-local_epochs1-seed101-fcff1226f6",
+          "gapA_cinc15_mlp-lr0p003-local_epochs1-seed102-fcff1226f6"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p003-local_epochs2": {
+        "index": 7,
+        "name": "gapA_cinc15_mlp-lr0p003-local_epochs2",
+        "config_hash": "2012e3eca22290453b616c2dbf4f32a1e7b263acb375f7d7f1acd1969dd0393a",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p003-local_epochs2-seed0-2012e3eca2",
+          "gapA_cinc15_mlp-lr0p003-local_epochs2-seed100-2012e3eca2",
+          "gapA_cinc15_mlp-lr0p003-local_epochs2-seed101-2012e3eca2",
+          "gapA_cinc15_mlp-lr0p003-local_epochs2-seed102-2012e3eca2"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p003-local_epochs5": {
+        "index": 8,
+        "name": "gapA_cinc15_mlp-lr0p003-local_epochs5",
+        "config_hash": "758f2e3ca28a251fe934d4eac73656e292a229bb1b611b4a86d826563cf16f35",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p003-local_epochs5-seed0-758f2e3ca2",
+          "gapA_cinc15_mlp-lr0p003-local_epochs5-seed100-758f2e3ca2",
+          "gapA_cinc15_mlp-lr0p003-local_epochs5-seed101-758f2e3ca2",
+          "gapA_cinc15_mlp-lr0p003-local_epochs5-seed102-758f2e3ca2"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p01-local_epochs1": {
+        "index": 9,
+        "name": "gapA_cinc15_mlp-lr0p01-local_epochs1",
+        "config_hash": "02a91291029bc211b81046d95a26076a2bc39fc8248329eb1647761fc6d07ce6",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p01-local_epochs1-seed0-02a9129102",
+          "gapA_cinc15_mlp-lr0p01-local_epochs1-seed100-02a9129102",
+          "gapA_cinc15_mlp-lr0p01-local_epochs1-seed101-02a9129102",
+          "gapA_cinc15_mlp-lr0p01-local_epochs1-seed102-02a9129102"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p01-local_epochs2": {
+        "index": 10,
+        "name": "gapA_cinc15_mlp-lr0p01-local_epochs2",
+        "config_hash": "9765db43ab91cef0c0623b416050dcf2960fe14a924187494d9689783b2dd3fe",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p01-local_epochs2-seed0-9765db43ab",
+          "gapA_cinc15_mlp-lr0p01-local_epochs2-seed100-9765db43ab",
+          "gapA_cinc15_mlp-lr0p01-local_epochs2-seed101-9765db43ab",
+          "gapA_cinc15_mlp-lr0p01-local_epochs2-seed102-9765db43ab"
+        ]
+      },
+      "gapA_cinc15_mlp-lr0p01-local_epochs5": {
+        "index": 11,
+        "name": "gapA_cinc15_mlp-lr0p01-local_epochs5",
+        "config_hash": "db926aeaab2c8439702b8433860d5b8db1883e88d3889ca6f7511c193ef80992",
+        "run_ids": [
+          "gapA_cinc15_mlp-lr0p01-local_epochs5-seed0-db926aeaab",
+          "gapA_cinc15_mlp-lr0p01-local_epochs5-seed100-db926aeaab",
+          "gapA_cinc15_mlp-lr0p01-local_epochs5-seed101-db926aeaab",
+          "gapA_cinc15_mlp-lr0p01-local_epochs5-seed102-db926aeaab"
+        ]
+      }
+    },
+    "configs/sweeps/gapC_cinc15_cnn1d.yaml": {
+      "gapC_cinc15_cnn1d-lr0p0003-epochs30": {
+        "index": 0,
+        "name": "gapC_cinc15_cnn1d-lr0p0003-epochs30",
+        "config_hash": "b9a261a861d6805ae7b532a377feec54f5e7855bc39223286701c60046b798da",
+        "run_ids": [
+          "gapC_cinc15_cnn1d-lr0p0003-epochs30-seed0-b9a261a861",
+          "gapC_cinc15_cnn1d-lr0p0003-epochs30-seed100-b9a261a861",
+          "gapC_cinc15_cnn1d-lr0p0003-epochs30-seed101-b9a261a861",
+          "gapC_cinc15_cnn1d-lr0p0003-epochs30-seed102-b9a261a861"
+        ]
+      },
+      "gapC_cinc15_cnn1d-lr0p0003-epochs60": {
+        "index": 1,
+        "name": "gapC_cinc15_cnn1d-lr0p0003-epochs60",
+        "config_hash": "f5013d0a16229f9bc4a22457a5c9bcb05be07b71e283ea22bdd78e0cb6145563",
+        "run_ids": [
+          "gapC_cinc15_cnn1d-lr0p0003-epochs60-seed0-f5013d0a16",
+          "gapC_cinc15_cnn1d-lr0p0003-epochs60-seed100-f5013d0a16",
+          "gapC_cinc15_cnn1d-lr0p0003-epochs60-seed101-f5013d0a16",
+          "gapC_cinc15_cnn1d-lr0p0003-epochs60-seed102-f5013d0a16"
+        ]
+      },
+      "gapC_cinc15_cnn1d-lr0p001-epochs30": {
+        "index": 2,
+        "name": "gapC_cinc15_cnn1d-lr0p001-epochs30",
+        "config_hash": "630c5d6ed9ba7310610ffda16b7968513f4410ae06ef5559a7f4841141b34591",
+        "run_ids": [
+          "gapC_cinc15_cnn1d-lr0p001-epochs30-seed0-630c5d6ed9",
+          "gapC_cinc15_cnn1d-lr0p001-epochs30-seed100-630c5d6ed9",
+          "gapC_cinc15_cnn1d-lr0p001-epochs30-seed101-630c5d6ed9",
+          "gapC_cinc15_cnn1d-lr0p001-epochs30-seed102-630c5d6ed9"
+        ]
+      },
+      "gapC_cinc15_cnn1d-lr0p001-epochs60": {
+        "index": 3,
+        "name": "gapC_cinc15_cnn1d-lr0p001-epochs60",
+        "config_hash": "9c9deec659c715abfe8df5fdc4d467499c31fd58f3d4a08af7b000f5833526ca",
+        "run_ids": [
+          "gapC_cinc15_cnn1d-lr0p001-epochs60-seed0-9c9deec659",
+          "gapC_cinc15_cnn1d-lr0p001-epochs60-seed100-9c9deec659",
+          "gapC_cinc15_cnn1d-lr0p001-epochs60-seed101-9c9deec659",
+          "gapC_cinc15_cnn1d-lr0p001-epochs60-seed102-9c9deec659"
+        ]
+      },
+      "gapC_cinc15_cnn1d-lr0p003-epochs30": {
+        "index": 4,
+        "name": "gapC_cinc15_cnn1d-lr0p003-epochs30",
+        "config_hash": "03db37a8dc526a876af1c1b71f50edb0773a414cf8e2915d23f5e67140379909",
+        "run_ids": [
+          "gapC_cinc15_cnn1d-lr0p003-epochs30-seed0-03db37a8dc",
+          "gapC_cinc15_cnn1d-lr0p003-epochs30-seed100-03db37a8dc",
+          "gapC_cinc15_cnn1d-lr0p003-epochs30-seed101-03db37a8dc",
+          "gapC_cinc15_cnn1d-lr0p003-epochs30-seed102-03db37a8dc"
+        ]
+      },
+      "gapC_cinc15_cnn1d-lr0p003-epochs60": {
+        "index": 5,
+        "name": "gapC_cinc15_cnn1d-lr0p003-epochs60",
+        "config_hash": "a1d064b72e1f80615b6e8ae892d5bdd59e3a799b87586615f6da62990b3a9ff4",
+        "run_ids": [
+          "gapC_cinc15_cnn1d-lr0p003-epochs60-seed0-a1d064b72e",
+          "gapC_cinc15_cnn1d-lr0p003-epochs60-seed100-a1d064b72e",
+          "gapC_cinc15_cnn1d-lr0p003-epochs60-seed101-a1d064b72e",
+          "gapC_cinc15_cnn1d-lr0p003-epochs60-seed102-a1d064b72e"
+        ]
+      },
+      "gapC_cinc15_cnn1d-lr0p01-epochs30": {
+        "index": 6,
+        "name": "gapC_cinc15_cnn1d-lr0p01-epochs30",
+        "config_hash": "4e66e69fef9054d3ef19d4337ea6e64ece39feaa4b005b6817541dadaa028702",
+        "run_ids": [
+          "gapC_cinc15_cnn1d-lr0p01-epochs30-seed0-4e66e69fef",
+          "gapC_cinc15_cnn1d-lr0p01-epochs30-seed100-4e66e69fef",
+          "gapC_cinc15_cnn1d-lr0p01-epochs30-seed101-4e66e69fef",
+          "gapC_cinc15_cnn1d-lr0p01-epochs30-seed102-4e66e69fef"
+        ]
+      },
+      "gapC_cinc15_cnn1d-lr0p01-epochs60": {
+        "index": 7,
+        "name": "gapC_cinc15_cnn1d-lr0p01-epochs60",
+        "config_hash": "ab54042aecc8b7828f96abf42638195481b9992bad7da501e3e2b92385c81443",
+        "run_ids": [
+          "gapC_cinc15_cnn1d-lr0p01-epochs60-seed0-ab54042aec",
+          "gapC_cinc15_cnn1d-lr0p01-epochs60-seed100-ab54042aec",
+          "gapC_cinc15_cnn1d-lr0p01-epochs60-seed101-ab54042aec",
+          "gapC_cinc15_cnn1d-lr0p01-epochs60-seed102-ab54042aec"
+        ]
+      }
+    },
+    "configs/sweeps/gapC_cinc15_logreg.yaml": {
+      "gapC_cinc15_logreg-lr0p0003-epochs30": {
+        "index": 0,
+        "name": "gapC_cinc15_logreg-lr0p0003-epochs30",
+        "config_hash": "d854982f2ea937be43491619b67f4104c059308fbc4ab349c8fc475ea28fc754",
+        "run_ids": [
+          "gapC_cinc15_logreg-lr0p0003-epochs30-seed0-d854982f2e",
+          "gapC_cinc15_logreg-lr0p0003-epochs30-seed100-d854982f2e",
+          "gapC_cinc15_logreg-lr0p0003-epochs30-seed101-d854982f2e",
+          "gapC_cinc15_logreg-lr0p0003-epochs30-seed102-d854982f2e"
+        ]
+      },
+      "gapC_cinc15_logreg-lr0p0003-epochs60": {
+        "index": 1,
+        "name": "gapC_cinc15_logreg-lr0p0003-epochs60",
+        "config_hash": "e2eb829501375be6bcccf3f2d0b3ac9aedc69f8a66e768c65512128691cea333",
+        "run_ids": [
+          "gapC_cinc15_logreg-lr0p0003-epochs60-seed0-e2eb829501",
+          "gapC_cinc15_logreg-lr0p0003-epochs60-seed100-e2eb829501",
+          "gapC_cinc15_logreg-lr0p0003-epochs60-seed101-e2eb829501",
+          "gapC_cinc15_logreg-lr0p0003-epochs60-seed102-e2eb829501"
+        ]
+      },
+      "gapC_cinc15_logreg-lr0p001-epochs30": {
+        "index": 2,
+        "name": "gapC_cinc15_logreg-lr0p001-epochs30",
+        "config_hash": "7c0515375e4b9a661b70e0b9fd374c29bb9fb51acc7affde806de2cb4cd5dfe1",
+        "run_ids": [
+          "gapC_cinc15_logreg-lr0p001-epochs30-seed0-7c0515375e",
+          "gapC_cinc15_logreg-lr0p001-epochs30-seed100-7c0515375e",
+          "gapC_cinc15_logreg-lr0p001-epochs30-seed101-7c0515375e",
+          "gapC_cinc15_logreg-lr0p001-epochs30-seed102-7c0515375e"
+        ]
+      },
+      "gapC_cinc15_logreg-lr0p001-epochs60": {
+        "index": 3,
+        "name": "gapC_cinc15_logreg-lr0p001-epochs60",
+        "config_hash": "45f6dab4f5925522481d528b305dbf4b297d77952e0dbcb208e9052554fbfc65",
+        "run_ids": [
+          "gapC_cinc15_logreg-lr0p001-epochs60-seed0-45f6dab4f5",
+          "gapC_cinc15_logreg-lr0p001-epochs60-seed100-45f6dab4f5",
+          "gapC_cinc15_logreg-lr0p001-epochs60-seed101-45f6dab4f5",
+          "gapC_cinc15_logreg-lr0p001-epochs60-seed102-45f6dab4f5"
+        ]
+      },
+      "gapC_cinc15_logreg-lr0p003-epochs30": {
+        "index": 4,
+        "name": "gapC_cinc15_logreg-lr0p003-epochs30",
+        "config_hash": "e3bba1cefe066921a957b5ec7439fc403b39bd4e9dd4e6e694df94847b4112af",
+        "run_ids": [
+          "gapC_cinc15_logreg-lr0p003-epochs30-seed0-e3bba1cefe",
+          "gapC_cinc15_logreg-lr0p003-epochs30-seed100-e3bba1cefe",
+          "gapC_cinc15_logreg-lr0p003-epochs30-seed101-e3bba1cefe",
+          "gapC_cinc15_logreg-lr0p003-epochs30-seed102-e3bba1cefe"
+        ]
+      },
+      "gapC_cinc15_logreg-lr0p003-epochs60": {
+        "index": 5,
+        "name": "gapC_cinc15_logreg-lr0p003-epochs60",
+        "config_hash": "77411979336a7cf4b6f1166f5d2eb892df9f2132bac67bc32ce413fa14d69c75",
+        "run_ids": [
+          "gapC_cinc15_logreg-lr0p003-epochs60-seed0-7741197933",
+          "gapC_cinc15_logreg-lr0p003-epochs60-seed100-7741197933",
+          "gapC_cinc15_logreg-lr0p003-epochs60-seed101-7741197933",
+          "gapC_cinc15_logreg-lr0p003-epochs60-seed102-7741197933"
+        ]
+      },
+      "gapC_cinc15_logreg-lr0p01-epochs30": {
+        "index": 6,
+        "name": "gapC_cinc15_logreg-lr0p01-epochs30",
+        "config_hash": "461668b154691674c12ca02684350a081016d9031555c65ae869f134bb3ac294",
+        "run_ids": [
+          "gapC_cinc15_logreg-lr0p01-epochs30-seed0-461668b154",
+          "gapC_cinc15_logreg-lr0p01-epochs30-seed100-461668b154",
+          "gapC_cinc15_logreg-lr0p01-epochs30-seed101-461668b154",
+          "gapC_cinc15_logreg-lr0p01-epochs30-seed102-461668b154"
+        ]
+      },
+      "gapC_cinc15_logreg-lr0p01-epochs60": {
+        "index": 7,
+        "name": "gapC_cinc15_logreg-lr0p01-epochs60",
+        "config_hash": "55375197f539c1f2cb9adb5a010697f29fba88b8e584fcc75cd9b5464d8b0976",
+        "run_ids": [
+          "gapC_cinc15_logreg-lr0p01-epochs60-seed0-55375197f5",
+          "gapC_cinc15_logreg-lr0p01-epochs60-seed100-55375197f5",
+          "gapC_cinc15_logreg-lr0p01-epochs60-seed101-55375197f5",
+          "gapC_cinc15_logreg-lr0p01-epochs60-seed102-55375197f5"
+        ]
+      }
+    },
+    "configs/sweeps/gapC_cinc15_mlp.yaml": {
+      "gapC_cinc15_mlp-lr0p0003-epochs30": {
+        "index": 0,
+        "name": "gapC_cinc15_mlp-lr0p0003-epochs30",
+        "config_hash": "79e562d89ca9322723a947ecd7710f86591da0394de68636c6a857540f5fb904",
+        "run_ids": [
+          "gapC_cinc15_mlp-lr0p0003-epochs30-seed0-79e562d89c",
+          "gapC_cinc15_mlp-lr0p0003-epochs30-seed100-79e562d89c",
+          "gapC_cinc15_mlp-lr0p0003-epochs30-seed101-79e562d89c",
+          "gapC_cinc15_mlp-lr0p0003-epochs30-seed102-79e562d89c"
+        ]
+      },
+      "gapC_cinc15_mlp-lr0p0003-epochs60": {
+        "index": 1,
+        "name": "gapC_cinc15_mlp-lr0p0003-epochs60",
+        "config_hash": "0293dc9d3022b23ab70e6040ebe49a0b46a90dc5dd3cba315cbb8d71e0257f3c",
+        "run_ids": [
+          "gapC_cinc15_mlp-lr0p0003-epochs60-seed0-0293dc9d30",
+          "gapC_cinc15_mlp-lr0p0003-epochs60-seed100-0293dc9d30",
+          "gapC_cinc15_mlp-lr0p0003-epochs60-seed101-0293dc9d30",
+          "gapC_cinc15_mlp-lr0p0003-epochs60-seed102-0293dc9d30"
+        ]
+      },
+      "gapC_cinc15_mlp-lr0p001-epochs30": {
+        "index": 2,
+        "name": "gapC_cinc15_mlp-lr0p001-epochs30",
+        "config_hash": "563a725435b6016353756cdcef4a73e54c144fd0c8cbcac7ae78cba9e5b1d6f6",
+        "run_ids": [
+          "gapC_cinc15_mlp-lr0p001-epochs30-seed0-563a725435",
+          "gapC_cinc15_mlp-lr0p001-epochs30-seed100-563a725435",
+          "gapC_cinc15_mlp-lr0p001-epochs30-seed101-563a725435",
+          "gapC_cinc15_mlp-lr0p001-epochs30-seed102-563a725435"
+        ]
+      },
+      "gapC_cinc15_mlp-lr0p001-epochs60": {
+        "index": 3,
+        "name": "gapC_cinc15_mlp-lr0p001-epochs60",
+        "config_hash": "6119f4da2fdfcfbcd7a197cbb247a5152dc46a4d183707498a372ffb96f5ed5f",
+        "run_ids": [
+          "gapC_cinc15_mlp-lr0p001-epochs60-seed0-6119f4da2f",
+          "gapC_cinc15_mlp-lr0p001-epochs60-seed100-6119f4da2f",
+          "gapC_cinc15_mlp-lr0p001-epochs60-seed101-6119f4da2f",
+          "gapC_cinc15_mlp-lr0p001-epochs60-seed102-6119f4da2f"
+        ]
+      },
+      "gapC_cinc15_mlp-lr0p003-epochs30": {
+        "index": 4,
+        "name": "gapC_cinc15_mlp-lr0p003-epochs30",
+        "config_hash": "472d370fb78f365d730aabb9562f34bd79eedc9d0a4ae2e735f3fa1bcc8b93a8",
+        "run_ids": [
+          "gapC_cinc15_mlp-lr0p003-epochs30-seed0-472d370fb7",
+          "gapC_cinc15_mlp-lr0p003-epochs30-seed100-472d370fb7",
+          "gapC_cinc15_mlp-lr0p003-epochs30-seed101-472d370fb7",
+          "gapC_cinc15_mlp-lr0p003-epochs30-seed102-472d370fb7"
+        ]
+      },
+      "gapC_cinc15_mlp-lr0p003-epochs60": {
+        "index": 5,
+        "name": "gapC_cinc15_mlp-lr0p003-epochs60",
+        "config_hash": "5ae080b08652ed0ddef08dfd2e267fa2f5940d798bbc363f3937fd016fc4cb52",
+        "run_ids": [
+          "gapC_cinc15_mlp-lr0p003-epochs60-seed0-5ae080b086",
+          "gapC_cinc15_mlp-lr0p003-epochs60-seed100-5ae080b086",
+          "gapC_cinc15_mlp-lr0p003-epochs60-seed101-5ae080b086",
+          "gapC_cinc15_mlp-lr0p003-epochs60-seed102-5ae080b086"
+        ]
+      },
+      "gapC_cinc15_mlp-lr0p01-epochs30": {
+        "index": 6,
+        "name": "gapC_cinc15_mlp-lr0p01-epochs30",
+        "config_hash": "be2f9f870e9a4ebf2069d2c35132165e062d8fd9c667b80b251ca471520f12d0",
+        "run_ids": [
+          "gapC_cinc15_mlp-lr0p01-epochs30-seed0-be2f9f870e",
+          "gapC_cinc15_mlp-lr0p01-epochs30-seed100-be2f9f870e",
+          "gapC_cinc15_mlp-lr0p01-epochs30-seed101-be2f9f870e",
+          "gapC_cinc15_mlp-lr0p01-epochs30-seed102-be2f9f870e"
+        ]
+      },
+      "gapC_cinc15_mlp-lr0p01-epochs60": {
+        "index": 7,
+        "name": "gapC_cinc15_mlp-lr0p01-epochs60",
+        "config_hash": "75603d022f619c4d3e527629570ff5021636e12efd0cea85e714de4128dbadbd",
+        "run_ids": [
+          "gapC_cinc15_mlp-lr0p01-epochs60-seed0-75603d022f",
+          "gapC_cinc15_mlp-lr0p01-epochs60-seed100-75603d022f",
+          "gapC_cinc15_mlp-lr0p01-epochs60-seed101-75603d022f",
+          "gapC_cinc15_mlp-lr0p01-epochs60-seed102-75603d022f"
+        ]
+      }
     }
   }
 }

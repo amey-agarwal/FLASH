@@ -1,0 +1,23 @@
+# Phase H10c gap-closing grid (the frozen Phase H8 grid), baselines (mlp): centralized and local-only, learning rate x epochs. Hierarchical CinC 2021 (cinc15, ~20k main subset), TUNING seeds 100-102
+# (never the evaluation seeds 0-4). Winners are chosen by `fedastro select` from
+# result.validation only (PREREG.md section 5, frozen before any of these runs).
+name: gapC_cinc15_mlp
+base: ../experiments/cinc15_main.yaml
+seeds:
+- 100
+- 101
+- 102
+fixed:
+  model.arch: mlp
+  arms:
+  - centralized
+  - local_only
+axes:
+  train.lr:
+  - 0.0003
+  - 0.001
+  - 0.003
+  - 0.01
+  train.epochs:
+  - 30
+  - 60
