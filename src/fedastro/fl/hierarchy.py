@@ -57,6 +57,7 @@ from flwr.serverapp import Grid, ServerApp
 from flwr.simulation import run_simulation
 
 from fedastro.baselines.common import ARM_IDS, init_model
+from fedastro.fl.simguard import simulation_watchdog
 from fedastro.config import ExperimentConfig, HierarchyConfig, LinkConfig, LOSProfile, SiloConfig
 from fedastro.data.base import DatasetBundle
 from fedastro.data.partition import HierFederation
@@ -732,16 +733,17 @@ def run_hierarchical(fed: HierFederation, cfg: ExperimentConfig, seed: int, devi
             raise
 
     logging.getLogger("flwr").setLevel(logging.WARNING)
-    run_simulation(
-        server_app=app, num_supernodes=len(silos),
-        client_app=make_client_app(silos, cfg, seed, device,
-                                   streams=None if streams is None else [streams[n] for n in names]),
-        backend_name="ray",
-        backend_config={"client_resources": {"num_cpus": cfg.resources.client_num_cpus,
-                                             "num_gpus": cfg.resources.client_num_gpus},
-                        "init_args": {"log_to_driver": False, "include_dashboard": False,
-                                      "logging_level": logging.ERROR}},
-    )
+    with simulation_watchdog(out, "hierarchical"):
+        run_simulation(
+            server_app=app, num_supernodes=len(silos),
+            client_app=make_client_app(silos, cfg, seed, device,
+                                       streams=None if streams is None else [streams[n] for n in names]),
+            backend_name="ray",
+            backend_config={"client_resources": {"num_cpus": cfg.resources.client_num_cpus,
+                                                 "num_gpus": cfg.resources.client_num_gpus},
+                            "init_args": {"log_to_driver": False, "include_dashboard": False,
+                                          "logging_level": logging.ERROR}},
+        )
     if "error" in out:
         raise RuntimeError("hierarchical arm failed") from out["error"]
     if "rounds" not in out:

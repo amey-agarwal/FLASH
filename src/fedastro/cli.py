@@ -129,7 +129,9 @@ def _grid(args: argparse.Namespace) -> int:
     if args.index and len(chosen) != len(set(args.index)):
         print(f"unknown variant index in {args.index}; have 0..{len(variants) - 1}", file=sys.stderr)
         return 2
-    failed = []
+    from fedastro.fl.simguard import EXIT_SIM_HUNG, is_ray_startup_failure
+
+    failed, all_retryable = [], True
     for v in chosen:
         cfg = v.config.with_overrides(output_dir=args.output_dir)
         paths = []
@@ -141,6 +143,7 @@ def _grid(args: argparse.Namespace) -> int:
                     path = run_and_write(cfg, seed, draw) / "result.json"
                 except Exception as e:  # one failed run must not abort a long sweep
                     failed.append(f"{v.name} seed {seed} draw {draw}: {type(e).__name__}: {e}")
+                    all_retryable = all_retryable and is_ray_startup_failure(e)
                     print(f"FAILED {failed[-1]}", file=sys.stderr)
                     continue
             paths.append(path)
@@ -153,6 +156,9 @@ def _grid(args: argparse.Namespace) -> int:
         print(f"{len(failed)} run(s) failed; re-run with --resume to fill gaps:", file=sys.stderr)
         for f in failed:
             print(f"  {f}", file=sys.stderr)
+        if all_retryable:  # only Ray start-up failures: the SLURM script retries exit 75
+            print(f"all failures are Ray start-up failures; exiting {EXIT_SIM_HUNG}", file=sys.stderr)
+            return EXIT_SIM_HUNG
         return 1
     return 0
 

@@ -107,6 +107,31 @@ The user chose **option A**: tune and evaluate on the 20k subset, at 30 rounds, 
 Stage B and the gapC evaluation sweeps (102 tasks, in waves under the QOS cap). Then
 `select` on stage B → the federated and hierarchical evaluation sweeps → `fedastro gap`.
 
+### Stage B Ray failures and the infrastructure fix (2026-11-25; NOT COMMITTED)
+- **What happened in stage B.**
+  - 14 tasks failed at Ray start-up: a worker could not register with its raylet, then
+    `query.stats: 0/15 replies within 600.0s`. H8 saw the same failure once.
+  - They were resubmitted with `--resume`. Runs are seeded and the failure comes before
+    training, so the results are unaffected.
+  - One more task, `7294746_9` (1D-CNN), **hung** instead of failing. The ServerApp thread
+    raised, but `flwr.simulation.run_simulation` never returned, and the task idled for
+    about 6.5 h. A Flower simulation-engine worker thread was most likely blocked on the dead
+    Ray actor. The task was cancelled and index 9 resubmitted.
+- **Fix (infrastructure only; no config, score or run-id change; `golden.py ids` matches):**
+  - **`src/fedastro/fl/simguard.py`,** a new module:
+    - `simulation_watchdog` wraps both `run_simulation` calls (`fl/server.py`,
+      `fl/hierarchy.py`). If the ServerApp has stored an error and the simulation has not
+      returned 120 s later, it ends the process with exit 75 (EX_TEMPFAIL).
+    - `is_ray_startup_failure` matches only a **0**-reply exchange timeout, so a partial reply
+      count stays a real error.
+  - **`fedastro grid`** exits 75 when every failed run is a Ray start-up failure; otherwise
+    exit 1, as before.
+  - **`scripts/slurm/retry.sh`,** used by `gap.sbatch`, retries exit 75 up to 3 times. Each
+    attempt gets its own Ray temp dir and waits 30 s first. It never runs `ray stop`.
+  - Tests are in `tests/test_simguard.py`.
+- **When it applies.** Not on PACE until the h10 batch has finished: a pull changes the
+  output folder's sha. The fix takes effect from H10c step 3.
+
 ### Earlier plan for step 2 on PACE
 Six array jobs (`scripts/slurm/gap.sbatch`, `OUT_PREFIX=h10`), then `fedastro select` → the
 stage B sweeps (288 runs) → evaluation sweeps → `fedastro gap`. Each round trip is a gate.
@@ -1867,7 +1892,7 @@ configs) is still running in `$SCR/FLASH`. Repo edits will not be pulled on PACE
 | R5 | Tier B across platforms | Freeze on PACE, check on the laptop: G2 (α 0.1) and G4 (1000-step attack) are the most likely to exceed 1e-3 | Treat the PACE `check` as the gate result; a laptop `make golden` is informative only |
 | R6 | Smoke byte test on Linux | The smoke golden file was written on the Intel Mac; the first PACE `make test` may fail only `test_smoke_result_is_byte_identical_to_golden` | That is a platform difference, not a regression. Do not regenerate the file; report it and decide (per-platform file or 1e-3 tolerance) |
 | R7 | Time limits | `golden.sbatch` allows 3 h. G4 and G4b (attack, all silos, both label modes) are estimated at ~1 h each on 4 cores, unverified. G1 runs through `fedastro sweep`, which has no `--resume`, so a resubmit re-runs all 5 seeds | If a task times out: `sbatch --array=<i> scripts/slurm/golden.sbatch` (all but G1 skip finished seeds), or raise `-t` on the command line |
-| R8 | Parallel Ray jobs on one node | Untested before the 2026-11-04 batch; a startup hang would time the task out | Per-job `RAY_TMPDIR` (in `common.sh`). If a task dies at Ray startup, resubmit that index |
+| R8 | Parallel Ray jobs on one node | Untested before the 2026-11-04 batch; a startup hang would time the task out | Per-job `RAY_TMPDIR` (in `common.sh`). **Since 2026-11-25** (H10c "Infrastructure fix"): a Ray start-up failure exits 75, hangs included, and `gap.sbatch` retries it up to 3 times in the task. If every attempt fails, resubmit that index |
 | R9 | Merge strategy | A squash or rebase merge gives main new commit ids; the tag and `metrics.json` would then name a commit that is not on main | Merge the branch with a merge commit or a fast-forward only |
 | R10 | Gate ordering | Phase 11+ change `src/`, so their gates need Tier B, which cannot pass while `metrics.json` is PENDING | Freeze before closing the Phase 11 gate. Development of Phase 11 can go ahead on the branch meanwhile |
 | R11 | G4 coverage gap | Tier B did not cover the no-DP attack numbers (B=1 success vs B=32) | **Resolved 2026-11-05:** G4b (`p5eps-base`) added before the first freeze, with every attack cell compared. It needs the `v0.6.1-golden` commit (R2) |

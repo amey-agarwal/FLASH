@@ -43,6 +43,7 @@ from flwr.serverapp import Grid, ServerApp
 from flwr.simulation import run_simulation
 
 from fedastro.baselines.common import ARM_IDS, holdout_evaluator, init_model
+from fedastro.fl.simguard import simulation_watchdog
 from fedastro.config import ExperimentConfig
 from fedastro.data.partition import Federation
 from fedastro.data.preprocess import Standardizer, Stats
@@ -428,18 +429,19 @@ def run_federated(fed: Federation, cfg: ExperimentConfig, seed: int, device: str
     server_app = make_server_app(fed, cfg, seed, device, out)
     client_app = make_client_app(silos, cfg, seed, device)
     logging.getLogger("flwr").setLevel(logging.WARNING)
-    run_simulation(
-        server_app=server_app,
-        client_app=client_app,
-        num_supernodes=len(silos),
-        backend_name="ray",
-        backend_config={
-            "client_resources": {"num_cpus": cfg.resources.client_num_cpus,
-                                 "num_gpus": cfg.resources.client_num_gpus},
-            "init_args": {"log_to_driver": False, "include_dashboard": False,
-                          "logging_level": logging.ERROR},
-        },
-    )
+    with simulation_watchdog(out, "federated"):
+        run_simulation(
+            server_app=server_app,
+            client_app=client_app,
+            num_supernodes=len(silos),
+            backend_name="ray",
+            backend_config={
+                "client_resources": {"num_cpus": cfg.resources.client_num_cpus,
+                                     "num_gpus": cfg.resources.client_num_gpus},
+                "init_args": {"log_to_driver": False, "include_dashboard": False,
+                              "logging_level": logging.ERROR},
+            },
+        )
     if "error" in out:
         raise RuntimeError("federated arm failed") from out["error"]
     if "rounds" not in out:
