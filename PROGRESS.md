@@ -72,10 +72,42 @@ The user chose **option A**: tune and evaluate on the 20k subset, at 30 rounds, 
   only (672 lines added, 0 deleted; targeted merge).
 - **Tests:** `pytest -q` (default, non-slow) exit 0, no failures (the count line was cut off by
   `tail`). `golden.py ids`: every locked run id unchanged.
-- **Open disclosure:** the number of 20k nodes with a single-class validation split. Taken on
-  PACE with `fedastro inspect` before selection.
+- **Single-class validation splits on 20k (disclosure, counted before selection):** **1 node**,
+  `leo_roscosmos` (INCART: 0 normal / 30 abnormal; its train and test splits are all abnormal
+  too). On 2k there were 4. The thinnest of the others: `mars_partner` 3, `leo_partner` and
+  `moon_partner` 5 normal validation records each. Method: PACE `fedastro inspect` (job 7290616)
+  gave the per-node sizes and train/test labels. The by_source partition is identical for
+  seeds 0–4 and 100–102 (by design: H1 decision 1, `partition.holdout_seed`). The validation
+  labels were counted on the laptop by rebuilding the same partition from the 20k index with
+  placeholder features; the train/val/test sizes match PACE for all 15 nodes. No score was read.
+
+### Stage A and baseline tuning on PACE (2026-11-24)
+- **180/180 runs completed**, 0 failed, in `runs/h10-f7db96a`. 61 jobs (60 array tasks + inspect).
+  The `gapA` 1D-CNN array first hit the QOS submit cap (`QOSMaxSubmitJobPerUserLimit`, about 50
+  jobs per user) and was resubmitted once slots freed.
+- **Winners (`fedastro select`; validation macro-F1 pooled over nodes, mean over seeds 100–102;
+  tuning scores, not results):**
+
+  | Family | federated | hierarchical | centralized | local_only |
+  |---|---|---|---|---|
+  | logreg | lr 0.01, le 2 (0.6100) | lr 0.01, le 2 (0.6112) | lr 0.01, 60 ep (0.5896) | lr 0.01, 30 ep (0.7329) |
+  | MLP | lr 0.001, le 2 (0.7835) | lr 0.003, le 1 (0.7842) | lr 3e-4, 60 ep (0.7874) | lr 0.003, 30 ep (0.7963) |
+  | 1D-CNN | lr 0.01, le 5 (0.7361) | lr 0.01, le 5 (0.7353) | lr 0.001, 60 ep (0.7285) | lr 0.003, 60 ep (0.7172) |
+
+  (le = local epochs, ep = epochs.)
+- **Observation (not a deviation), as on WESAD:** winners on the grid edge. logreg took the top
+  lr (0.01) in all 4 arms. The 1D-CNN federated and hierarchical arms took the top lr *and* 5
+  local epochs. Centralized took 60 epochs in all 3 families. The grid is frozen and was not
+  extended.
+- **Generated (git-ignored) in `runs/h10-f7db96a/generated/`:** 6 stage B sweeps
+  (`gapB_gapA_cinc15_<family>_{federated,hierarchical}`, 16 variants each, 288 runs) and 6
+  evaluation sweeps (`eval_gapC_cinc15_<family>_{centralized,local_only}`, seeds 0–4, 30 runs).
 
 ### Next (PACE, user)
+Stage B and the gapC evaluation sweeps (102 tasks, in waves under the QOS cap). Then
+`select` on stage B → the federated and hierarchical evaluation sweeps → `fedastro gap`.
+
+### Earlier plan for step 2 on PACE
 Six array jobs (`scripts/slurm/gap.sbatch`, `OUT_PREFIX=h10`), then `fedastro select` → the
 stage B sweeps (288 runs) → evaluation sweeps → `fedastro gap`. Each round trip is a gate.
 
