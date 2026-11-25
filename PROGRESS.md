@@ -11,13 +11,15 @@ for presentations**; the earlier tuning-seed page is superseded. H9 is DONE: OSD
 and WESAD (435 runs, `84a40ec`, H1-H4 verdicts in "Phase H9 (part 3)"). H10a (CinC inspection) is
 done, with its decisions made. H10b (the CinC loader and smoke test) is committed
 (`8090ece`). H10c step 1 (20k timing on PACE) is done; Gate 1 chose option A (20k, 30 rounds).
-H10c step 2 (the CinC tuning sweeps, PREREG §5a frozen) is built.**
+H10c step 2 (the CinC tuning sweeps, PREREG §5a frozen) is committed (`f7db96a`). Its tuning is
+done on PACE (498/498, stage B selected), and the 30 evaluation runs are submitted; the gap table
+is next.**
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H10 (part c) — CinC 2021 on PACE — STEP 2 BUILT (tuning sweeps frozen), NOT COMMITTED (2026-11-24)
+## Phase H10 (part c) — CinC 2021 on PACE — STEP 2 COMMITTED `f7db96a`; TUNING DONE (498/498), 30 EVALUATION RUNS SUBMITTED (2026-11-25)
 
 Plan approved 2026-11-22. The steps are:
 1. time one 20k run per family on PACE
@@ -103,20 +105,40 @@ The user chose **option A**: tune and evaluate on the 20k subset, at 30 rounds, 
   (`gapB_gapA_cinc15_<family>_{federated,hierarchical}`, 16 variants each, 288 runs) and 6
   evaluation sweeps (`eval_gapC_cinc15_<family>_{centralized,local_only}`, seeds 0–4, 30 runs).
 
-### Next (PACE, user)
-Stage B and the gapC evaluation sweeps (102 tasks, in waves under the QOS cap). Then
-`select` on stage B → the federated and hierarchical evaluation sweeps → `fedastro gap`.
+### Stage B on PACE (2026-11-25)
+- **498 of 498 runs** have a `result.json` in `runs/h10-f7db96a`: stage A 180, stage B 288,
+  centralized and local-only baselines 30. The Ray failures are described below.
+- **Selection** (`fedastro select`). Validation macro-F1 is pooled over nodes and averaged over
+  seeds 100–102; these are tuning scores, not results. Stage A's lr / E carry through:
+
+  | Family | Arm | Winner | Val. macro-F1 (best) | Stage A |
+  |---|---|---|---|---|
+  | logreg | federated | FedProx mu 0.01 + server momentum | 0.6883 (0.6883) | 0.6100 |
+  | logreg | hierarchical | FedProx mu 0.01 + server momentum | 0.6860 (0.6860) | 0.6112 |
+  | mlp | federated | FedAvg (cheapest within 0.005) | 0.7835 (0.7861) | 0.7835 |
+  | mlp | hierarchical | FedAvg (cheapest within 0.005) | 0.7842 (0.7869) | 0.7842 |
+  | cnn1d | federated | FedAvg (cheapest within 0.005) | 0.7361 (0.7367) | 0.7361 |
+  | cnn1d | hierarchical | FedProx mu 0.001 | 0.7403 (0.7403) | 0.7353 |
+
+- **Unlike WESAD** (mu 0.1 won in every arm), no CinC winner is at the grid edge for mu.
+- **Generated (git-ignored):** `runs/h10-f7db96a/generated/eval_gapB_gapA_cinc15_*` (6 sweeps,
+  seeds 0–4, 30 runs). The selection output is in `runs/h10-f7db96a/select_stageB.txt`.
 
 ### Stage B Ray failures and the infrastructure fix (2026-11-25; NOT COMMITTED)
 - **What happened in stage B.**
   - 14 tasks failed at Ray start-up: a worker could not register with its raylet, then
     `query.stats: 0/15 replies within 600.0s`. H8 saw the same failure once.
-  - They were resubmitted with `--resume`. Runs are seeded and the failure comes before
-    training, so the results are unaffected.
+  - By sweep: 1D-CNN federated 4, 1D-CNN hierarchical 5, logreg federated 1, MLP federated 3,
+    MLP hierarchical 1. Several tasks started Ray at the same moment on shared nodes.
+  - They were resubmitted with `--resume`, 20 s apart. Runs are seeded and the failure comes
+    before training, so the results are unaffected.
   - One more task, `7294746_9` (1D-CNN), **hung** instead of failing. The ServerApp thread
     raised, but `flwr.simulation.run_simulation` never returned, and the task idled for
     about 6.5 h. A Flower simulation-engine worker thread was most likely blocked on the dead
-    Ray actor. The task was cancelled and index 9 resubmitted.
+    Ray actor. The task was cancelled and index 9 resubmitted as job `7304954_9`, which
+    completed: 498/498.
+  - **Count `result.json` files, not run folders.** A run's folder exists from the moment it
+    starts, so `ls | grep -c seed` read 498 while the last run was still going.
 - **Fix (infrastructure only; no config, score or run-id change; `golden.py ids` matches):**
   - **`src/fedastro/fl/simguard.py`,** a new module:
     - `simulation_watchdog` wraps both `run_simulation` calls (`fl/server.py`,
@@ -131,6 +153,18 @@ Stage B and the gapC evaluation sweeps (102 tasks, in waves under the QOS cap). 
   - Tests are in `tests/test_simguard.py`.
 - **When it applies.** Not on PACE until the h10 batch has finished: a pull changes the
   output folder's sha. The fix takes effect from H10c step 3.
+
+### Next (PACE, user; as of 2026-11-25)
+1. **Wait for the 6 evaluation jobs.** They are named `h10E-<family>_<arm>_<arm>` and run
+   `eval_gapB_gapA_cinc15_*`: 30 runs, seeds 0–4. Done when
+   `find runs/h10-f7db96a -name result.json | wc -l` gives 528.
+2. **Run the gap table:**
+   `fedastro gap runs/h10-f7db96a/generated/gap_cinc15.yaml --output-dir runs/h10-f7db96a --out runs/h10-f7db96a/gap_cinc15.json`.
+   The spec was already written on PACE. Record the table here.
+3. **Results exist only on PACE scratch so far** (`$SCR/FLASH/runs/h10-f7db96a`), and scratch is
+   purged after inactivity. Zip the folder, copy it to the laptop and list it in BACKUPS.md.
+4. **Then H10c step 3,** the 18 `h9_cinc15_*` sweeps. Don't `git pull` on PACE before step 2 is
+   done.
 
 ### Earlier plan for step 2 on PACE
 Six array jobs (`scripts/slurm/gap.sbatch`, `OUT_PREFIX=h10`), then `fedastro select` → the
