@@ -12,14 +12,15 @@ and WESAD (435 runs, `84a40ec`, H1-H4 verdicts in "Phase H9 (part 3)"). H10a (Ci
 done, with its decisions made. H10b (the CinC loader and smoke test) is committed
 (`8090ece`). H10c step 1 (20k timing on PACE) is done; Gate 1 chose option A (20k, 30 rounds).
 H10c step 2 (the CinC tuning sweeps, PREREG §5a frozen) is committed (`f7db96a`). Its tuning is
-done on PACE (498/498, stage B selected), and the 30 evaluation runs are submitted; the gap table
-is next.**
+done on PACE (498/498, stage B selected). The 30 evaluation runs are done (528/528) and the CinC
+gap table is computed (2026-11-25, H10c "Evaluation and gap table"). Next: back up the results,
+then H10c step 3.**
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H10 (part c) — CinC 2021 on PACE — STEP 2 COMMITTED `f7db96a`; TUNING DONE (498/498), 30 EVALUATION RUNS SUBMITTED (2026-11-25)
+## Phase H10 (part c) — CinC 2021 on PACE — STEP 2 COMMITTED `f7db96a`; TUNING AND EVALUATION DONE (528/528), GAP TABLE COMPUTED (2026-11-25)
 
 Plan approved 2026-11-22. The steps are:
 1. time one 20k run per family on PACE
@@ -154,17 +155,65 @@ The user chose **option A**: tune and evaluate on the 20k subset, at 30 rounds, 
 - **When it applies.** Not on PACE until the h10 batch has finished: a pull changes the
   output folder's sha. The fix takes effect from H10c step 3.
 
-### Next (PACE, user; as of 2026-11-25)
-1. **Wait for the 6 evaluation jobs.** They are named `h10E-<family>_<arm>_<arm>` and run
-   `eval_gapB_gapA_cinc15_*`: 30 runs, seeds 0–4. Done when
-   `find runs/h10-f7db96a -name result.json | wc -l` gives 528.
-2. **Run the gap table:**
-   `fedastro gap runs/h10-f7db96a/generated/gap_cinc15.yaml --output-dir runs/h10-f7db96a --out runs/h10-f7db96a/gap_cinc15.json`.
-   The spec was already written on PACE. Record the table here.
-3. **Results exist only on PACE scratch so far** (`$SCR/FLASH/runs/h10-f7db96a`), and scratch is
-   purged after inactivity. Zip the folder, copy it to the laptop and list it in BACKUPS.md.
-4. **Then H10c step 3,** the 18 `h9_cinc15_*` sweeps. Don't `git pull` on PACE before step 2 is
-   done.
+### Evaluation and gap table on PACE (2026-11-25)
+- **528 of 528 runs** have a `result.json` in `runs/h10-f7db96a`. The 6 evaluation jobs
+  (`h10E-*`, `eval_gapB_gapA_cinc15_*`, 30 runs, seeds 0–4) are done; only `sys/dash` was left
+  in the queue.
+- **Gap table** (`fedastro gap $G/gap_cinc15.yaml`; output in `runs/h10-f7db96a/gap_cinc15.json`
+  and `gap_cinc15.txt`). It uses the test sets at seeds 0–4. Gap = centralized minus the other
+  arm (positive = centralized better), paired by seed. CI = hierarchical percentile bootstrap
+  over seeds; n = 5.
+
+  | Family | Comparison | Metric | Centr. | Other | Gap | Std | 95% CI |
+  |---|---|---|---|---|---|---|---|
+  | logreg | − federated | accuracy | 0.799 | 0.828 | −0.030 | 0.009 | [−0.036, −0.022] |
+  | logreg | − federated | macro-F1 | 0.529 | 0.712 | −0.183 | 0.050 | [−0.218, −0.142] |
+  | logreg | − federated | AUC | 0.832 | 0.840 | −0.008 | 0.004 | [−0.011, −0.005] |
+  | logreg | − hierarchical | accuracy | 0.799 | 0.829 | −0.030 | 0.007 | [−0.034, −0.023] |
+  | logreg | − hierarchical | macro-F1 | 0.529 | 0.710 | −0.181 | 0.046 | [−0.215, −0.143] |
+  | logreg | − hierarchical | AUC | 0.832 | 0.839 | −0.007 | 0.004 | [−0.010, −0.004] |
+  | logreg | − hier. regional | accuracy | 0.799 | 0.819 | −0.020 | 0.007 | [−0.025, −0.015] |
+  | logreg | − hier. regional | macro-F1 | 0.529 | 0.703 | −0.174 | 0.042 | [−0.206, −0.141] |
+  | logreg | − hier. regional | AUC | 0.832 | 0.834 | −0.002 | 0.003 | [−0.004, +0.000] |
+  | MLP | − federated | accuracy | 0.869 | 0.841 | +0.028 | 0.004 | [+0.026, +0.032] |
+  | MLP | − federated | macro-F1 | 0.796 | 0.773 | +0.023 | 0.005 | [+0.020, +0.028] |
+  | MLP | − federated | AUC | 0.900 | 0.864 | +0.036 | 0.003 | [+0.034, +0.038] |
+  | MLP | − hierarchical | accuracy | 0.869 | 0.843 | +0.026 | 0.009 | [+0.018, +0.033] |
+  | MLP | − hierarchical | macro-F1 | 0.796 | 0.777 | +0.019 | 0.009 | [+0.010, +0.025] |
+  | MLP | − hierarchical | AUC | 0.900 | 0.866 | +0.033 | 0.003 | [+0.031, +0.036] |
+  | MLP | − hier. regional | accuracy | 0.869 | 0.845 | +0.024 | 0.003 | [+0.022, +0.027] |
+  | MLP | − hier. regional | macro-F1 | 0.796 | 0.776 | +0.020 | 0.003 | [+0.018, +0.023] |
+  | MLP | − hier. regional | AUC | 0.900 | 0.872 | +0.028 | 0.003 | [+0.025, +0.030] |
+  | 1D-CNN | − federated | accuracy | 0.844 | 0.814 | +0.030 | 0.009 | [+0.024, +0.038] |
+  | 1D-CNN | − federated | macro-F1 | 0.730 | 0.741 | −0.011 | 0.018 | [−0.025, +0.003] |
+  | 1D-CNN | − federated | AUC | 0.879 | 0.857 | +0.022 | 0.005 | [+0.018, +0.026] |
+  | 1D-CNN | − hierarchical | accuracy | 0.844 | 0.807 | +0.037 | 0.015 | [+0.026, +0.048] |
+  | 1D-CNN | − hierarchical | macro-F1 | 0.730 | 0.725 | +0.004 | 0.018 | [−0.011, +0.016] |
+  | 1D-CNN | − hierarchical | AUC | 0.879 | 0.849 | +0.030 | 0.006 | [+0.026, +0.035] |
+  | 1D-CNN | − hier. regional | accuracy | 0.844 | 0.808 | +0.036 | 0.005 | [+0.032, +0.039] |
+  | 1D-CNN | − hier. regional | macro-F1 | 0.730 | 0.718 | +0.012 | 0.020 | [−0.005, +0.027] |
+  | 1D-CNN | − hier. regional | AUC | 0.879 | 0.842 | +0.036 | 0.010 | [+0.029, +0.044] |
+
+- **Reading (descriptive; H1–H4 verdicts come from step 3):**
+  - **MLP:** centralized beats every federated arm on all three metrics (gaps +0.02 to +0.04,
+    CIs exclude 0).
+  - **1D-CNN:** centralized is ahead on accuracy and AUC (+0.02 to +0.04). On macro-F1 every
+    CI includes 0, so there is no detectable gap.
+  - **logreg is reversed:** federated and hierarchical beat centralized, most of all on macro-F1
+    (−0.18). Centralized logreg's macro-F1 (0.529) is low next to its accuracy (0.799), which
+    suggests it predicts mostly the majority (abnormal) class. Its tuning score was also the
+    lowest of the logreg arms (val. macro-F1 0.5896, best of the frozen grid, lr 0.01 at the
+    grid edge). This is a result, not a bug; it is not tuned further. A per-class check of the
+    centralized logreg predictions is open (see below).
+- **Backed up (2026-11-25):** `runs/h10-f7db96a_backup.zip` (528 runs) and
+  `runs/h10t-e51b0ad_backup.zip` (3 timing runs) are on the laptop, verified with `unzip -t`, and
+  listed in BACKUPS.md. The unzipped copies are in `runs/`. Copy the zips off the laptop too.
+
+### Next (as of 2026-11-25)
+1. **Open question:** check centralized logreg's per-class predictions (majority-class
+   collapse?) from its `result.json` files, before the H4 verdict.
+2. **Then H10c step 3,** the 18 `h9_cinc15_*` sweeps. A `git pull` on PACE is now safe (the gap
+   is done).
 
 ### Earlier plan for step 2 on PACE
 Six array jobs (`scripts/slurm/gap.sbatch`, `OUT_PREFIX=h10`), then `fedastro select` → the
