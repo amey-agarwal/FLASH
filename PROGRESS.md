@@ -13,14 +13,15 @@ done, with its decisions made. H10b (the CinC loader and smoke test) is committe
 (`8090ece`). H10c step 1 (20k timing on PACE) is done; Gate 1 chose option A (20k, 30 rounds).
 H10c step 2 (the CinC tuning sweeps, PREREG §5a frozen) is committed (`f7db96a`). Its tuning is
 done on PACE (498/498, stage B selected). The 30 evaluation runs are done (528/528) and the CinC
-gap table is computed (2026-11-25, H10c "Evaluation and gap table"). Next: back up the results,
-then H10c step 3.**
+gap table is computed (2026-11-25, H10c "Evaluation and gap table"); the results are backed up.
+H10c step 3 (the 18 `h9_cinc15_*` sweeps, PREREG §6 CinC rows frozen) is built and NOT COMMITTED;
+no H9-style CinC run exists. Next: the user commits, then the 435 runs on PACE.**
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H10 (part c) — CinC 2021 on PACE — STEP 2 COMMITTED `f7db96a`; TUNING AND EVALUATION DONE (528/528), GAP TABLE COMPUTED (2026-11-25)
+## Phase H10 (part c) — CinC 2021 on PACE — STEP 2 COMMITTED `f7db96a`; TUNING AND EVALUATION DONE (528/528), GAP TABLE COMPUTED; STEP 3 BUILT, NOT COMMITTED (2026-11-25)
 
 Plan approved 2026-11-22. The steps are:
 1. time one 20k run per family on PACE
@@ -203,17 +204,95 @@ The user chose **option A**: tune and evaluate on the 20k subset, at 30 rounds, 
     (−0.18). Centralized logreg's macro-F1 (0.529) is low next to its accuracy (0.799), which
     suggests it predicts mostly the majority (abnormal) class. Its tuning score was also the
     lowest of the logreg arms (val. macro-F1 0.5896, best of the frozen grid, lr 0.01 at the
-    grid edge). This is a result, not a bug; it is not tuned further. A per-class check of the
-    centralized logreg predictions is open (see below).
+    grid edge). This is a result, not a bug; it is not tuned further. The per-class check below
+    confirms the collapse.
+- **Per-class check (2026-11-25):** read from `arms.<arm>.final` (`recall_per_class`, order
+  normal / abnormal; `balanced_accuracy`) in the 45 evaluation `result.json` files of the
+  centralized, federated and hierarchical arms; mean ± std over seeds 0–4. Test sets; descriptive
+  only, used for no choice.
+
+  | Family | Arm | Recall normal | Recall abnormal | Balanced acc. | Macro-F1 |
+  |---|---|---|---|---|---|
+  | logreg | centralized | 0.101 ± 0.048 | 0.985 ± 0.005 | 0.543 ± 0.021 | 0.529 ± 0.036 |
+  | logreg | federated | 0.459 ± 0.052 | 0.927 ± 0.011 | 0.693 ± 0.021 | 0.712 ± 0.016 |
+  | logreg | hierarchical | 0.452 ± 0.047 | 0.929 ± 0.011 | 0.690 ± 0.018 | 0.710 ± 0.013 |
+  | MLP | centralized | 0.643 ± 0.014 | 0.929 ± 0.005 | 0.786 ± 0.006 | 0.796 ± 0.005 |
+  | MLP | federated | 0.700 ± 0.005 | 0.878 ± 0.005 | 0.789 ± 0.003 | 0.773 ± 0.004 |
+  | MLP | hierarchical | 0.715 ± 0.015 | 0.877 ± 0.014 | 0.796 ± 0.002 | 0.777 ± 0.007 |
+  | 1D-CNN | centralized | 0.467 ± 0.082 | 0.944 ± 0.024 | 0.706 ± 0.029 | 0.730 ± 0.020 |
+  | 1D-CNN | federated | 0.675 ± 0.032 | 0.851 ± 0.017 | 0.763 ± 0.010 | 0.741 ± 0.007 |
+  | 1D-CNN | hierarchical | 0.625 ± 0.076 | 0.855 ± 0.037 | 0.740 ± 0.021 | 0.725 ± 0.007 |
+
+  - **Confirmed: centralized logreg collapses toward "abnormal".** It finds 10% of normal
+    records against 46% for federated and hierarchical, while its AUC is close to theirs
+    (0.832 vs 0.840 / 0.839). So it ranks the records about as well. The macro-F1 gap comes from
+    the operating point (where the decision threshold falls), not from separability.
+  - **Training had levelled off, but the operating point was unstable.** In the seed 0 history
+    (`arms.centralized.history`), train loss reaches about 0.46 by epoch 5 and stays there.
+    Macro-F1 swings between 0.51 and 0.65 from epoch to epoch (0.648 at epoch 50, 0.515 at
+    epoch 60), so the threshold sits on the edge of the normal class. Training uses
+    `class_weighting: none`, the pooled training data is mostly abnormal, and Adam at lr 0.01
+    is noisy.
+  - **The same pattern, milder, in the other families:** every centralized arm has lower
+    normal recall and higher abnormal recall than its federated arm (MLP 0.64 vs 0.70; 1D-CNN
+    0.47 vs 0.68). Federated averaging over nodes with different label mixes seems to end at a
+    less majority-biased operating point. This is a hypothesis, not tested.
+  - **Implications for reporting:** state the logreg reversal together with this
+    operating-point explanation, and show AUC and balanced accuracy next to macro-F1. Class
+    weighting and threshold tuning were not in the frozen grid, so they are not applied here.
+    They can be named as future work.
 - **Backed up (2026-11-25):** `runs/h10-f7db96a_backup.zip` (528 runs) and
   `runs/h10t-e51b0ad_backup.zip` (3 timing runs) are on the laptop, verified with `unzip -t`, and
   listed in BACKUPS.md. The unzipped copies are in `runs/`. Copy the zips off the laptop too.
 
+### Step 3 built (2026-11-25; NOT COMMITTED, no H9-style CinC run exists)
+Plan approved 2026-11-25. Decisions accepted with the plan:
+1. Accuracy stays the primary metric (PREREG §2, frozen). Macro-F1, AUC and balanced accuracy
+   are reported alongside.
+2. All 5 seeds and 30 rounds are kept, although 1D-CNN federated runs exceed 15 min (Gate 1
+   option A; rule 3).
+3. The runs use `gap.sbatch`, one array task per variant, in two waves.
+
+- **Sweeps:** `fedastro h9-sweeps runs/h10-f7db96a/generated/eval_*.yaml --dataset cinc15` wrote
+  18 files, `configs/sweeps/h9_cinc15_<family>_{centralized,local_only,federated,hierarchical,full,stream}.yaml`,
+  and `configs/hypotheses/h9_cinc15.yaml`. They are generated, not hand-edited.
+  - 87 variants, **435 runs** (per family 4 × 30 + 5 + 20).
+  - The base is `cinc15_main.yaml`; its sha256 is unchanged from §5a.
+  - Checked: every file loads; each sweep's settings equal the stage A, stage B and gapC winners
+    above; all 1D-CNN sweeps use `representation: sequence`.
+- **PREREG:** the §6 CinC rows are FROZEN on this commit: the selected-settings table, the file
+  SHA-256s (from `shasum -a 256`), the compute estimate and the disclosures. The status line now
+  says every section is frozen. **Disclosed:** the CinC evaluation test scores (gap table,
+  per-class check) were seen before this freeze. No setting comes from them; all settings are
+  validation winners carried over by `h9-sweeps`.
+- **Golden lock:** the 18 sweeps' 87 variants are appended to `tests/golden/run_ids.json`.
+  - 1080 lines added, 0 deleted, by a targeted merge (same format: `json.dumps(indent=2)`,
+    insertion order).
+  - `golden.py ids`: "run ids match the lock". The CinC smoke and timing sweeps stay unlocked,
+    as before.
+- **Test:** `test_committed_cinc15_sweeps` in `tests/test_hypotheses.py`. It checks the spec
+  paths, arms, data, representation and the 435 total.
+  - `tests/test_hypotheses.py` and `tests/test_golden.py` pass.
+  - **Full suite** (`pytest -q`, laptop, under `caffeinate`): no assertion failures. There were
+    2 errors, both in the setup of a shared Ray simulation in `tests/test_hierarchy_fl.py`
+    (`ActorDiedError`, then "Exception in ServerApp thread"), which is a local Ray flake.
+    - Rerunning that file alone: one run failed a different test; its single rerun passed.
+    - The final full-file rerun had no failures and no errors.
+    - No `src/` file changed in this step.
+    - The cause is not investigated.
+- **Wiring:** `fedastro hypotheses configs/hypotheses/h9_cinc15.yaml` loads the spec and exits 2
+  with "30 missing runs", as expected (no runs yet).
+
 ### Next (as of 2026-11-25)
-1. **Open question:** check centralized logreg's per-class predictions (majority-class
-   collapse?) from its `result.json` files, before the H4 verdict.
-2. **Then H10c step 3,** the 18 `h9_cinc15_*` sweeps. A `git pull` on PACE is now safe (the gap
-   is done).
+1. **The user commits step 3.**
+2. **On PACE,** pull, then submit 87 array tasks via `scripts/slurm/gap.sbatch` with
+   `OUT_PREFIX=h10`. The output goes to `runs/h10-<new sha>`.
+   - Resources: `-c 4 --mem=32G`; `-t 08:00:00`, or `16:00:00` for the `_full` sweeps.
+   - Wave 1 (41 tasks): every 1D-CNN sweep, plus logreg federated and hierarchical.
+   - Wave 2 (46 tasks): the rest.
+3. **At 435 `result.json`:** run
+   `fedastro hypotheses configs/hypotheses/h9_cinc15.yaml --output-dir runs/h10-<sha> --out runs/h10-<sha>/hypotheses_cinc15.json`.
+   Then record the H1–H4 verdicts, back up, and close the H10 gate. After that, H11.
 
 ### Earlier plan for step 2 on PACE
 Six array jobs (`scripts/slurm/gap.sbatch`, `OUT_PREFIX=h10`), then `fedastro select` → the

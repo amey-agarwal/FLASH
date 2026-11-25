@@ -2504,6 +2504,1086 @@
           "gapC_cinc15_mlp-lr0p01-epochs60-seed102-75603d022f"
         ]
       }
+    },
+    "configs/sweeps/h9_cinc15_cnn1d_centralized.yaml": {
+      "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "71d9fe8e52b57af3060e16d199c9e4a7108ca4258102be0657092d2470dbaf67",
+        "index": 0,
+        "name": "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed0-71d9fe8e52",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed1-71d9fe8e52",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed2-71d9fe8e52",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed3-71d9fe8e52",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p0-seed4-71d9fe8e52"
+        ]
+      },
+      "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "5ef210d2f067587dfc8ce68eaa50fb234ae173d8065c66183950ff8c70137b0f",
+        "index": 1,
+        "name": "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed0-5ef210d2f0",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed1-5ef210d2f0",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed2-5ef210d2f0",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed3-5ef210d2f0",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude0p5-seed4-5ef210d2f0"
+        ]
+      },
+      "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "bdaa8cce37cbe71974050ad016e6000eb83b65574e31b362907e09c68e01e253",
+        "index": 2,
+        "name": "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed0-bdaa8cce37",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed1-bdaa8cce37",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed2-bdaa8cce37",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed3-bdaa8cce37",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude1p0-seed4-bdaa8cce37"
+        ]
+      },
+      "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "47d35b726c305cf46723158cb5b6e343ca976601adab6c2ba6d549bc85fa05ed",
+        "index": 3,
+        "name": "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed0-47d35b726c",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed1-47d35b726c",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed2-47d35b726c",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed3-47d35b726c",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindboth-magnitude2p0-seed4-47d35b726c"
+        ]
+      },
+      "h9_cinc15_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "4c08584225145bc89217b13473e8a048404128ad74779f884474fa5b91280da5",
+        "index": 5,
+        "name": "h9_cinc15_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed0-4c08584225",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed1-4c08584225",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed2-4c08584225",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed3-4c08584225",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindconcept-magnitude1p0-seed4-4c08584225"
+        ]
+      },
+      "h9_cinc15_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "a77ac6f1435860a15b237f2adfb0c9de936e5a31b9508d6bff1d5173e38650ee",
+        "index": 4,
+        "name": "h9_cinc15_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed0-a77ac6f143",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed1-a77ac6f143",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed2-a77ac6f143",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed3-a77ac6f143",
+          "h9_cinc15_cnn1d_centralized-enabledTrue-kindcovariate-magnitude1p0-seed4-a77ac6f143"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_cnn1d_federated.yaml": {
+      "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "4583f0dce41422f65b564e433f0ae79e04ac4cff9d7648a80e94f9b2e3c59228",
+        "index": 0,
+        "name": "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed0-4583f0dce4",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed1-4583f0dce4",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed2-4583f0dce4",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed3-4583f0dce4",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p0-seed4-4583f0dce4"
+        ]
+      },
+      "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "ed56f879a4e21d10e0695d3a95acd563e4fff03709c6e329f000598d26719753",
+        "index": 1,
+        "name": "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed0-ed56f879a4",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed1-ed56f879a4",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed2-ed56f879a4",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed3-ed56f879a4",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude0p5-seed4-ed56f879a4"
+        ]
+      },
+      "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "165c3d1374eaca8014a947833707d10a03da124d62980ad549775809c84d91f7",
+        "index": 2,
+        "name": "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed0-165c3d1374",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed1-165c3d1374",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed2-165c3d1374",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed3-165c3d1374",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude1p0-seed4-165c3d1374"
+        ]
+      },
+      "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "78a7134c84dbcb807a5cc5caf4f5e56159677f403eba3c8094de85cd75a16f1b",
+        "index": 3,
+        "name": "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed0-78a7134c84",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed1-78a7134c84",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed2-78a7134c84",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed3-78a7134c84",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindboth-magnitude2p0-seed4-78a7134c84"
+        ]
+      },
+      "h9_cinc15_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "a282532272a28895a44762cc87ea80b7b946f2502b5b3977348d13c7de344b03",
+        "index": 5,
+        "name": "h9_cinc15_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed0-a282532272",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed1-a282532272",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed2-a282532272",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed3-a282532272",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindconcept-magnitude1p0-seed4-a282532272"
+        ]
+      },
+      "h9_cinc15_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "d6ad84ca240b88948fac35d05cdb56f950c21f2383a1b8fe6b06f9a0a1af6b42",
+        "index": 4,
+        "name": "h9_cinc15_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed0-d6ad84ca24",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed1-d6ad84ca24",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed2-d6ad84ca24",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed3-d6ad84ca24",
+          "h9_cinc15_cnn1d_federated-enabledTrue-kindcovariate-magnitude1p0-seed4-d6ad84ca24"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_cnn1d_full.yaml": {
+      "h9_cinc15_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue": {
+        "config_hash": "ab6d35def68bb0cadb5cff0dcddba425ff95cf87f44f5fb1921be158ace6f0c1",
+        "index": 0,
+        "name": "h9_cinc15_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue",
+        "run_ids": [
+          "h9_cinc15_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed0-ab6d35def6",
+          "h9_cinc15_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed1-ab6d35def6",
+          "h9_cinc15_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed2-ab6d35def6",
+          "h9_cinc15_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed3-ab6d35def6",
+          "h9_cinc15_cnn1d_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed4-ab6d35def6"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_cnn1d_hierarchical.yaml": {
+      "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "eb927e16076740d4429347b6ad6da420855801fdc8192a49b12a76b854a8a121",
+        "index": 0,
+        "name": "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed0-eb927e1607",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed1-eb927e1607",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed2-eb927e1607",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed3-eb927e1607",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p0-seed4-eb927e1607"
+        ]
+      },
+      "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "2d627dbfd0960f3bb5f69e1590fc3506802e21f1b0dead26c2439fd7dd4994ea",
+        "index": 1,
+        "name": "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed0-2d627dbfd0",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed1-2d627dbfd0",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed2-2d627dbfd0",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed3-2d627dbfd0",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude0p5-seed4-2d627dbfd0"
+        ]
+      },
+      "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "5c6d0908d6ee1df4719ef6df4cf10e5c06bc419d155f617be70634fae842a7bd",
+        "index": 2,
+        "name": "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed0-5c6d0908d6",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed1-5c6d0908d6",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed2-5c6d0908d6",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed3-5c6d0908d6",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude1p0-seed4-5c6d0908d6"
+        ]
+      },
+      "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "8ab36966b225e5e86b72d5318042ca734d737247b96650e96bf21ad7644a79eb",
+        "index": 3,
+        "name": "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed0-8ab36966b2",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed1-8ab36966b2",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed2-8ab36966b2",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed3-8ab36966b2",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindboth-magnitude2p0-seed4-8ab36966b2"
+        ]
+      },
+      "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "189dd017c379232647a8adf86e02e9533cc4704ef320fe1a2d62f83eb49c63fa",
+        "index": 5,
+        "name": "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed0-189dd017c3",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed1-189dd017c3",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed2-189dd017c3",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed3-189dd017c3",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed4-189dd017c3"
+        ]
+      },
+      "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "94465f9ae696af9e9857e52911e08c0e3e27bda96b60b00502443dfbec3912e4",
+        "index": 4,
+        "name": "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed0-94465f9ae6",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed1-94465f9ae6",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed2-94465f9ae6",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed3-94465f9ae6",
+          "h9_cinc15_cnn1d_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed4-94465f9ae6"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_cnn1d_local_only.yaml": {
+      "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "6f4f810e1ee9ab49c93a98f33a29127f037e68e2930f21ab397b5d43b2f369c8",
+        "index": 0,
+        "name": "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed0-6f4f810e1e",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed1-6f4f810e1e",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed2-6f4f810e1e",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed3-6f4f810e1e",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p0-seed4-6f4f810e1e"
+        ]
+      },
+      "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "5e18f345207fa62325c24e2248560f22dc3a27ffc7a1e990f3b9e9d2de25f39e",
+        "index": 1,
+        "name": "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed0-5e18f34520",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed1-5e18f34520",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed2-5e18f34520",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed3-5e18f34520",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude0p5-seed4-5e18f34520"
+        ]
+      },
+      "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "574de2b361cef10e2e0e4cbfbdadbd03648665fcaa3f9af28493676fb48fda47",
+        "index": 2,
+        "name": "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed0-574de2b361",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed1-574de2b361",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed2-574de2b361",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed3-574de2b361",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude1p0-seed4-574de2b361"
+        ]
+      },
+      "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "2d32246ea65cbdb90428416d2c57fe7306c527755f1fe6a20cc0e3662bf73354",
+        "index": 3,
+        "name": "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed0-2d32246ea6",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed1-2d32246ea6",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed2-2d32246ea6",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed3-2d32246ea6",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindboth-magnitude2p0-seed4-2d32246ea6"
+        ]
+      },
+      "h9_cinc15_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "d0056aca69e36ca5f2016fefb69c4535459b799ef2201b4e2c0c694cd9b0cbee",
+        "index": 5,
+        "name": "h9_cinc15_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed0-d0056aca69",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed1-d0056aca69",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed2-d0056aca69",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed3-d0056aca69",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindconcept-magnitude1p0-seed4-d0056aca69"
+        ]
+      },
+      "h9_cinc15_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "abeb73364a14c47d4c820fd3b5802b182672ea04c24de3f912bf29eba32f854e",
+        "index": 4,
+        "name": "h9_cinc15_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed0-abeb73364a",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed1-abeb73364a",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed2-abeb73364a",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed3-abeb73364a",
+          "h9_cinc15_cnn1d_local_only-enabledTrue-kindcovariate-magnitude1p0-seed4-abeb73364a"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_cnn1d_stream.yaml": {
+      "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds0": {
+        "config_hash": "5159d196489b478f222760db74a5dca2137a7c89c7edd016f4305111842b6852",
+        "index": 0,
+        "name": "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed0-5159d19648",
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed1-5159d19648",
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed2-5159d19648",
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed3-5159d19648",
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds0-seed4-5159d19648"
+        ]
+      },
+      "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds1": {
+        "config_hash": "b8e000548c908ee0aecf5dd7566998600acbb854ffeb097c506b246cb984d8f6",
+        "index": 1,
+        "name": "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds1",
+        "run_ids": [
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed0-b8e000548c",
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed1-b8e000548c",
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed2-b8e000548c",
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed3-b8e000548c",
+          "h9_cinc15_cnn1d_stream-label_fraction0p1-label_delay_rounds1-seed4-b8e000548c"
+        ]
+      },
+      "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds0": {
+        "config_hash": "1919cac3352177a106277c66ee09d90571237f2418b65b7efc8bd6be94518da0",
+        "index": 2,
+        "name": "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds0",
+        "run_ids": [
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed0-1919cac335",
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed1-1919cac335",
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed2-1919cac335",
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed3-1919cac335",
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds0-seed4-1919cac335"
+        ]
+      },
+      "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds1": {
+        "config_hash": "8bb3cbe1b5997e1b515f48a27dbd8c87589689b61998d4a63838ab9c9ef642af",
+        "index": 3,
+        "name": "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds1",
+        "run_ids": [
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed0-8bb3cbe1b5",
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed1-8bb3cbe1b5",
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed2-8bb3cbe1b5",
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed3-8bb3cbe1b5",
+          "h9_cinc15_cnn1d_stream-label_fraction1p0-label_delay_rounds1-seed4-8bb3cbe1b5"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_logreg_centralized.yaml": {
+      "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "91fc43cccbb0e0696572e9a330fbd62c159c83da4009aa7f8b72d026f21f7b59",
+        "index": 0,
+        "name": "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed0-91fc43cccb",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed1-91fc43cccb",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed2-91fc43cccb",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed3-91fc43cccb",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p0-seed4-91fc43cccb"
+        ]
+      },
+      "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "9b907864680a4e76b6e70c93f7644fa25aa2998ff3ac50468ff78a0a6cbf0b64",
+        "index": 1,
+        "name": "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed0-9b90786468",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed1-9b90786468",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed2-9b90786468",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed3-9b90786468",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude0p5-seed4-9b90786468"
+        ]
+      },
+      "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "5168a22b633b8bae8f0d29cce072437498a9f029d4080b0ab8c38b3f4e03fa7b",
+        "index": 2,
+        "name": "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed0-5168a22b63",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed1-5168a22b63",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed2-5168a22b63",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed3-5168a22b63",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude1p0-seed4-5168a22b63"
+        ]
+      },
+      "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "9fb29934d1b5970ed6143372fc14caeba2e2861a032b6ab3f31fc394c6079ccf",
+        "index": 3,
+        "name": "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed0-9fb29934d1",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed1-9fb29934d1",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed2-9fb29934d1",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed3-9fb29934d1",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindboth-magnitude2p0-seed4-9fb29934d1"
+        ]
+      },
+      "h9_cinc15_logreg_centralized-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "04e61bd96dd46c9306245aa3ee4ef5de37aa557612bc0912397e2647e9fcfd08",
+        "index": 5,
+        "name": "h9_cinc15_logreg_centralized-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed0-04e61bd96d",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed1-04e61bd96d",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed2-04e61bd96d",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed3-04e61bd96d",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindconcept-magnitude1p0-seed4-04e61bd96d"
+        ]
+      },
+      "h9_cinc15_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "a93217ec9d9652f1c9ddfd5185bce7b21117150ff57cec42913d530a38654d73",
+        "index": 4,
+        "name": "h9_cinc15_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed0-a93217ec9d",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed1-a93217ec9d",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed2-a93217ec9d",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed3-a93217ec9d",
+          "h9_cinc15_logreg_centralized-enabledTrue-kindcovariate-magnitude1p0-seed4-a93217ec9d"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_logreg_federated.yaml": {
+      "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "99b12c1159f72d7f849656e8ac8e979587213c7cf231eb34b1b26efbb2e8cb28",
+        "index": 0,
+        "name": "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed0-99b12c1159",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed1-99b12c1159",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed2-99b12c1159",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed3-99b12c1159",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p0-seed4-99b12c1159"
+        ]
+      },
+      "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "d4bdf25a4913c3528582173bf370e0a6a27f412a427009ff6c80272126262eb4",
+        "index": 1,
+        "name": "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed0-d4bdf25a49",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed1-d4bdf25a49",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed2-d4bdf25a49",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed3-d4bdf25a49",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude0p5-seed4-d4bdf25a49"
+        ]
+      },
+      "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "1de0ac340a84ceaa917615e1d4cd8ad18c0c6803a766d967f3b4c971cb6dce3e",
+        "index": 2,
+        "name": "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed0-1de0ac340a",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed1-1de0ac340a",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed2-1de0ac340a",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed3-1de0ac340a",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude1p0-seed4-1de0ac340a"
+        ]
+      },
+      "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "33c2a7aa5c82a58f72baadff3bf21f21bb54774135be995bcb42d476188c440f",
+        "index": 3,
+        "name": "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed0-33c2a7aa5c",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed1-33c2a7aa5c",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed2-33c2a7aa5c",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed3-33c2a7aa5c",
+          "h9_cinc15_logreg_federated-enabledTrue-kindboth-magnitude2p0-seed4-33c2a7aa5c"
+        ]
+      },
+      "h9_cinc15_logreg_federated-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "2537f4950b91b181285db2e9650e254e0e5ae37d83af5984b1c053eceffb6002",
+        "index": 5,
+        "name": "h9_cinc15_logreg_federated-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed0-2537f4950b",
+          "h9_cinc15_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed1-2537f4950b",
+          "h9_cinc15_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed2-2537f4950b",
+          "h9_cinc15_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed3-2537f4950b",
+          "h9_cinc15_logreg_federated-enabledTrue-kindconcept-magnitude1p0-seed4-2537f4950b"
+        ]
+      },
+      "h9_cinc15_logreg_federated-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "5ff08b630749fd05bdf92467634e11009cd0d760931654784005ed5a72ba33ad",
+        "index": 4,
+        "name": "h9_cinc15_logreg_federated-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed0-5ff08b6307",
+          "h9_cinc15_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed1-5ff08b6307",
+          "h9_cinc15_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed2-5ff08b6307",
+          "h9_cinc15_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed3-5ff08b6307",
+          "h9_cinc15_logreg_federated-enabledTrue-kindcovariate-magnitude1p0-seed4-5ff08b6307"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_logreg_full.yaml": {
+      "h9_cinc15_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue": {
+        "config_hash": "1b952ccf24a26b792017197e3529594005918ebae287cc31bba6eb665546f632",
+        "index": 0,
+        "name": "h9_cinc15_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue",
+        "run_ids": [
+          "h9_cinc15_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed0-1b952ccf24",
+          "h9_cinc15_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed1-1b952ccf24",
+          "h9_cinc15_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed2-1b952ccf24",
+          "h9_cinc15_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed3-1b952ccf24",
+          "h9_cinc15_logreg_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed4-1b952ccf24"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_logreg_hierarchical.yaml": {
+      "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "19b04f17957afde4c9305dde50c743eba2978a3d6949b0e13efade0abde009c1",
+        "index": 0,
+        "name": "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed0-19b04f1795",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed1-19b04f1795",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed2-19b04f1795",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed3-19b04f1795",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p0-seed4-19b04f1795"
+        ]
+      },
+      "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "1fc7373bf196bb965d3b2f78bfb70039a07a951fd1a9ad7a04032bb2c7c69b7d",
+        "index": 1,
+        "name": "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed0-1fc7373bf1",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed1-1fc7373bf1",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed2-1fc7373bf1",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed3-1fc7373bf1",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude0p5-seed4-1fc7373bf1"
+        ]
+      },
+      "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "08f72467e263c2819e61babc967b9b7d5d7a00012360c61f19a2b469459a4a0b",
+        "index": 2,
+        "name": "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed0-08f72467e2",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed1-08f72467e2",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed2-08f72467e2",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed3-08f72467e2",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude1p0-seed4-08f72467e2"
+        ]
+      },
+      "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "b72f673e4ee2bf7520d042dac65a4f3709f5224874f94a2c90ef04da7f6a0b96",
+        "index": 3,
+        "name": "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed0-b72f673e4e",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed1-b72f673e4e",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed2-b72f673e4e",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed3-b72f673e4e",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindboth-magnitude2p0-seed4-b72f673e4e"
+        ]
+      },
+      "h9_cinc15_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "f150fc2c3af0d00852c5afd8218e0b1fb5fe11457358c4d28746b22e4145c599",
+        "index": 5,
+        "name": "h9_cinc15_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed0-f150fc2c3a",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed1-f150fc2c3a",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed2-f150fc2c3a",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed3-f150fc2c3a",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed4-f150fc2c3a"
+        ]
+      },
+      "h9_cinc15_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "ae9667ebb77cc815944a45582fa1334236effc7cb2208946dc159cd720c4fb4f",
+        "index": 4,
+        "name": "h9_cinc15_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed0-ae9667ebb7",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed1-ae9667ebb7",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed2-ae9667ebb7",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed3-ae9667ebb7",
+          "h9_cinc15_logreg_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed4-ae9667ebb7"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_logreg_local_only.yaml": {
+      "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "f96020f4eebe4bf51480b8fee434a688342c70f220c4da64bc450905c71460b5",
+        "index": 0,
+        "name": "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed0-f96020f4ee",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed1-f96020f4ee",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed2-f96020f4ee",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed3-f96020f4ee",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p0-seed4-f96020f4ee"
+        ]
+      },
+      "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "db659a9d72095d18c351f7d48f89a6d17f8120d0a40759998f432421697ce15c",
+        "index": 1,
+        "name": "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed0-db659a9d72",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed1-db659a9d72",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed2-db659a9d72",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed3-db659a9d72",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude0p5-seed4-db659a9d72"
+        ]
+      },
+      "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "1a70682e755641eea073cbdcd41dae20c6be192a3d187df09a0116fadaebfd57",
+        "index": 2,
+        "name": "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed0-1a70682e75",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed1-1a70682e75",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed2-1a70682e75",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed3-1a70682e75",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude1p0-seed4-1a70682e75"
+        ]
+      },
+      "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "e74baf2f0470abc3aa3bd73f485ae3c40a905a71d35b989252e28eaf520f8f96",
+        "index": 3,
+        "name": "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed0-e74baf2f04",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed1-e74baf2f04",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed2-e74baf2f04",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed3-e74baf2f04",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindboth-magnitude2p0-seed4-e74baf2f04"
+        ]
+      },
+      "h9_cinc15_logreg_local_only-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "3d7c081ca295c5b63d4b4f59069a9773e486d54fabbfaefa608bda4d9888e3a7",
+        "index": 5,
+        "name": "h9_cinc15_logreg_local_only-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed0-3d7c081ca2",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed1-3d7c081ca2",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed2-3d7c081ca2",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed3-3d7c081ca2",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindconcept-magnitude1p0-seed4-3d7c081ca2"
+        ]
+      },
+      "h9_cinc15_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "b3cd7956882c5904fccf4c422ecaaa91433007bbd388ed1d9369183f0e9c8523",
+        "index": 4,
+        "name": "h9_cinc15_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed0-b3cd795688",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed1-b3cd795688",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed2-b3cd795688",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed3-b3cd795688",
+          "h9_cinc15_logreg_local_only-enabledTrue-kindcovariate-magnitude1p0-seed4-b3cd795688"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_logreg_stream.yaml": {
+      "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds0": {
+        "config_hash": "bf079bec0db30c2cc89fe812b9c82ac1d5d23e851c28efbac80b491949e0a6a9",
+        "index": 0,
+        "name": "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds0",
+        "run_ids": [
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds0-seed0-bf079bec0d",
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds0-seed1-bf079bec0d",
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds0-seed2-bf079bec0d",
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds0-seed3-bf079bec0d",
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds0-seed4-bf079bec0d"
+        ]
+      },
+      "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds1": {
+        "config_hash": "53cb9d87f844a8dda6414f6deb403f673d2f8365cc0f21d90a8e6faedbfec666",
+        "index": 1,
+        "name": "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds1",
+        "run_ids": [
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds1-seed0-53cb9d87f8",
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds1-seed1-53cb9d87f8",
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds1-seed2-53cb9d87f8",
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds1-seed3-53cb9d87f8",
+          "h9_cinc15_logreg_stream-label_fraction0p1-label_delay_rounds1-seed4-53cb9d87f8"
+        ]
+      },
+      "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds0": {
+        "config_hash": "73a154e04bdb833ddaecd524a2acb646a43696da0fed3e2f0d7cf0ab765855e5",
+        "index": 2,
+        "name": "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds0",
+        "run_ids": [
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds0-seed0-73a154e04b",
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds0-seed1-73a154e04b",
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds0-seed2-73a154e04b",
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds0-seed3-73a154e04b",
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds0-seed4-73a154e04b"
+        ]
+      },
+      "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds1": {
+        "config_hash": "f75e8b7cf0773ef5fc326992e36e1318650c7b43345d8ebe7d6286b8f6a32501",
+        "index": 3,
+        "name": "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds1",
+        "run_ids": [
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds1-seed0-f75e8b7cf0",
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds1-seed1-f75e8b7cf0",
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds1-seed2-f75e8b7cf0",
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds1-seed3-f75e8b7cf0",
+          "h9_cinc15_logreg_stream-label_fraction1p0-label_delay_rounds1-seed4-f75e8b7cf0"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_mlp_centralized.yaml": {
+      "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "254d2fdbd5ded15902a370fd3efd8222526cc7c28350a05b6b85379a5b18bd52",
+        "index": 0,
+        "name": "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed0-254d2fdbd5",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed1-254d2fdbd5",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed2-254d2fdbd5",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed3-254d2fdbd5",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p0-seed4-254d2fdbd5"
+        ]
+      },
+      "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "d24f2ec89f0acb11e4926537c28aa9dc60b1bcd361e11e049c1db6dd011473b9",
+        "index": 1,
+        "name": "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed0-d24f2ec89f",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed1-d24f2ec89f",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed2-d24f2ec89f",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed3-d24f2ec89f",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude0p5-seed4-d24f2ec89f"
+        ]
+      },
+      "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "33bf125658085929e6ec135cd7e41564e590a0a6d4ff0b2c21f8eabed8f8f667",
+        "index": 2,
+        "name": "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed0-33bf125658",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed1-33bf125658",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed2-33bf125658",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed3-33bf125658",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude1p0-seed4-33bf125658"
+        ]
+      },
+      "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "c42d8bfc5497e44c57da3f6a14377d3d64cc26dbe49928def0c4fbc55813eca2",
+        "index": 3,
+        "name": "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed0-c42d8bfc54",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed1-c42d8bfc54",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed2-c42d8bfc54",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed3-c42d8bfc54",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindboth-magnitude2p0-seed4-c42d8bfc54"
+        ]
+      },
+      "h9_cinc15_mlp_centralized-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "bf05336fa4b87cf2a06feb6142c067dc3cf6e582f5d99e04e954cab2ebf49d11",
+        "index": 5,
+        "name": "h9_cinc15_mlp_centralized-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed0-bf05336fa4",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed1-bf05336fa4",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed2-bf05336fa4",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed3-bf05336fa4",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindconcept-magnitude1p0-seed4-bf05336fa4"
+        ]
+      },
+      "h9_cinc15_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "41f16dead291d9fe9e3389eed928a81443b44a19d6fca22008c329888d9745cc",
+        "index": 4,
+        "name": "h9_cinc15_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed0-41f16dead2",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed1-41f16dead2",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed2-41f16dead2",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed3-41f16dead2",
+          "h9_cinc15_mlp_centralized-enabledTrue-kindcovariate-magnitude1p0-seed4-41f16dead2"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_mlp_federated.yaml": {
+      "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "01e99ce54da85fe25fe0faaa06108c2703139d5ae3f8eca6f1c73aeae1ecd633",
+        "index": 0,
+        "name": "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed0-01e99ce54d",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed1-01e99ce54d",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed2-01e99ce54d",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed3-01e99ce54d",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p0-seed4-01e99ce54d"
+        ]
+      },
+      "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "2a8aefd68b222780a06138857caa28bc6e73e01143f20bc778a6138514a950b1",
+        "index": 1,
+        "name": "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed0-2a8aefd68b",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed1-2a8aefd68b",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed2-2a8aefd68b",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed3-2a8aefd68b",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude0p5-seed4-2a8aefd68b"
+        ]
+      },
+      "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "f3165dab883d1a615f5b84e21665c6c293642037cdeaff61869acb9b8f51b26e",
+        "index": 2,
+        "name": "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed0-f3165dab88",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed1-f3165dab88",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed2-f3165dab88",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed3-f3165dab88",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude1p0-seed4-f3165dab88"
+        ]
+      },
+      "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "26aef29671332040f09a77618c55f6d2b02e58081e8ca6943af08fa406d1a32a",
+        "index": 3,
+        "name": "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed0-26aef29671",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed1-26aef29671",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed2-26aef29671",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed3-26aef29671",
+          "h9_cinc15_mlp_federated-enabledTrue-kindboth-magnitude2p0-seed4-26aef29671"
+        ]
+      },
+      "h9_cinc15_mlp_federated-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "ed5fa97411a8f711f3fba2e0b2215b7d10242f8e46e025de3b8b42a427ed6369",
+        "index": 5,
+        "name": "h9_cinc15_mlp_federated-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed0-ed5fa97411",
+          "h9_cinc15_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed1-ed5fa97411",
+          "h9_cinc15_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed2-ed5fa97411",
+          "h9_cinc15_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed3-ed5fa97411",
+          "h9_cinc15_mlp_federated-enabledTrue-kindconcept-magnitude1p0-seed4-ed5fa97411"
+        ]
+      },
+      "h9_cinc15_mlp_federated-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "822f7dd46b8eb4cb6b994179be844a509c3382bc828d852c0edb2d1cd7a1b064",
+        "index": 4,
+        "name": "h9_cinc15_mlp_federated-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed0-822f7dd46b",
+          "h9_cinc15_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed1-822f7dd46b",
+          "h9_cinc15_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed2-822f7dd46b",
+          "h9_cinc15_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed3-822f7dd46b",
+          "h9_cinc15_mlp_federated-enabledTrue-kindcovariate-magnitude1p0-seed4-822f7dd46b"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_mlp_full.yaml": {
+      "h9_cinc15_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue": {
+        "config_hash": "197e4facf66a33a7f659c6522960e01692ff1f53a8697d9e9e12a96d97fe6001",
+        "index": 0,
+        "name": "h9_cinc15_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue",
+        "run_ids": [
+          "h9_cinc15_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed0-197e4facf6",
+          "h9_cinc15_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed1-197e4facf6",
+          "h9_cinc15_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed2-197e4facf6",
+          "h9_cinc15_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed3-197e4facf6",
+          "h9_cinc15_mlp_full-enabledTrue-marsmean-losTrue-region_deadline_s120p0-enabledTrue-enabledTrue-seed4-197e4facf6"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_mlp_hierarchical.yaml": {
+      "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "bae4eb6a66e2251e7ff7c47ad5fae7990a8160dcb2fa7f1d4d98de83f07a4490",
+        "index": 0,
+        "name": "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed0-bae4eb6a66",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed1-bae4eb6a66",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed2-bae4eb6a66",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed3-bae4eb6a66",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p0-seed4-bae4eb6a66"
+        ]
+      },
+      "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "b4dae0c4a44917f5e77730d28488561b606b163f36311e3d4617147bba9dd24b",
+        "index": 1,
+        "name": "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed0-b4dae0c4a4",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed1-b4dae0c4a4",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed2-b4dae0c4a4",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed3-b4dae0c4a4",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude0p5-seed4-b4dae0c4a4"
+        ]
+      },
+      "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "b29cdab360801be980d675fe760739d6133163e8b926d6321d2cacf7ac0829cf",
+        "index": 2,
+        "name": "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed0-b29cdab360",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed1-b29cdab360",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed2-b29cdab360",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed3-b29cdab360",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude1p0-seed4-b29cdab360"
+        ]
+      },
+      "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "5a860945a015c3cae10c285a5866cd9bae6e873f8d16092d8aa43e5a79f61097",
+        "index": 3,
+        "name": "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed0-5a860945a0",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed1-5a860945a0",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed2-5a860945a0",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed3-5a860945a0",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindboth-magnitude2p0-seed4-5a860945a0"
+        ]
+      },
+      "h9_cinc15_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "95950702f40decd22f486d42aba3dbd58e7807f6e5d5fe9428e01dbc6e4863a7",
+        "index": 5,
+        "name": "h9_cinc15_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed0-95950702f4",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed1-95950702f4",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed2-95950702f4",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed3-95950702f4",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindconcept-magnitude1p0-seed4-95950702f4"
+        ]
+      },
+      "h9_cinc15_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "292395f8738cf3e4ee75b6479e2fc9e14060d716d38907c266b7e91541fe7c2e",
+        "index": 4,
+        "name": "h9_cinc15_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed0-292395f873",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed1-292395f873",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed2-292395f873",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed3-292395f873",
+          "h9_cinc15_mlp_hierarchical-enabledTrue-kindcovariate-magnitude1p0-seed4-292395f873"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_mlp_local_only.yaml": {
+      "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p0": {
+        "config_hash": "36e712660962ffaf147ccb223bebe6f98057566851ca3fe34d941f823da6ef44",
+        "index": 0,
+        "name": "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p0",
+        "run_ids": [
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed0-36e7126609",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed1-36e7126609",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed2-36e7126609",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed3-36e7126609",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p0-seed4-36e7126609"
+        ]
+      },
+      "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p5": {
+        "config_hash": "b6f89984210b745ff2f3714222bcc61c10da719fd23bc1a31f1de30c5cfabc0e",
+        "index": 1,
+        "name": "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p5",
+        "run_ids": [
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed0-b6f8998421",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed1-b6f8998421",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed2-b6f8998421",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed3-b6f8998421",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude0p5-seed4-b6f8998421"
+        ]
+      },
+      "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude1p0": {
+        "config_hash": "fd70c7f4ef22acd00277ee29d05decb44a2391feb9cc159807a03bd6b1f1032f",
+        "index": 2,
+        "name": "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed0-fd70c7f4ef",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed1-fd70c7f4ef",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed2-fd70c7f4ef",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed3-fd70c7f4ef",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude1p0-seed4-fd70c7f4ef"
+        ]
+      },
+      "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude2p0": {
+        "config_hash": "05c747cf20ebaa9d9329cae227ac9fe8b7f18a7bc2252deb02c975f81819a1f1",
+        "index": 3,
+        "name": "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude2p0",
+        "run_ids": [
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed0-05c747cf20",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed1-05c747cf20",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed2-05c747cf20",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed3-05c747cf20",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindboth-magnitude2p0-seed4-05c747cf20"
+        ]
+      },
+      "h9_cinc15_mlp_local_only-enabledTrue-kindconcept-magnitude1p0": {
+        "config_hash": "09d2e6b57f92dcef8c76ecf61479a203e61876ff810bdd0420594e65d7acc633",
+        "index": 5,
+        "name": "h9_cinc15_mlp_local_only-enabledTrue-kindconcept-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed0-09d2e6b57f",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed1-09d2e6b57f",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed2-09d2e6b57f",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed3-09d2e6b57f",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindconcept-magnitude1p0-seed4-09d2e6b57f"
+        ]
+      },
+      "h9_cinc15_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0": {
+        "config_hash": "c6dc2b28824a9073d9a30fd620b6ca1274a974907f0cf7dfb31766963a98b4da",
+        "index": 4,
+        "name": "h9_cinc15_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0",
+        "run_ids": [
+          "h9_cinc15_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed0-c6dc2b2882",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed1-c6dc2b2882",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed2-c6dc2b2882",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed3-c6dc2b2882",
+          "h9_cinc15_mlp_local_only-enabledTrue-kindcovariate-magnitude1p0-seed4-c6dc2b2882"
+        ]
+      }
+    },
+    "configs/sweeps/h9_cinc15_mlp_stream.yaml": {
+      "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds0": {
+        "config_hash": "ccd96228fa955f2afb5b110bbf736ccface5c2aff35228e94578964b2efbca28",
+        "index": 0,
+        "name": "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds0",
+        "run_ids": [
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds0-seed0-ccd96228fa",
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds0-seed1-ccd96228fa",
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds0-seed2-ccd96228fa",
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds0-seed3-ccd96228fa",
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds0-seed4-ccd96228fa"
+        ]
+      },
+      "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds1": {
+        "config_hash": "88ed87371185bb1d106e26670d45ecf35c016ded587d7b8d5c4087ecc566fbea",
+        "index": 1,
+        "name": "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds1",
+        "run_ids": [
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds1-seed0-88ed873711",
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds1-seed1-88ed873711",
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds1-seed2-88ed873711",
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds1-seed3-88ed873711",
+          "h9_cinc15_mlp_stream-label_fraction0p1-label_delay_rounds1-seed4-88ed873711"
+        ]
+      },
+      "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds0": {
+        "config_hash": "279459c59167c0f3a732dbcbfccfd4b7e3389bee1ee06d984b383476419d8785",
+        "index": 2,
+        "name": "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds0",
+        "run_ids": [
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds0-seed0-279459c591",
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds0-seed1-279459c591",
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds0-seed2-279459c591",
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds0-seed3-279459c591",
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds0-seed4-279459c591"
+        ]
+      },
+      "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds1": {
+        "config_hash": "b053375cf928cc807aa03eb017c09bb01e5a5b5a0a2b45faa16ea6a0419fa9c1",
+        "index": 3,
+        "name": "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds1",
+        "run_ids": [
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds1-seed0-b053375cf9",
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds1-seed1-b053375cf9",
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds1-seed2-b053375cf9",
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds1-seed3-b053375cf9",
+          "h9_cinc15_mlp_stream-label_fraction1p0-label_delay_rounds1-seed4-b053375cf9"
+        ]
+      }
     }
   }
 }

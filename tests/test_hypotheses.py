@@ -173,3 +173,30 @@ def test_stream_summary_across_seeds():
     assert s["models"]["regional"]["n_scored"]["mean"] == 90
     assert s["models"]["global"]["n_runs_scored"] == 0 and s["models"]["global"]["accuracy"]["mean"] is None
     assert s["disagreement"]["acc_disagree"]["mean"] == pytest.approx(0.4)
+
+
+def test_committed_cinc15_sweeps():
+    """The committed H10c step 3 sweeps (PREREG section 6, CinC rows): 18 sweeps, 435 runs."""
+    spec_path = REPO / "configs" / "hypotheses" / "h9_cinc15.yaml"
+    spec = yaml.safe_load(spec_path.read_text())
+    assert spec["dataset"] == "cinc15" and spec["shifted_regions"] == ["moon", "mars"]
+    assert set(spec["families"]) == {"logreg", "mlp", "cnn1d"}
+    want_arms = {"centralized": ["centralized"], "local_only": ["local_only"], "federated": ["federated"],
+                 "hierarchical": ["local_only", "hierarchical"],
+                 "full": ["local_only", "hierarchical", "hierarchical_stream"],
+                 "stream": ["local_only", "hierarchical", "hierarchical_stream"]}
+    total = 0
+    for fam, arms in spec["families"].items():
+        assert set(arms) == {"centralized", "local_only", "federated", "hierarchical"}
+        for kind, arms_want in want_arms.items():
+            path = REPO / "configs" / "sweeps" / f"h9_cinc15_{fam}_{kind}.yaml"
+            if kind in arms:
+                assert (spec_path.parent / arms[kind]).resolve() == path.resolve()
+            _, variants = load_grid(path)
+            for v in variants:
+                cfg = v.config
+                assert cfg.data.name == "cinc2021" and cfg.model.arch == fam
+                assert list(cfg.arms) == arms_want
+                assert cfg.data.cinc2021.representation == ("sequence" if fam == "cnn1d" else "features")
+                total += len(sorted({cfg.seed, *cfg.seeds}))
+    assert total == 435
