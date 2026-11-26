@@ -287,6 +287,26 @@ def test_hierarchical_run_is_byte_identical(smoke_run, tmp_path):
     assert again.read_bytes() == smoke_run[0].read_bytes()
 
 
+def test_local_only_own_test_matches_the_hierarchys_local_model(smoke_run):
+    """Phase H11a: arms.local_only.own_test scores the same local models on the same per-node test
+    sets as hierarchy.*.local, so they agree exactly; per_silo (every region pooled) is a
+    different scope."""
+    r = json.loads(smoke_run[0].read_text())
+    own, h = r["arms"]["local_only"]["own_test"], r["hierarchy"]
+    for node, m in h["per_node"].items():
+        assert own["per_node"][node]["n_test"] == m["n_test"]
+        assert own["per_node"][node]["accuracy"] == pytest.approx(m["local"]["accuracy"], abs=1e-12)
+    for region, m in h["per_region"].items():
+        assert own["per_region"][region]["n_test"] == m["n_test"]
+        for metric in ("accuracy", "macro_f1"):
+            assert own["per_region"][region][metric] == pytest.approx(m["local"][metric], abs=1e-12)
+    assert own["pooled"]["accuracy"] == pytest.approx(h["global"]["local"]["accuracy"], abs=1e-12)
+    per_silo = r["arms"]["local_only"]["per_silo"]
+    assert any(abs(per_silo[n]["final"]["accuracy"] - own["per_node"][n]["accuracy"]) > 1e-6 for n in per_silo)
+    assert set(r["fairness"]["local_only_own_test"]["per_silo"]) == set(h["per_node"])
+    assert "arms.local_only.own_test" in r["notes"]
+
+
 def test_summary_reports_the_hierarchy(smoke_run):
     from fedastro.metrics.aggregate import format_summary, load_results, summarise
     s = summarise(load_results([smoke_run[0]]))

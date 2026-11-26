@@ -16,11 +16,87 @@ done on PACE (498/498, stage B selected). The 30 evaluation runs are done (528/5
 gap table is computed (2026-11-25, H10c "Evaluation and gap table"); the results are backed up.
 H10c step 3 (the 18 `h9_cinc15_*` sweeps, PREREG §6 CinC rows frozen) is committed (`af34071`).
 Its 435 runs are DONE on PACE and backed up, and the CinC H1–H4 verdicts are recorded (2026-11-25,
-"Phase H10 (part d)"). The H10 gate is closed. **H11 is started and STOPPED (2026-11-26):
-H2(a) compares models scored on different test sets (see "Phase H11"). The H2 verdicts on both
-datasets need correcting before the figures and README are finished. The user decides the fix.**
+"Phase H10 (part d)"). The H10 gate is closed. H11 started and stopped on a scoring finding
+(2026-11-26, "Phase H11"). **Phase H11a (the scoring audit, the own-test fix and the clock fix) is
+built and awaiting the user's commit. Then 42 PACE tasks rerun the local-only and `_full`
+sweeps; the H2 verdicts (both datasets) and the CinC H1 picture change.** H11 resumes after.
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
+
+---
+
+## Phase H11a — Scoring audit, local-only own-test fix, clock fix — BUILT, NOT COMMITTED, RERUNS PENDING (2026-11-26)
+
+User decisions (2026-11-26):
+- option A (record local-only on each node's own test set and rerun);
+- audit every run, stage and scoring path;
+- H1: report both scorings, with the frozen pooled row primary;
+- fix the clock stall in this phase.
+
+PREREG §7 item 2 records every correction before any rerun.
+
+### Audit (every scoring path of a hierarchical run)
+"Pooled" = every region's test data pooled (the flat arms' holdout). "Own" = each node's own test
+set.
+
+| # | What | Scope used | Compared with | Finding |
+|---|---|---|---|---|
+| D1 | H2(a) local-only | pooled | regional, own | **Bug** (PREREG: own region's test sets). Fixed: `arms.local_only.own_test`; runs without it are refused |
+| D2 | Local-only hyperparameter selection | own validation | test report pooled | Tuned on one scope, reported on another. The own-test score now matches the selection |
+| D3 | H1 local-only | pooled, mean over nodes | flat federated, pooled | Consistent, but the scope was never fixed in PREREG. Own-test row added; primary unchanged |
+| D4 | `fairness.local_only` worst silo | pooled recall reweighted by label mix | n/a | Assumed no per-node test data. `fairness.local_only_own_test` added. This was the H10d "local-only collapse" |
+| D5 | Results tables: local-only column | pooled | hierarchical columns, own | Own-test column added (`make_figures.py --tables`) |
+| D6 | Simulated clock, `_full` runs | n/a | n/a | **Bug.** A secagg mask group below minimum ended the round at the group time (= start, if nobody answered), so the clock froze; 3/15 CinC runs livelocked. Also, with no global deadline, an unreachable member could join key agreement. Both fixed |
+
+**Checked and consistent:**
+- H2(b) and the control (own vs own);
+- H3 (own);
+- the gap table (all arms on the same pooled examples);
+- selection of centralized, federated and hierarchical (validation scope = test scope; hierarchical
+  selected on the global model is disclosed in PREREG §5);
+- the update gate, stream, calibration and model_report worst node (own);
+- the flat WESAD lock and OSD-435 (shared holdout by design).
+
+### Built
+- **`fl/hierarchy.py`:**
+  - `local_own_test` (per node, per region, pooled and node-mean, all on own test sets);
+  - `_plan_secagg` waits for the region deadline before falling back;
+  - `_key_agreement` excludes exchanges that can never complete (`< INF`).
+- **`pipeline.run_hier_experiment`:** adds `arms.local_only.own_test`,
+  `fairness.local_only_own_test` and `fairness.note`, and extends the notes. The change is
+  additive: no config, hash or run id changes, and schema_version stays "2".
+- **`metrics/hypotheses.py`:**
+  - H2(a) from `own_test.per_region`; a missing `own_test` raises;
+  - H1 `own_test_rows` and `verdict_own_test`;
+  - an H4 "H1 (own test)" line;
+  - per-arm `git_sha` sets in the report.
+- **`cli.py`:** `hypotheses --output-dir A B ...`, searched in order, first hit wins.
+- **`scripts/make_figures.py`:**
+  - an own-test local-only column in the tables, with `--rerun DIR` searched first;
+  - fig 3 gains an H1 own-test row when the hypotheses JSON has it;
+  - the fig 3 double-inversion fixed.
+- **Tests:**
+  - `test_secagg.py`, 2 tests: loss of signal everywhere waits for the deadline and the clock
+    moves on; `_key_agreement` never admits a member that cannot answer. Both fail on the old
+    code and pass now.
+  - `test_hierarchy_fl.py`, 1 test: `own_test` equals `hierarchy.*.local` exactly on the smoke
+    run, and `per_silo` is a different scope.
+  - `test_hypotheses.py`, 4 tests:
+    - H2(a) ignores `per_silo`;
+    - a missing `own_test` raises;
+    - H1 reports both scopes with the primary verdict unchanged;
+    - multi-directory run lookup.
+- **Check on the existing runs:** `fedastro hypotheses configs/hypotheses/h9_cinc15.yaml
+  --output-dir runs/h10-af34071` now fails clearly ("no arms.local_only.own_test ... rerun the
+  local-only sweep"), so the old scoring cannot be used by mistake.
+
+### Errata on recorded results
+- **H9 part 3 (WESAD) and H10 part d (CinC):** the H2(a) rows and H2 verdicts are superseded
+  by the H11a reruns.
+- **H10 part d:** the "local-only collapse" caveat is a scoring artifact (D4), not a collapse.
+- **CinC H1:** recorded as the clean result (+0.05 to +0.08). Under own-test scoring it is
+  indicatively negative (−0.01 to −0.04 accuracy). Both rows are reported after the reruns.
+- **Every `_full` table** (WESAD H9 part 3, CinC): superseded by the reruns after the clock fix.
 
 ---
 
@@ -117,6 +193,9 @@ No `src/` changes, no new runs.
   H1–H4 verdicts do not use `_full` runs.
 
 ## Phase H10 (part d) — CinC H1–H4 answered — DONE, H10 GATE CLOSED (2026-11-25)
+
+> **ERRATUM (Phase H11a, 2026-11-26):** the H2(a) rows, the H2 verdict, the "local-only collapse" caveat and the `_full` table below are superseded (local-only was scored on every region's test data pooled; the clock stalled in `_full` runs). See "Phase H11a" and PREREG §7 item 2.
+> CinC H1 (+0.05 to +0.08) is the pooled-scope row; the own-test row is reported after the reruns.
 
 **Runs:** 435 of 435, commit `af34071`, on PACE. The output is in `runs/h10-af34071`
 (`runs/h10-af34071_backup.zip`, in BACKUPS.md).
@@ -761,6 +840,8 @@ H10b: the loader, fetch, tests and smoke test, as in the approved plan.
 ---
 
 ## Phase H9 (part 3) — WESAD results, H1-H4 answered — DONE (2026-11-21; numbers for presentations)
+
+> **ERRATUM (Phase H11a, 2026-11-26):** the H2(a) rows, the H2 verdict and the `_full` table below are superseded (local-only was scored on every region's test data pooled; the clock stalled in `_full` runs). See "Phase H11a" and PREREG §7 item 2.
 
 435/435 runs from PACE (18 jobs 7226543-60, commit `84a40ec`, provenance REAL WESAD, no failures),
 copied to `runs/h9-84a40ec/` (git-ignored) and checked identical to the download. Seeds 0-4, test

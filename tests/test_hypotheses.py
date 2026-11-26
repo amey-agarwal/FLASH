@@ -29,11 +29,18 @@ def _silos():
     return [{"name": n, "region": r, "n_test": 10} for r, ns in REGIONS.items() for n in ns]
 
 
-def _local(seed, mag, acc_by_region, mean):
+def _local(seed, mag, acc_by_region, mean, own_by_region=None):
+    """``per_silo`` / ``mean``: every region's test data pooled; ``own_test``: each node on its
+    own test set (Phase H11a), by default the same values."""
     per = {n: {"final": {"accuracy": acc_by_region[r], "macro_f1": acc_by_region[r]}}
            for r, ns in REGIONS.items() for n in ns}
-    return {"seed": seed, "run_id": f"lo{seed}{mag}", "shift": _shift(mag), "silos": _silos(),
-            "arms": {"local_only": {"per_silo": per, "mean": {"accuracy": mean, "macro_f1": mean}}}}
+    own = own_by_region or acc_by_region
+    pooled = sum(own.values()) / len(own)  # equal n_test per region
+    own_test = {"per_region": {r: {"n_test": 20, "accuracy": own[r], "macro_f1": own[r]} for r in REGIONS},
+                "pooled": {"n_test": 60, "accuracy": pooled, "macro_f1": pooled}}
+    return {"seed": seed, "run_id": f"lo{seed}{mag}", "shift": _shift(mag), "silos": _silos(), "git_sha": "abc",
+            "arms": {"local_only": {"per_silo": per, "mean": {"accuracy": mean, "macro_f1": mean},
+                                    "own_test": own_test}}}
 
 
 def _fed(seed, mag, acc):
@@ -99,6 +106,40 @@ def test_h2_uses_the_shifted_regions_only():
     assert f["H2"]["rows"][0]["diff_mean"] == pytest.approx(0.0, abs=1e-12)
 
 
+def test_h2a_uses_each_node_on_its_own_test_set():
+    """Phase H11a: H2(a) must read own_test, never per_silo (scored on every region pooled)."""
+    fam = _family(reg_minus_local=0.1)
+    for r in fam["local_only"]:
+        for v in r["arms"]["local_only"]["per_silo"].values():  # the pooled scope: much worse
+            v["final"] = {"accuracy": 0.1, "macro_f1": 0.1}
+    f = evaluate_hypotheses({"m": fam}, ("both", 1.0), ["moon", "mars"])["families"]["m"]
+    assert f["H2"]["rows"][0]["diff_mean"] == pytest.approx(0.1)
+
+
+def test_h2a_refuses_runs_without_own_test():
+    fam = _family()
+    for r in fam["local_only"]:
+        del r["arms"]["local_only"]["own_test"]
+    with pytest.raises(ValueError, match="own_test"):
+        evaluate_hypotheses({"m": fam}, ("both", 1.0), ["moon", "mars"])
+
+
+def test_h1_reports_both_scopes_and_keeps_the_primary_verdict():
+    fam = _family(fed_minus_local=0.1)
+    for r in fam["local_only"]:  # each node's own model on its own patients beats federated
+        if r["shift"]["magnitude"] == 0.0:
+            own = {k: v["accuracy"] + 0.2 for k, v in r["arms"]["local_only"]["own_test"]["per_region"].items()}
+            r["arms"]["local_only"]["own_test"] = _local(r["seed"], 0.0, own, 0.0)["arms"]["local_only"]["own_test"]
+    rep = evaluate_hypotheses({"m": fam}, ("both", 1.0), ["moon", "mars"])
+    h1 = rep["families"]["m"]["H1"]
+    assert h1["verdict"] == SUPPORTED and h1["rows"][0]["diff_mean"] == pytest.approx(0.1)
+    assert h1["verdict_own_test"] == NOT_SUPPORTED
+    assert h1["own_test_rows"][0]["diff_mean"] == pytest.approx(-0.1)
+    assert rep["H4"]["H1"]["verdict"] == "holds in every family"
+    assert rep["H4"]["H1 (own test)"]["verdict"] == "does not hold"
+    assert rep["git_sha"]["m"]["local_only"] == ["abc"]
+
+
 def test_mixed_families_and_bad_inputs():
     rep = evaluate_hypotheses({"a": _family(), "b": _family(fed_minus_local=0.0)}, ("both", 1.0), ["moon", "mars"])
     assert rep["H4"]["H1"]["per_family"] == {"a": SUPPORTED, "b": INCONCLUSIVE}
@@ -150,6 +191,32 @@ def test_h9_sweeps_carry_the_h8_winner_and_the_prereg_settings(tmp_path):
     assert spec["shifted_regions"] == ["moon", "mars"]
     for arms in spec["families"].values():
         assert all((tmp_path / "hyp" / p).resolve().is_file() for p in arms.values())
+
+
+def test_hypotheses_reads_runs_from_several_dirs_first_hit_wins(tmp_path):
+    """Phase H11a: reruns in a new directory take precedence; missing runs fall back to later dirs."""
+    import json
+
+    from fedastro.cli import _sweep_results
+    from fedastro.manifest import make_run_id
+
+    emit_h9_sweeps(_eval_sweeps(tmp_path / "gen", families=("mlp",)), tmp_path / "sweeps", "wesad12", tmp_path / "hyp")
+    sweep = tmp_path / "sweeps" / "h9_wesad12_mlp_local_only.yaml"
+    _, vs = load_grid(sweep)
+    new, old = tmp_path / "new", tmp_path / "old"
+    for i, v in enumerate(vs):
+        for s in v.config.seeds:
+            rid = make_run_id(v.config, s)
+            for d, tag in ((old, "old"), (new, "new")):
+                if d is new and i == 0:
+                    continue  # variant 0 only exists in the old dir
+                (d / rid).mkdir(parents=True)
+                (d / rid / "result.json").write_text(json.dumps({"run_id": rid, "seed": s, "tag": tag}))
+    got = _sweep_results(sweep, [str(new), str(old)])
+    n0 = len(vs[0].config.seeds)
+    assert [r["tag"] for r in got] == ["old"] * n0 + ["new"] * (len(got) - n0)
+    with pytest.raises(FileNotFoundError, match="missing runs"):
+        _sweep_results(sweep, [str(new)])
 
 
 def test_h9_sweeps_need_every_arm_once(tmp_path):

@@ -77,7 +77,8 @@ def _parser() -> argparse.ArgumentParser:
 
     hyp = sub.add_parser("hypotheses", help="apply the PREREG section 2 rules to H9 results: H1-H4 verdicts")
     hyp.add_argument("spec", help="configs/hypotheses/h9_<dataset>.yaml (written by h9-sweeps)")
-    hyp.add_argument("--output-dir", help="where the runs are (default: each sweep's output_dir)")
+    hyp.add_argument("--output-dir", nargs="+", help="where the runs are, searched in order, first hit wins "
+                                                     "(default: each sweep's output_dir)")
     hyp.add_argument("--out", help="also write the report as JSON here")
 
     peek = sub.add_parser("peek", help="read-only terminal view of a hierarchical run (writes nothing)")
@@ -244,13 +245,21 @@ def _h9_sweeps(args: argparse.Namespace) -> int:
     return 0
 
 
-def _sweep_results(sweep: Path, output_dir: str | None) -> list[dict]:
+def _sweep_results(sweep: Path, output_dirs: list[str] | None) -> list[dict]:
+    """Each run of the sweep from the first of ``output_dirs`` that has it (default: each
+    variant's output_dir). Several directories let reruns (Phase H11a) take precedence over
+    the earlier results without copying runs around."""
     from fedastro.grid import load_grid
     from fedastro.manifest import make_run_id
 
     _, variants = load_grid(sweep)
-    paths = [Path(output_dir or v.config.output_dir) / make_run_id(v.config, s) / "result.json"
-             for v in variants for s in v.config.seeds]
+    paths = []
+    for v in variants:
+        dirs = [Path(d) for d in output_dirs] if output_dirs else [Path(v.config.output_dir)]
+        for s in v.config.seeds:
+            rid = make_run_id(v.config, s)
+            hits = [d / rid / "result.json" for d in dirs if (d / rid / "result.json").is_file()]
+            paths.append(hits[0] if hits else dirs[0] / rid / "result.json")
     missing = [str(p) for p in paths if not p.is_file()]
     if missing:
         raise FileNotFoundError(f"{sweep.name}: {len(missing)} missing runs, e.g. {missing[0]}")

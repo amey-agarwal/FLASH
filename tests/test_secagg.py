@@ -230,6 +230,41 @@ def test_overhead_is_reported_per_round_and_grows_with_mars_distance():
     assert over["mars_mean"] == pytest.approx(ends["mars_mean"], rel=0.05)
 
 
+def _black_out(sim, until_s):
+    """Every node link drops (INF) for exchanges starting before ``until_s`` (loss of signal)."""
+    for link in sim.node_links.values():
+        real = link.transfer
+        link.transfer = (lambda real: lambda t, nbytes, d: hierarchy.INF if t < until_s else real(t, nbytes, d))(real)
+
+
+def test_loss_of_signal_everywhere_waits_for_the_deadline_and_the_clock_moves_on():
+    """Phase H11a (D6): a region whose mask group cannot form falls back at its deadline. Before
+    the fix the round ended at its start time, so with every node out the clock never moved and
+    the loss of signal never ended (3 CinC full runs livelocked)."""
+    cfg = _cfg(True, COMMS, rounds=8, global_every=4)
+    n = _n_train(cfg)
+    sim = HierSim(cfg, 0, n)
+    _black_out(sim, 500.0)
+    out = _run(cfg, sim=sim)
+    times = [r["sim_wallclock_s"] for r in out["rounds"]]
+    first = out["rounds"][0]
+    assert all(v["fallback"] for v in first["regions"].values())
+    assert times[0] == pytest.approx(cfg.hier_fl.region_deadline_s)  # waited for the deadline
+    assert all(b > a for a, b in zip(times, times[1:]))  # the clock always moves on
+    assert any(not v["fallback"] for r in out["rounds"] for v in r["regions"].values())  # contact resumes
+
+
+def test_key_agreement_never_admits_a_member_that_cannot_answer():
+    """With no deadline (limit INF, the global merge) an exchange that can never complete must not
+    join the group, or the clock goes to INF (Phase H11a)."""
+    class Dead:
+        def transfer(self, t, nbytes, direction):
+            return hierarchy.INF
+
+    group, t_group, lost = hierarchy._key_agreement({0: Dead()}, [0], 10.0, hierarchy.INF)
+    assert group == [] and lost == [0] and t_group == 10.0
+
+
 def test_config_rules():
     cfg = load_config(EXP / "smoke_hier_secagg.yaml")
     assert "secagg" in cfg.experiment_dict()

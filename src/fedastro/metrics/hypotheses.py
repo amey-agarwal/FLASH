@@ -10,8 +10,10 @@ bootstrap 95% CI (metrics/aggregate.bootstrap_ci, one value per seed).
   ``inconclusive``. No multiple-comparison correction (disclosed in PREREG section 2).
 
 - H1: federated (final model) minus local-only (mean over nodes), accuracy, no shift
-  (magnitude 0, the control: bit-identical to unshifted data).
-- H2: at the primary shift, on the shifted regions pooled (n_test-weighted):
+  (magnitude 0, the control: bit-identical to unshifted data). Both on every region's test data
+  pooled (frozen primary). Phase H11a adds an own-test row: local-only on each node's own test set.
+- H2: at the primary shift, on the shifted regions pooled (n_test-weighted), every model on its
+  own region's test sets (local-only from ``arms.local_only.own_test``, Phase H11a):
   (a) regional minus local-only and (b) regional minus global. Supported iff both are
   supported; not supported if either is not supported; else inconclusive.
   Control clause, magnitude 0, every region pooled: ``supported`` unless regional minus global
@@ -106,11 +108,22 @@ def _region_pool(result: dict[str, Any], model: str, regions: list[str], metric:
     return float(sum(v * n for v, n in vals) / sum(n for _, n in vals))
 
 
+def _own_test(result: dict[str, Any]) -> dict[str, Any]:
+    own = result["arms"]["local_only"].get("own_test")
+    if not own:
+        raise ValueError(f"{result.get('run_id')}: no arms.local_only.own_test. Runs before Phase H11a scored "
+                         f"local-only only on every region's test data pooled, which is not H2's scope; rerun "
+                         f"the local-only sweep with the H11a code")
+    return own
+
+
 def _local_region_pool(result: dict[str, Any], regions: list[str], metric: str) -> float | None:
-    """The local-only arm's nodes in these regions, each on its own test data, n_test-weighted."""
-    per = result["arms"]["local_only"]["per_silo"]
-    vals = [(per[s["name"]]["final"][metric], s["n_test"]) for s in result["silos"] if s["region"] in regions]
-    if not vals or any(v is None for v, _ in vals):
+    """The local-only arm's nodes in these regions, each on its own test set, n_test-weighted
+    (``arms.local_only.own_test``, Phase H11a). Before H11a this read ``per_silo``, which is
+    scored on every region's test data pooled: the wrong scope for H2 (PREREG section 7)."""
+    pr = _own_test(result)["per_region"]
+    vals = [(pr[r][metric], pr[r]["n_test"]) for r in regions]
+    if any(v is None for v, _ in vals):
         return None
     return float(sum(v * n for v, n in vals) / sum(n for _, n in vals))
 
@@ -126,7 +139,15 @@ def h1(runs: dict[str, dict[Setting, dict[int, dict[str, Any]]]]) -> dict[str, A
     rows = [compare(fed, lo, lambda r, m=m: r["arms"]["federated"]["final"][m],
                     lambda r, m=m: r["arms"]["local_only"]["mean"][m], f"federated - local_only ({m})")
             for m in (PRIMARY_METRIC, SECONDARY_METRIC)]
-    return {"setting": "no shift (magnitude 0)", "rows": rows, "verdict": rows[0]["verdict"]}
+    # Phase H11a (PREREG section 7): the same comparison with each local-only model on its own
+    # node's test set (pooled, n_test-weighted; the flat federated model's pooled test data is the
+    # same examples). Reported next to the frozen primary row; the primary verdict is unchanged.
+    own = [compare(fed, lo, lambda r, m=m: r["arms"]["federated"]["final"][m],
+                   lambda r, m=m: _own_test(r)["pooled"][m],
+                   f"federated - local_only, each node on its own test set ({m})")
+           for m in (PRIMARY_METRIC, SECONDARY_METRIC)]
+    return {"setting": "no shift (magnitude 0)", "rows": rows, "verdict": rows[0]["verdict"],
+            "own_test_rows": own, "verdict_own_test": own[0]["verdict"]}
 
 
 def h2(runs: dict[str, dict[Setting, dict[int, dict[str, Any]]]], primary: Setting,
@@ -165,12 +186,19 @@ def h3(runs: dict[str, dict[Setting, dict[int, dict[str, Any]]]], primary: Setti
 
 def h4(per_family: dict[str, dict[str, Any]]) -> dict[str, Any]:
     out = {}
-    for h in ("H1", "H2"):
-        vs = {f: per_family[f][h]["verdict"] for f in per_family}
+    for h, key, field in (("H1", "H1", "verdict"), ("H2", "H2", "verdict"),
+                          ("H1 (own test)", "H1", "verdict_own_test")):
+        vs = {f: per_family[f][key][field] for f in per_family}
         overall = ("holds in every family" if all(v == SUPPORTED for v in vs.values())
                    else "does not hold" if NOT_SUPPORTED in vs.values() else "mixed / inconclusive")
         out[h] = {"per_family": vs, "verdict": overall}
     return out
+
+
+def sources(families: dict[str, dict[str, list[dict[str, Any]]]]) -> dict[str, dict[str, list[str]]]:
+    """Each family's and arm's set of git_sha, so results mixed across commits are visible."""
+    return {fam: {arm: sorted({str(r.get("git_sha")) for r in res}) for arm, res in arms.items()}
+            for fam, arms in families.items()}
 
 
 def evaluate_hypotheses(families: dict[str, dict[str, list[dict[str, Any]]]], primary: Setting,
@@ -184,7 +212,7 @@ def evaluate_hypotheses(families: dict[str, dict[str, list[dict[str, Any]]]], pr
     return {"primary_shift": {"kind": primary[0], "magnitude": primary[1]}, "shifted_regions": shifted_regions,
             "rule": "paired by seed; hierarchical percentile bootstrap 95% CI; above 0 supported, below 0 not "
                     "supported, else inconclusive; no multiple-comparison correction",
-            "families": per_family, "H4": h4(per_family)}
+            "families": per_family, "H4": h4(per_family), "git_sha": sources(families)}
 
 
 def format_hypotheses(rep: dict[str, Any]) -> str:
@@ -202,8 +230,15 @@ def format_hypotheses(rep: dict[str, Any]) -> str:
             lines.append(f"  {h}: {hs[h]['verdict'].upper()}  ({hs[h]['setting']})")
             for r in hs[h]["rows"] + ([hs[h]["control"]] if "control" in hs[h] else []):
                 lines.append(f"    {r['comparison']:<62} {num(r['diff_mean'])} {ci(r)} n={r['n_seeds']}  {r['verdict']}")
+            if "own_test_rows" in hs[h]:
+                lines.append(f"  {h} (own test, H11a): {hs[h]['verdict_own_test'].upper()}")
+                for r in hs[h]["own_test_rows"]:
+                    lines.append(f"    {r['comparison']:<62} {num(r['diff_mean'])} {ci(r)} n={r['n_seeds']}  "
+                                 f"{r['verdict']}")
     for h, v in rep["H4"].items():
         lines.append(f"H4 ({h} across families): {v['verdict'].upper()}  {v['per_family']}")
+    if "git_sha" in rep:
+        lines.append(f"git_sha per family and arm: {rep['git_sha']}")
     lines.append(rep["rule"])
     return "\n".join(lines)
 

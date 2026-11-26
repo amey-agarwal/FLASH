@@ -368,3 +368,48 @@ subset, topology `cinc15` and node splits of §5a. Evaluation seeds 0–4.
    rows on seed 0 and one silo on seed 4; alpha 2.0 still left a silo without sham rows. Alpha
    5.0 is the smallest value checked (0.5, 1, 2, 5) with no single-class silo on seeds 0-4. Chosen
    from per-silo label counts only, never from a score. Counts in PROGRESS.md (Phase H9).
+
+2. **Phase H11a scoring audit: corrections, written 2026-11-26 before any rerun.** Found while
+   building the H11 figures, after the H9 WESAD and H10 CinC verdicts had been recorded. The
+   decision rules in §2 are unchanged. Every item below is disclosed whichever way its numbers
+   fall.
+   - **D1, H2(a) erratum (implementation bug).**
+     - **What was wrong:** §2 defines H2 on the shifted regions' own test sets. The code
+       compared the regional model on those sets with local-only models scored on **every
+       region's test data pooled** (`baselines/local_only.py` scores on the flat arms' holdout;
+       `metrics/hypotheses._local_region_pool` assumed own test data).
+     - **Fix:** the local-only arm now also records each node's score on its own test set
+       (`arms.local_only.own_test`), and H2(a) reads it. Runs without it are refused.
+     - **Reruns:** the `h9_{wesad12,cinc15}_*_local_only` sweeps, with configs and run ids
+       unchanged. The H2 verdicts in PROGRESS.md "Phase H9 (part 3)" and "Phase H10 (part d)"
+       are superseded by the reruns.
+     - **Indicative numbers, seen before this entry:** like-for-like H2(a) is about 0.000 on
+       CinC and +0.20 to +0.31 on WESAD (descriptive, hierarchical runs' own local models).
+   - **D2, local-only selection scope (disclosed).** Local-only hyperparameters were selected on
+     each node's own validation set (§5), but the arm's test score in §2 H1 is on every region's
+     test data pooled. The own-test score (D1) is in the selection's scope. The selection is not
+     redone.
+   - **D3, H1 own-test row (added after seeing indicative numbers).** §2 H1 says "local-only
+     (mean over nodes)" without fixing the test scope.
+     - **Primary stays as implemented:** every region's pooled test data, unweighted mean over
+       nodes. Its verdict is unchanged.
+     - **Added alongside:** flat federated (pooled) minus local-only on each node's own test set
+       (`own_test.pooled`, n_test-weighted, the same examples), with its own verdict and an
+       H4 line.
+     - **Indicative numbers, seen before this entry:** own-test H1 on CinC is −0.011 to −0.036
+       accuracy against the recorded +0.053 to +0.077; WESAD is unchanged. Both rows are
+       reported; neither is hidden.
+   - **D4 and D5, descriptive scope fixes:**
+     - `fairness.local_only_own_test` is added. The pooled label-mix estimate assumed no
+       per-node test data, which does not hold on hierarchical topologies. This was the source
+       of the "local-only collapse" note in H10 part d.
+     - Results tables gain a local own-test column next to the pooled local-only one.
+   - **D6, simulated-clock fix in the full-architecture runs (implementation bug).**
+     - **What was wrong:** when a region's secure-aggregation mask group fell below
+       `min_participants`, the round ended at the group-formation time instead of the region
+       deadline. With every node out of contact the clock stopped and the run livelocked; this
+       hit 3 of 15 CinC `_full` runs. With no global deadline, a member that could never answer
+       could also join key agreement.
+     - **Fix:** both fixed (`fl/hierarchy._plan_secagg`, `_key_agreement`).
+     - **Reruns:** all 30 `_full` runs (WESAD and CinC). They are descriptive only and do not
+       enter H1–H4.

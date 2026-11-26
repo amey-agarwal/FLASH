@@ -257,11 +257,13 @@ def _key_agreement(links: dict[int, Any], members: list[int], t: float,
     if links is None:
         return list(members), t, []
     k1 = {i: _rt(links[i], t, secagg.REQUEST_BYTES, secagg.KEY_BYTES) for i in members}
-    joined = [i for i in members if k1[i] <= limit]
+    # "< INF" too: with no deadline (limit = INF, the global merge) a member whose exchange can
+    # never complete would otherwise join and push the clock to INF (Phase H11a).
+    joined = [i for i in members if k1[i] < INF and k1[i] <= limit]
     t1 = max([k1[i] for i in joined], default=t)
     g = len(joined)
     k2 = {i: _rt(links[i], t1, secagg.KEY_BYTES * g, secagg.SHARE_BYTES * (g - 1)) for i in joined}
-    group = [i for i in joined if k2[i] <= limit]
+    group = [i for i in joined if k2[i] < INF and k2[i] <= limit]
     lost = [i for i in members if k1[i] == INF or (i in k2 and k2[i] == INF)]
     return group, max([k2[i] for i in group], default=t1), lost
 
@@ -312,7 +314,10 @@ def _plan_secagg(cfg, sim, names, idxs, scripted, t, rnd, weights) -> tuple[_Pla
         reason = (f"mask group of {g} of {len(idxs)} nodes, fewer than min_participants = {min_p}; "
                   f"no masked round; the region uses its latest global model")
         info.update(overhead_bytes=nbytes, overhead_sim_s=(t_group - t) if sim.on else None)
-        return _Plan([], scripted, True, nbytes, reason, group, info, lost), t_group
+        # The region waits until its deadline before falling back, as in _plan_plain. Ending at
+        # t_group instead (= t when nobody completes key agreement, e.g. every node in loss of
+        # signal) froze the simulated clock, so the outage never ended (Phase H11a, D6).
+        return _Plan([], scripted, True, nbytes, reason, group, info, lost), (limit if sim.on else t_group)
     end = t_group
     if sim.on:  # model + forwarded shares down, local training, masked update up
         trips = {i: sim.node_round_trip_sized(names[i], t_group, payload + secagg.SHARE_BYTES * (g - 1), masked)
@@ -810,6 +815,42 @@ def evaluate_hierarchy(fed: HierFederation, cfg: ExperimentConfig, run: dict[str
     pooled_proba = {m: (y_all, np.concatenate([probas[n][m] for n in probas])) for m in models}
     return {"per_node": per_node, "per_region": per_region, "global": pooled(list(probas)),
             "disagreement": disagreement_report(ys, preds, region_of), "pooled_proba": pooled_proba}
+
+
+OWN_TEST_SCOPE = "each node's own test set (its region's view of the data); per_region and pooled are n_test-weighted"
+
+
+def local_own_test(fed: HierFederation, cfg: ExperimentConfig,
+                   local_models: dict[str, tuple[Any, Standardizer]], device: str) -> dict[str, Any]:
+    """``result.arms.local_only.own_test`` (Phase H11a): each node's local-only model on that
+    node's own test set, the scope of H2 ("own region's test sets") and of the local-only
+    arm's validation selection (PREREG section 5). The arm's ``per_silo`` / ``mean`` stay as
+    they were (every region's test data pooled, the flat definition H1 uses).
+
+    The same models and data as ``hierarchy.per_node[*].local`` in a run with the hierarchical
+    arm, so the two agree exactly there (tested)."""
+    h = cfg.hierarchy
+    region_of = {n.name: r.name for r in h.regions for n in r.nodes}
+    ys: dict[str, np.ndarray] = {}
+    probas: dict[str, np.ndarray] = {}
+    for node in (n.name for n in h.nodes):
+        test = fed.test_of(node)
+        model, scaler = local_models[node]
+        ys[node] = test.y
+        probas[node] = predict_proba(model, scaler.transform(test.X), device)
+
+    def pooled(nodes: list[str]) -> dict[str, Any]:
+        y = np.concatenate([ys[n] for n in nodes])
+        return {"n_test": int(len(y)), **evaluate(y, np.concatenate([probas[n] for n in nodes]))}
+
+    per_node = {n: {"region": region_of[n], "n_test": int(len(ys[n])), **evaluate(ys[n], probas[n])} for n in ys}
+    metric_names = [k for k, v in next(iter(per_node.values())).items()
+                    if k not in ("region", "n_test") and not isinstance(v, list)]
+    mean = {m: (None if any(per_node[n][m] is None for n in per_node)
+                else float(np.mean([per_node[n][m] for n in per_node]))) for m in metric_names}
+    return {"scope": OWN_TEST_SCOPE, "per_node": per_node,
+            "per_region": {r.name: pooled([n.name for n in r.nodes]) for r in h.regions},
+            "pooled": pooled(list(ys)), "mean": mean}
 
 
 def arm_summary(cfg: ExperimentConfig, run: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:

@@ -221,18 +221,24 @@ def _acc_row(rows: list[dict], prefix: str) -> dict:
 
 
 def fig_h4(hyps: dict[str, Path], out: Path) -> dict:
-    comps = (("H1", "federated − local-only (no shift)"), ("H2a", "H2(a) regional − local-only"),
+    loaded = {ds: read_json(p) for ds, p in hyps.items()}
+    own = all("own_test_rows" in h["families"][f]["H1"] for h in loaded.values() for f in FAMILIES)
+    comps = (("H1", "H1 federated − local-only, pooled test (primary)"),
+             *((("H1own", "H1 federated − local-only, each node's own test"),) if own else ()),
+             ("H2a", "H2(a) regional − local-only"),
              ("H2b", "H2(b) regional − global"), ("ctrl", "H2 control: regional − global, no shift"))
     markers = {"logreg": "o", "mlp": "s", "cnn1d": "^"}
     fig, axes = new_fig(1, len(hyps), sharey=True, squeeze=False)
     data = {}
     for ax, (ds, path) in zip(axes[0], hyps.items()):
-        h = read_json(path)
+        h = loaded[ds]
         d = {}
         for fi, fam in enumerate(FAMILIES):
             f = h["families"][fam]
             rows = {"H1": _acc_row(f["H1"]["rows"], "federated"), "H2a": _acc_row(f["H2"]["rows"], "(a)"),
                     "H2b": _acc_row(f["H2"]["rows"], "(b)"), "ctrl": f["H2"]["control"]}
+            if own:
+                rows["H1own"] = _acc_row(f["H1"]["own_test_rows"], "federated")
             d[fam] = {k: {"diff_mean": r["diff_mean"], "ci95": r["ci95"], "verdict": r["verdict"]}
                       for k, r in rows.items()}
             for ci, (k, _) in enumerate(comps):
@@ -246,9 +252,9 @@ def fig_h4(hyps: dict[str, Path], out: Path) -> dict:
         data[ds] = d
         ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
         ax.set_yticks(range(len(comps)), [c[1] for c in comps])
-        ax.invert_yaxis()
         ax.set_xlabel("Accuracy difference, 95% CI (5 seeds)")
         ax.set_title(DATASET_NAMES[ds])
+    axes[0][0].invert_yaxis()  # once: the axes share y, so inverting each would undo it
     axes[0][0].legend(loc="lower right", frameon=True)
     fig.suptitle("H4: does the federated advantage hold across model families?", fontsize=13)
     fig.tight_layout(rect=(0, 0.07, 1, 0.95))
@@ -468,15 +474,29 @@ def fmt(m: tuple[float, float]) -> str:
     return f"{m[0]:.3f} ± {m[1]:.3f}"
 
 
-def tables(root: Path, dataset: str) -> str:
+def own_test_cell(roots: list[Path], dataset: str, family: str, kind: str, mag: str, metric: str) -> str:
+    """Local-only on each node's own test set (``arms.local_only.own_test.pooled``, Phase H11a),
+    mean ± std over the seeds, from the first root holding the local-only runs; n/a before H11a."""
+    for root in roots:
+        paths = sorted(root.glob(f"h9_{dataset}_{family}_local_only-enabledTrue-kind{kind}-magnitude{mag}-seed*-*/result.json"))
+        vals = [read_json(p)["arms"]["local_only"].get("own_test") for p in paths]
+        if paths and all(vals):
+            xs = [v["pooled"][metric] for v in vals]
+            return fmt((statistics.mean(xs), statistics.stdev(xs) if len(xs) > 1 else 0.0))
+    return "n/a"
+
+
+def tables(root: Path, dataset: str, own_roots: list[Path] | None = None) -> str:
+    own_roots = own_roots or [root]
     lines = [f"H9-style tables, {dataset}, from {rel(root)}. Test set, 5 seeds, mean ± std. Shift is SIMULATED;",
-             "shifted regions moon, mars; 'both' = covariate + concept.", ""]
+             "shifted regions moon, mars; 'both' = covariate + concept. 'local-only' = every region's test data",
+             "pooled (frozen H1 scope); 'local own-test' = each node's model on its own test set (H2 scope, H11a).", ""]
     for metric in ("accuracy", "macro_f1"):
         lines.append(f"== Table A: test {metric} over all nodes")
         for fam in FAMILIES:
             lines.append(f"-- {fam}")
             lines.append(f"{'shift':<16}" + "".join(f"{c:<17}" for c in
-                         ("centralized", "flat FL", "hier global", "hier regional", "local-only")))
+                         ("centralized", "flat FL", "hier global", "hier regional", "local-only", "local own-test")))
             for kind, mag, lab in SHIFTS:
                 s = {a: read_json(sweep_summary(root, dataset, fam, a, kind, mag))["arms"]
                      for a in ("centralized", "federated", "hierarchical", "local_only")}
@@ -484,7 +504,8 @@ def tables(root: Path, dataset: str) -> str:
                         s["hierarchical"]["hierarchical"]["final"][metric],
                         s["hierarchical"]["hierarchical"]["regional_final"][metric],
                         s["local_only"]["local_only"]["mean_across_silos"][metric])
-                lines.append(f"{lab:<16}" + "".join(f"{fmt(ms(v)):<17}" for v in vals))
+                lines.append(f"{lab:<16}" + "".join(f"{fmt(ms(v)):<17}" for v in vals)
+                             + own_test_cell(own_roots, dataset, fam, kind, mag, metric))
         lines.append("")
     lines.append("== Full architecture (Mars mean, LOS, 120 s regional deadline, secagg + update gate; shift both 1.0)")
     lines.append("family  hier global      hier regional    local-only       gate rejected / offered (mean/run)  "
@@ -541,7 +562,7 @@ def build(args) -> list[str]:
         done.append(key)
     if args.tables:
         for ds, root in (("cinc15", args.cinc), ("wesad12", args.wesad)):
-            (out / f"tables_{ds}.txt").write_text(tables(Path(root), ds))
+            (out / f"tables_{ds}.txt").write_text(tables(Path(root), ds, [Path(x) for x in args.rerun] + [Path(root)]))
             done.append(f"tables_{ds}")
     return done
 
@@ -559,6 +580,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default="figures")
     ap.add_argument("--only", nargs="*", help="e.g. --only fig1 fig4")
     ap.add_argument("--tables", action="store_true", help="also write tables_<dataset>.txt")
+    ap.add_argument("--rerun", nargs="*", default=[],
+                    help="directories with the Phase H11a local-only reruns (own-test column), searched first")
     args = ap.parse_args(argv)
     try:
         done = build(args)

@@ -205,15 +205,28 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict
     if "comms" in capture:
         result["comms"] = capture["comms"]
     result["privacy"] = privacy_report(cfg, fed, seed, result, capture)
-    from fedastro.metrics.fairness import fairness_report
+    from fedastro.metrics.fairness import fairness_report, summarise
 
     result["fairness"] = fairness_report(result, list(bundle.class_names))
+    local = ({name: (model, scaler) for name, model, scaler in capture["models"]["local"]}
+             if "local" in capture.get("models", {}) else None)
+    if local is not None:
+        # Phase H11a: the local-only models on each node's own test set (H2's scope and the
+        # arm's selection scope), next to the arm's pooled scores (unchanged).
+        from fedastro.fl.hierarchy import local_own_test
+
+        own = local_own_test(hfed, cfg, local, capture["device"])
+        result["arms"]["local_only"]["own_test"] = own
+        result["fairness"]["local_only_own_test"] = summarise(
+            {n: v["accuracy"] for n, v in own["per_node"].items()})
+        result["fairness"]["note"] = ("local_only / centralized / federated: pooled holdout recall re-weighted to "
+                                      "each node's training label mix; local_only_own_test: each node's local "
+                                      "model accuracy on its own test set")
     if hier:
         from fedastro.fl.hierarchy import (arm_summary, comms_section, evaluate_hierarchy, run_hierarchical,
                                            secagg_section)
 
         device = capture["device"]
-        local = {name: (model, scaler) for name, model, scaler in capture["models"]["local"]}
         run = run_hierarchical(hfed, cfg, seed, device, local_models=local, on_round=on_round)
         extra = {}
         if "federated" in cfg.arms:
@@ -247,7 +260,9 @@ def run_hier_experiment(cfg: ExperimentConfig, seed: int, on_round=None) -> dict
         notes.append("PROVENANCE: SYNTHETIC. Smoke-test data, not physiological measurements.")
     notes.append(f"Hierarchical topology {cfg.hierarchy.name} (region, agency and node names are scenario "
                  f"labels). Arms run: {', '.join(cfg.arms)}. Flat arms are scored on every region's test "
-                 f"data pooled; result.hierarchy scores each model on each node's own test set.")
+                 f"data pooled; result.hierarchy scores each model on each node's own test set"
+                 + ("; arms.local_only.own_test scores each local-only model on its node's own test set."
+                    if local is not None else "."))
     if shift["enabled"]:
         notes.append(f"SIMULATED location shift ({shift['kind']}, magnitude {shift['magnitude']}): "
                      f"injected, not measured.")
