@@ -10,6 +10,7 @@ start at the right level.
 
 | Zip (location) | Size | Runs (`result.json`) | Contents | Restore |
 |---|---|---|---|---|
+| `runs/h10-af34071_backup.zip` (in the repo, git-ignored) | 41 MB | 435 | **Phase H10c step 3, commit `af34071`, CinC 2021 20k (`cinc15`), PACE, 2026-11-25.** The 18 `h9_cinc15_*` sweeps: centralized, local-only, federated, hierarchical at 6 shift settings; full architecture; stream. Plus the per-sweep `*-summary.json` files and `hypotheses_cinc15.json` / `.txt` (the CinC H1–H4 verdicts in PROGRESS.md). Checked: every locked run id present, all `git_sha` `af34071`, all shift `SIMULATED`. | `cd runs && unzip h10-af34071_backup.zip` → `runs/h10-af34071/` |
 | `runs/h10-f7db96a_backup.zip` (in the repo, git-ignored) | 59 MB | 528 | **Phase H10c, commit `f7db96a`, CinC 2021 20k subset (`cinc15`), PACE, 2026-11-25.** Stage A tuning (`gapA_*`, 180), stage B (`gapB_*`, 288), centralized/local-only baselines (`eval_gapC_*`, 30) and the evaluation runs at seeds 0–4 (`eval_gapB_gapA_*`, 30). Also `gap_cinc15.json` / `.txt` (the gap table in PROGRESS.md H10c), the selection JSONs, `select_stageB.txt` and `generated/` (stage B sweeps, eval sweeps, gap spec). | `cd runs && unzip h10-f7db96a_backup.zip` → `runs/h10-f7db96a/` |
 | `runs/h10t-e51b0ad_backup.zip` (in the repo, git-ignored) | 0.4 MB | 3 | **Phase H10c step 1, commit `e51b0ad`, PACE job 7255811.** The 20k timing runs (logreg, MLP, 1D-CNN; seed 100); timing only, scores not read. | `cd runs && unzip h10t-e51b0ad_backup.zip` → `runs/h10t-e51b0ad/` |
 | `runs/h8-62cf33b_backup.zip` (in the repo, git-ignored) | 22 MB | 528 | **Phase H8, commit `62cf33b`, WESAD12, PACE.** Stage A tuning (`gapA_*`), stage B (`gapB_*`), centralized/local-only baselines (`gapC_*`), 468 tuning runs in all; plus the 60 evaluation runs at seeds 0–4 (`eval_*`, the presentation numbers), `gap_wesad12.json` (gap table), the selection JSONs and `generated/` (the eval sweeps, gap spec and stage B sweeps). | `cd runs && unzip h8-62cf33b_backup.zip` → `runs/h8-62cf33b/` |
@@ -18,8 +19,8 @@ start at the right level.
 
 ## Notes
 - **The PACE copies** are in `$SCR/FLASH/runs/h8-62cf33b/`, `$SCR/FLASH/runs/h9-84a40ec/`,
-  `$SCR/FLASH/runs/h10-f7db96a/` and `$SCR/FLASH/runs/h10t-e51b0ad/` (plus the two H10 zips in
-  `$SCR/FLASH/runs/`). Scratch is purged after inactivity, so don't rely on them.
+  `$SCR/FLASH/runs/h10-f7db96a/`, `$SCR/FLASH/runs/h10t-e51b0ad/` and
+  `$SCR/FLASH/runs/h10-af34071/` (plus the H10 zips in `$SCR/FLASH/runs/`). Scratch is purged after inactivity, so don't rely on them.
 - **Unzipped working copies** of the H10 zips are in `runs/h10-f7db96a/` and `runs/h10t-e51b0ad/`
   (387 MB and 3 MB). H10c step 3 reads `runs/h10-f7db96a/generated/`.
 - **Duplicates of the above, safe to delete:** `PACE-run-evals2/` and `PACE-run-evals3/` are already

@@ -14,14 +14,129 @@ done, with its decisions made. H10b (the CinC loader and smoke test) is committe
 H10c step 2 (the CinC tuning sweeps, PREREG §5a frozen) is committed (`f7db96a`). Its tuning is
 done on PACE (498/498, stage B selected). The 30 evaluation runs are done (528/528) and the CinC
 gap table is computed (2026-11-25, H10c "Evaluation and gap table"); the results are backed up.
-H10c step 3 (the 18 `h9_cinc15_*` sweeps, PREREG §6 CinC rows frozen) is built and NOT COMMITTED;
-no H9-style CinC run exists. Next: the user commits, then the 435 runs on PACE.**
+H10c step 3 (the 18 `h9_cinc15_*` sweeps, PREREG §6 CinC rows frozen) is committed (`af34071`).
+Its 435 runs are DONE on PACE and backed up, and the CinC H1–H4 verdicts are recorded (2026-11-25,
+"Phase H10 (part d)"). **The H10 gate is closed. Next: H11.**
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H10 (part c) — CinC 2021 on PACE — STEP 2 COMMITTED `f7db96a`; TUNING AND EVALUATION DONE (528/528), GAP TABLE COMPUTED; STEP 3 BUILT, NOT COMMITTED (2026-11-25)
+## Phase H10 (part d) — CinC H1–H4 answered — DONE, H10 GATE CLOSED (2026-11-25)
+
+**Runs:** 435 of 435, commit `af34071`, on PACE. The output is in `runs/h10-af34071`
+(`runs/h10-af34071_backup.zip`, in BACKUPS.md).
+- **Checks:** every locked run id in `tests/golden/run_ids.json` for the 18 sweeps has a
+  `result.json` (0 missing, 0 extra); every `git_sha` is `af34071`; every shift is tagged
+  `SIMULATED`.
+- **Submission:** 87 array tasks in two waves.
+  - One task (`7324107_1`, logreg hierarchical) died at a Ray worker registration and was
+    resubmitted; see Open items.
+  - Two duplicate submissions (`7326113` `cnn1d_full`, `7326548` `mlp_full`) were cancelled
+    within 75 s. Every `_full` `progress.jsonl` has exactly one start line, so no run was
+    affected.
+- **Command:** `fedastro hypotheses configs/hypotheses/h9_cinc15.yaml`. Output in
+  `hypotheses_cinc15.txt` / `.json`.
+
+### Verdicts (PREREG §2 rule: paired by seed, hierarchical bootstrap 95% CI, n = 5, no multiple-comparison correction)
+Every hypothesis is **SUPPORTED in every family**. Gaps are in test accuracy, primary metric;
+macro-F1 is in the report file.
+
+| Family | H1: fed − local (no shift) | H2(a): regional − local (Moon+Mars, both 1.0) | H2(b): regional − global | H2 control: regional − global (all, no shift) | H3: agree − disagree |
+|---|---|---|---|---|---|
+| logreg | +0.077 [+0.075, +0.079] | +0.371 [+0.367, +0.374] | +0.001 [+0.001, +0.001] | −0.009 [−0.012, −0.007] | +0.412 [+0.402, +0.426] |
+| MLP | +0.053 [+0.051, +0.057] | +0.352 [+0.347, +0.360] | +0.112 [+0.090, +0.126] | +0.002 [−0.004, +0.005] | +0.194 [+0.173, +0.224] |
+| 1D-CNN | +0.064 [+0.056, +0.071] | +0.495 [+0.495, +0.495] | +0.258 [+0.246, +0.269] | −0.006 [−0.018, +0.006] | +0.075 [+0.053, +0.096] |
+
+- **H4:** H1 holds in every family, and so does H2.
+- **The control clause is met in every family:** regional is not clearly better than global
+  without shift. For logreg, global is slightly better (CI below 0), which the clause allows.
+
+### The simulated shift makes H2 and H3 near-trivial on CinC (state this with every H2/H3 number)
+At the primary shift, the shifted regions become almost perfectly separable for any model
+trained on pooled shifted data. Pooled Moon+Mars test accuracy, mean of 5 seeds:
+
+| Family | Setting | local_only | regional | global |
+|---|---|---|---|---|
+| logreg | both 0 | 0.735 | 0.801 | 0.803 |
+| logreg | both 0.5 / 1 / 2 | 0.679 / 0.629 / 0.584 | 0.998 / 0.999 / 0.999 | 0.998 / 0.998 / 0.998 |
+| logreg | covariate 1 | 0.668 | 0.735 | 0.552 |
+| logreg | concept 1 | 0.508 | 0.999 | 0.998 |
+| MLP | both 0 | 0.771 | 0.813 | 0.817 |
+| MLP | both 0.5 / 1 / 2 | 0.652 / 0.647 / 0.631 | 0.999 / 0.999 / 1.000 | 0.947 / 0.887 / 0.760 |
+| MLP | covariate 1 | 0.714 | 0.815 | 0.794 |
+| MLP | concept 1 | 0.539 | 0.999 | 0.992 |
+| 1D-CNN | both 0 | 0.729 | 0.775 | 0.801 |
+| 1D-CNN | both 0.5 / 1 / 2 | 0.503 / 0.503 / 0.503 | 0.997 / 0.998 / 0.999 | 0.705 / 0.740 / 0.712 |
+| 1D-CNN | covariate 1 | 0.713 | 0.770 | 0.784 |
+| 1D-CNN | concept 1 | 0.408 | 0.998 | 0.686 |
+
+- **Cause: the concept part of the shift.** It adds a class-dependent offset
+  (`class_offset[y] = a·std·v_y`, summing to zero over classes; `data/shift.py`). CinC is
+  binary, so the two classes are pushed about 2a standard deviations apart on 9 features (or 1
+  lead). The label is effectively written into the input.
+  - Regional models reach about 0.999 whenever `concept` or `both` is on, even at magnitude 0.5.
+  - With `covariate` alone, the numbers are ordinary.
+  - WESAD showed the same direction, more mildly (regional 0.95–0.98; its H9 caveats).
+- **What this means for the verdicts:**
+  - **H1** (no shift) is unaffected; it is the clean CinC result. Federated beats local-only
+    by 0.05–0.08 accuracy in every family.
+  - **H2(a)** margins of 0.35–0.50 are mostly the shift artifact. The 1D-CNN's zero-width CI is
+    every seed sitting at the ceiling, with local-only at 0.503.
+  - **H2(b)** for logreg is +0.001: regional and global are both at the ceiling. It is
+    "supported" only by the lenient rule (PREREG §2 disclosure), and the effect is practically
+    zero. For MLP (+0.11) and 1D-CNN (+0.26) the global model does not reach the ceiling, so
+    (b) carries more meaning there, but still on artifact-shaped data.
+  - **H3** at the primary shift is inflated the same way.
+- **Local-only drops under the shift, unlike regional and global.** This is the opposite of
+  what the separability alone would predict. It is most marked on the Moon (local / regional /
+  global at both 1.0: logreg 0.465 / 0.999 / 0.999, MLP 0.481 / 0.999 / 0.996, 1D-CNN
+  0.373 / 1.000 / 0.819); LEO and Mars local-only stay between 0.63 and 0.81. **Not
+  investigated.** A likely factor: the local settings were tuned on unshifted data, and the
+  offsets change the input scale.
+- **Descriptive only, not a verdict (PREREG §2: other settings do not change the verdicts):**
+  with `covariate` 1.0 alone, regional − local is +0.067 (logreg), +0.101 (MLP) and +0.057
+  (1D-CNN). Regional − global is +0.183, +0.021 and −0.014. These are means over seeds, with
+  no CI.
+- **No change to the frozen design.** The shift (§3) and the rules (§2) are frozen. This is
+  reported as a limitation of the simulated shift, not fixed. For the presentation: lead with
+  H1, and present H2 as "the mechanism works under a simulated shift that is strongly
+  label-correlated".
+
+### Reproducibility against the H10c evaluation
+The magnitude-0 cells and the H10c evaluation runs (`runs/h10-f7db96a`) share code, settings and
+seeds; only the shift block differs, and magnitude 0 leaves the data bit-identical. Per run, the
+largest difference in any final accuracy, macro-F1 or AUC:
+- **Identical:** centralized, in every family.
+- **Within 0.0006:** flat federated, in every family; logreg in every arm; MLP local-only.
+- **Small differences:** MLP hierarchical, ≤ 0.004 (0.001–0.004).
+- **The largest differences:** 1D-CNN local-only, ≤ 0.009 (0.003–0.009), and 1D-CNN
+  hierarchical, 0.009–0.019.
+
+This is the same run-to-run nondeterminism seen on WESAD, larger for the 1D-CNN: different PACE
+nodes and CPU types. The hierarchical runs here also have simulated secure aggregation on,
+which is float-exact only within tolerance. **Not investigated.** It is far below every H1 CI
+(≥ 0.05 above 0). The H10c gap table keeps its own numbers.
+
+### Not summarised yet (H11 reads them from the result files)
+- **Full architecture** (`_full`): update-gate events, secure-aggregation overhead, LOS
+  fallbacks. Example: MLP seed 0 logged 490 update events, 115 of them rejected.
+- **Stream** (`_stream`): the test-then-train sensitivity grid.
+
+### Gate
+- **H10 acceptance:**
+  - patient disjointness asserted (H10b tests);
+  - per-node label and size skew shown (H10b/H10c tables);
+  - smoke subset end to end on the laptop (H10b);
+  - main grid completed on the cluster (528 + 435 runs);
+  - H1–H4 answered with numbers (above).
+- **Tests:** no code changed since the step 3 gate (`af34071`). That gate's full suite had 2 Ray
+  setup errors, which cleared on rerun (Open items).
+- **The H10 gate is closed.** Next: H11 (figures, clinical-validation protocol, README).
+
+---
+
+## Phase H10 (part c) — CinC 2021 on PACE — STEP 2 COMMITTED `f7db96a`; TUNING AND EVALUATION DONE (528/528), GAP TABLE COMPUTED; STEP 3 COMMITTED `af34071`, RUNS DONE (2026-11-25)
 
 Plan approved 2026-11-22. The steps are:
 1. time one 20k run per family on PACE
@@ -293,6 +408,33 @@ Plan approved 2026-11-25. Decisions accepted with the plan:
 3. **At 435 `result.json`:** run
    `fedastro hypotheses configs/hypotheses/h9_cinc15.yaml --output-dir runs/h10-<sha> --out runs/h10-<sha>/hypotheses_cinc15.json`.
    Then record the H1–H4 verdicts, back up, and close the H10 gate. After that, H11.
+
+### Open items
+- **Laptop Ray flake in `tests/test_hierarchy_fl.py`** (2026-11-25, step 3 gate). Ray workers died
+  mid-simulation (`ActorDiedError`, then "Exception in ServerApp thread"). It cost 2 errors in
+  the full suite, and a rerun of the file failed a different test; the final full-file rerun
+  was clean. The cause is not investigated; untested guesses are memory pressure or the Mac
+  sleeping.
+  - **It is a different failure from the PACE start-up failure** that `simguard` / `retry.sh`
+    catch. A mid-run crash is not retried automatically: the task fails and that index is
+    resubmitted (`--resume`).
+  - **When to look at it:** after the H10 runs, before H11 changes any code. Sooner if it recurs
+    in a step that changes `src/`, or if the 435 CinC runs on PACE show mid-run `ActorDiedError`
+    crashes.
+  - **Until then:** rerun an errored Ray test once before treating it as a real failure, and
+    note each occurrence here.
+- **PACE: a mid-task Ray start-up crash that `retry.sh` does not catch** (2026-11-25, step 3
+  runs).
+  - **What happened:** task `7324107_1` (`h10H-logreg_hierarchical`, index 1, node
+    `atl1-1-02-003-31-0`) died 20 min in, while Ray started up for a later seed. The log reads
+    `core_worker.cc: Failed to register worker ... to Raylet. IOError: ... No such file or
+    directory`. The process exited 1 rather than 75, so the retry did not fire. MaxRSS was
+    14 GB of 32 GB, so memory was not the cause.
+  - **Fix used:** resubmitted the index (`--resume` keeps finished seeds). Seeded runs make
+    results unaffected.
+  - **Count so far:** 1 of the 87 step 3 tasks. If it recurs more than a couple of times,
+    widen the retry. Options: have `retry.sh` also retry exit 1 when the log has
+    "Unable to register worker with raylet", or have `simguard` treat it as exit 75.
 
 ### Earlier plan for step 2 on PACE
 Six array jobs (`scripts/slurm/gap.sbatch`, `OUT_PREFIX=h10`), then `fedastro select` → the
