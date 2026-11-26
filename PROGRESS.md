@@ -16,11 +16,105 @@ done on PACE (498/498, stage B selected). The 30 evaluation runs are done (528/5
 gap table is computed (2026-11-25, H10c "Evaluation and gap table"); the results are backed up.
 H10c step 3 (the 18 `h9_cinc15_*` sweeps, PREREG §6 CinC rows frozen) is committed (`af34071`).
 Its 435 runs are DONE on PACE and backed up, and the CinC H1–H4 verdicts are recorded (2026-11-25,
-"Phase H10 (part d)"). **The H10 gate is closed. Next: H11.**
+"Phase H10 (part d)"). The H10 gate is closed. **H11 is started and STOPPED (2026-11-26):
+H2(a) compares models scored on different test sets (see "Phase H11"). The H2 verdicts on both
+datasets need correcting before the figures and README are finished. The user decides the fix.**
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
+
+## Phase H11 — Figures, clinical-validation protocol, README — STARTED, STOPPED ON A FINDING (2026-11-26)
+
+Plan approved 2026-11-26 (`~/.claude/plans/noble-frolicking-lerdorf-*.md`): figures from `runs/`
+only, `docs/clinical_validation_protocol.md`, `README.md`, and the CinC `_full`/`_stream` tables.
+No `src/` changes, no new runs.
+
+### Done so far (not committed)
+- **Data prep:**
+  - `runs/h8-62cf33b/` unzipped from its backup (528 runs; the WESAD gap table).
+  - `runs/p5epsc-pace/` holds the PACE DP sweep: the 8 summaries plus 40 runs, one folder per
+    zip, copied from `PACE-runs-eval/`.
+- **Dependency:** `matplotlib==3.9.4` added. The `uv.lock` change is additions only (matplotlib,
+  contourpy, cycler, fonttools, kiwisolver, pyparsing); numpy 1.26.4 and torch 2.2.2 are unchanged.
+- **`scripts/make_figures.py`:**
+  - writes 7 figures (PNG, PDF, and a JSON sidecar with every plotted number and its source
+    files) plus `--tables`;
+  - runs in 15 s.
+  - **Check:** the regenerated WESAD tables match `runs/h9-84a40ec/h9_summary.txt` (Table A
+    accuracy and macro-F1, every row) and the PROGRESS H9 part 3 full and stream tables exactly.
+- **Not done yet:**
+  - `tests/test_make_figures.py`, the clinical protocol, the README, the `.gitignore` line for
+    `figures/`;
+  - layout fixes: fig 3's row order is upside down (shared y-axis inverted twice), fig 1 and 2
+    have extra white space, and fig 7's majority-class label overlaps a point.
+
+### Finding 1 (serious): H2(a) compares models scored on different test sets
+- **The design:** PREREG / CLAUDE.md H2 compares models "on their own region's test sets".
+- **The code:** `metrics/hypotheses.py::_local_region_pool` reads the local-only sweep's
+  `arms.local_only.per_silo[*].final` and assumes each node is scored "on its own test data".
+  - It is not. `baselines/local_only.py::run_local_only` scores every silo's model on
+    `fed.holdout`, which in the hierarchical topologies is **every region's test data pooled**
+    (the run notes say "Flat arms are scored on every region's test data pooled").
+  - So H2(a) is regional (own region's test set) minus local-only (all regions' test data,
+    LEO and the other shifted region included).
+- **Evidence:** the same local-only models, scored on each node's own test set, are already in
+  the hierarchical sweep (`hierarchy.per_region[r].local`; `fl/hierarchy.py` says `local` is "the
+  node's local-only model ... from the local_only arm"). Test accuracy at shift both 1.0:
+
+  | Dataset | Family | Moon: pooled-scored arm vs own-test | Mars: pooled vs own |
+  |---|---|---|---|
+  | CinC | logreg | 0.430 vs 1.000 | 0.755 vs 1.000 |
+  | CinC | MLP | 0.471 vs 1.000 | 0.794 vs 1.000 |
+  | CinC | 1D-CNN | 0.374 vs 1.000 | 0.628 vs 0.995 |
+  | WESAD | logreg | 0.459 vs 0.692 | 0.612 vs 0.792 |
+  | WESAD | MLP | 0.541 vs 0.715 | 0.633 vs 0.793 |
+  | WESAD | 1D-CNN | 0.588 vs 0.649 | 0.550 vs 0.649 |
+
+  This explains the "local-only collapse under the shift" in H10 part d: it is the scoring, not a
+  collapse.
+- **Rough size of the like-for-like H2(a):** regional − own-test local, Moon+Mars pooled by
+  n_test, per-seed means, no bootstrap, descriptive only:
+  - **CinC:** about 0.000 in every family (logreg −0.001, MLP −0.000, 1D-CNN +0.000). Regional
+    and local both reach about 1.0 under the concept shift. **The CinC H2 verdict (recorded as
+    SUPPORTED) would very likely become inconclusive or not supported.**
+  - **WESAD:** +0.236 (logreg), +0.202 (MLP), +0.306 (1D-CNN), against the recorded +0.37 to
+    +0.44. Probably still supported.
+  - **Caveat on these numbers:** the hierarchical sweep's own local models do not always use the
+    validation-selected local-only settings. For example CinC 1D-CNN uses 30 epochs at lr 0.01
+    against 60 at 0.003; WESAD logreg uses 30 epochs against 60. So these numbers are indicative,
+    not the corrected verdicts.
+- **Not affected:**
+  - **H1** compares flat federated with local-only, both on the pooled holdout, so it is
+    consistent.
+  - **H2(b) and the control** compare regional with global, both on own test sets.
+  - **H3** uses the hierarchy's own three models.
+  - **The gap table.**
+- **Fix options (the user decides):**
+  - **A (recommended):** make the local-only arm also record each node's score on its own test
+    set in hierarchical topologies. This is a `src/` change, with a test, adding an output field
+    only, so config hashes and run ids are unchanged. Point `_local_region_pool` at it, rerun only
+    the local-only sweeps (90 runs per dataset; local-only runs are short), recompute both
+    datasets' verdicts, and record the change as a PREREG erratum: an implementation bug, with
+    the rule unchanged.
+  - **B:** use `hierarchy.per_region[r].local` from the existing hierarchical runs. No new runs,
+    but the local settings are not the selected ones for some families: a deviation to disclose.
+  - Either way, the H9 part 3 and H10 part d H2 verdicts get an erratum note, whichever way the
+    numbers fall.
+
+### Finding 2: three CinC full-architecture runs stall in simulated time
+- **Which runs:** CinC logreg seed 0 and 1D-CNN seed 0 from round 16, and 1D-CNN seed 4 from round
+  26.
+- **What happens:** every node misses the 120 s regional deadline in every remaining round,
+  including LEO, which has no long light-time. Simulated time then advances by under 1 s per
+  round (e.g. 25546.03 → 25546.29 → 25546.68 s), so no region aggregates again and no global merge
+  follows. The fallback events give "0 of 5 nodes reported".
+- **Not seen in WESAD:** none of the 15 WESAD full runs stall.
+- **Suspected cause:** a simulated-clock issue in `fl/hierarchy.py`. When nobody reports, the
+  round ends before any node can catch up. Not investigated.
+- **Scope:** affects fig 6 (its default run, logreg seed 0, is one of the stalled runs), the CinC
+  `_full` table (fallbacks, simulated end time) and the update-gate counts after the stall. The
+  H1–H4 verdicts do not use `_full` runs.
 
 ## Phase H10 (part d) — CinC H1–H4 answered — DONE, H10 GATE CLOSED (2026-11-25)
 
