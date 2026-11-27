@@ -18,14 +18,15 @@ H10c step 3 (the 18 `h9_cinc15_*` sweeps, PREREG §6 CinC rows frozen) is commit
 Its 435 runs are DONE on PACE and backed up, and the CinC H1–H4 verdicts are recorded (2026-11-25,
 "Phase H10 (part d)"). The H10 gate is closed. H11 started and stopped on a scoring finding
 (2026-11-26, "Phase H11"). **Phase H11a (the scoring audit, the own-test fix and the clock fix) is
-built and awaiting the user's commit. Then 42 PACE tasks rerun the local-only and `_full`
-sweeps; the H2 verdicts (both datasets) and the CinC H1 picture change.** H11 resumes after.
+committed (`861f22c`). Its 42 PACE reruns (210 runs) are DONE and backed up, and the corrected
+H1–H4 verdicts are recorded (2026-11-26, "Phase H11a", "Reruns on PACE"). CinC H2 is now not
+supported (H2(a) ≈ 0), and CinC H1 is negative under own-test scoring.** H11 resumes next.
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
 ---
 
-## Phase H11a — Scoring audit, local-only own-test fix, clock fix — BUILT, NOT COMMITTED, RERUNS PENDING (2026-11-26)
+## Phase H11a — Scoring audit, local-only own-test fix, clock fix — COMMITTED `861f22c`, RERUNS DONE (2026-11-26)
 
 User decisions (2026-11-26):
 - option A (record local-only on each node's own test set and rerun);
@@ -98,6 +99,51 @@ set.
   indicatively negative (−0.01 to −0.04 accuracy). Both rows are reported after the reruns.
 - **Every `_full` table** (WESAD H9 part 3, CinC): superseded by the reruns after the clock fix.
 
+### Reruns on PACE (2026-11-26)
+- **42 of 42 tasks `COMPLETED 0:0`, 210 of 210 `result.json`,** all at `git_sha` `861f22c`, in
+  `runs/h11-861f22c/` (from `recentPACEruns/h11_runs.zip`). Every run id matches its earlier run
+  (105 against `h10-af34071`, 105 against `h9-84a40ec`), as planned: no config changed.
+- **Real time:** CinC local-only logreg / MLP about 26 min per task, 1D-CNN 1 h 28 min; WESAD
+  local-only about 4 min; CinC full logreg / MLP 1 h 21 min, 1D-CNN about 3.5 h (the longest);
+  WESAD full about 35 min.
+- **Reports** (in `runs/h11-861f22c/reports/`):
+  - `hypotheses_{cinc15,wesad12}.{txt,json}`, from `fedastro hypotheses configs/hypotheses/h9_<ds>.yaml
+    --output-dir runs/h11-861f22c <old dir>`. Federated and hierarchical arms come from the old
+    runs (`af34071` / `84a40ec`), local-only from `861f22c`; the reports list the `git_sha` per arm.
+  - `figures/`: tables and all 7 figures, from `make_figures.py` on a view in which the new runs
+    replace the old ones of the same id. These are review copies; the layout fixes are still H11.
+
+**CinC (PREREG §2 rule; Δ, 95% CI, n = 5; shift SIMULATED):**
+
+| | logreg | MLP | 1D-CNN |
+|---|---|---|---|
+| H1 primary, pooled (acc) | +0.077 [+0.075, +0.079] S | +0.053 [+0.050, +0.057] S | +0.064 [+0.056, +0.071] S |
+| H1 own test (acc) | −0.012 [−0.016, −0.007] NS | −0.036 [−0.040, −0.032] NS | −0.016 [−0.024, −0.010] NS |
+| H1 own test (macro-F1) | −0.014 [−0.031, +0.004] I | −0.039 [−0.044, −0.034] NS | +0.038 [+0.031, +0.044] S |
+| H2(a) regional − local, Moon+Mars (acc) | −0.001 [−0.001, −0.001] | −0.000 [−0.001, −0.000] | +0.000 [−0.000, +0.000] |
+| H2(b) regional − global (acc) | +0.001 [+0.001, +0.001] | +0.112 [+0.090, +0.126] | +0.258 [+0.246, +0.269] |
+| H2 verdict | **NOT SUPPORTED** | **NOT SUPPORTED** | **INCONCLUSIVE** |
+| H2 control (regional − global, no shift) | supported | supported | supported |
+| H3 agree − disagree | +0.412 S | +0.194 S | +0.075 S |
+
+S = supported, NS = not supported, I = inconclusive. H4: H1 (primary) holds in every family; H2 and
+H1 (own test) do not hold in any family. Reading: on CinC each node has enough patients that its
+own model, tested on its own patients, matches or beats the federated and regional models. The
+federated advantage in the primary H1 row comes from scoring local-only models on other regions'
+test data.
+
+**WESAD:** every verdict SUPPORTED in every family. H1 primary +0.128 / +0.251 / +0.215 (logreg /
+MLP / 1D-CNN), H1 own test identical on accuracy (the test set is the shared held-out set, so the
+scopes coincide). H2(a) +0.235 / +0.193 / +0.294 (was +0.37 to +0.44), H2(b) +0.036 / +0.018 /
++0.178, H3 +0.127 / +0.212 / +0.233.
+
+**Clock fix (D6) confirmed:** all 30 full runs have 0 simulated steps under 1 s (before: CinC
+logreg s0 14, 1D-CNN s0 14, s4 5; WESAD logreg 2 in each of three seeds). CinC full (Mars mean,
+shift both 1.0): global / regional accuracy logreg 0.930 / 0.886, MLP 0.904 / 0.937, 1D-CNN
+0.550 / 0.928; fallbacks per run 16.4 / 14.4 / 30.0; simulated end 14.4 / 12.9 / 16.2 h.
+
+**Backup:** `runs/h11-861f22c_backup.zip` (results and reports).
+
 ---
 
 ## Phase H11 — Figures, clinical-validation protocol, README — STARTED, STOPPED ON A FINDING (2026-11-26)
@@ -124,6 +170,48 @@ No `src/` changes, no new runs.
     `figures/`;
   - layout fixes: fig 3's row order is upside down (shared y-axis inverted twice), fig 1 and 2
     have extra white space, and fig 7's majority-class label overlaps a point.
+
+### Modelling assumptions to state in the README (added 2026-11-26)
+- **No receiver contention.** Each node–aggregator link has its own bandwidth (`fl/comms.py`,
+  `bytes × 8 / bandwidth`), so transfers to one aggregator overlap fully with no queueing. A real
+  relay with one shared downlink would receive them one after another, so simulated round times
+  are a lower bound. Nodes never transmit to each other, only to their regional aggregator, and
+  the regional aggregators only to `agg_global`.
+- **Symmetric link rate.** One `comms.bandwidth_bps` (default 256 kbps, a scenario assumption)
+  is used in both directions. Payload sizes can already differ by direction
+  (`node_round_trip_sized`), but rates cannot. Real relay links are often asymmetric: the return
+  link (surface to orbiter) is usually much faster than the forward link. The effect here is
+  small: a 1D-CNN payload of 11.7 KB takes about 0.4 s at 256 kbps, against light-times of
+  about 1.3 s (Moon) and 182–1337 s (Mars) and a 120 s regional deadline. It would only matter
+  if one direction fell to about 1 kbps. Separate uplink and downlink rates, with a sensitivity
+  sweep, are future work (after ASGSR).
+- **Links and time** (`config.py` `CommsConfig`, `_default_los_profiles`; `fl/comms.py`; `fl/hierarchy.py`):
+  1. **Fixed light-time per run.** The Mars distance is one preset (182 / 751 / 1337 s); there is
+     no orbital motion during a run.
+  2. **Simulated outage schedules**, Poisson or periodic, not mission data. Only the 450 s outage
+     length is sourced (the FLUID ISS loss of signal). **The lunar "periodic" profile (48 min out
+     of view per 2 h orbit) cites "Apollo-era" with a "confirm before poster use" note: it needs
+     a source, or a scenario label, before ASGSR.**
+  3. **No loss in transit.** Store-and-forward: a message waits out an outage and is lost only if
+     it outlives its 6 h lifetime (`ttl_s`). There are no bit errors or packet loss.
+  4. **Jitter** is half-normal, |N(0, 0.05 s)|, and independent per transfer.
+  5. **Modelled local compute**, the same on every node: 0.01 s per example per epoch
+     (`compute_s_per_example`). Equal node hardware is assumed.
+  6. **Aggregation takes no simulated time**, regional or global.
+  7. **Solar conjunction is off by default.** It lasts about 2 weeks, far longer than any run.
+- **Protocol:**
+  8. **Synchronised rounds** across regions, with a 120 s regional deadline (`region_deadline_s`).
+     A late update is dropped for that round, not used later.
+  9. **Fallback threshold:** a region with fewer than `min_participants` reports uses the last
+     global model it received, and that round's updates are discarded.
+  10. **Nodes fail only by loss of signal.** No crashes, no faulty or malicious (Byzantine) nodes,
+      and every node trains honestly. The aggregator is assumed neutral (already in the
+      CLAUDE.md §2 caveats).
+  11. **Full participation:** every reachable node takes part in every round. No client sampling.
+- **Data:**
+  12. **Labels are available at training time** in the fixed-split runs. Only stream mode (H7)
+      models scarce, delayed labels.
+  13. **Each node's data is fixed for the run.** No crew joins or leaves, and there is no drift.
 
 ### Finding 1 (serious): H2(a) compares models scored on different test sets
 - **The design:** PREREG / CLAUDE.md H2 compares models "on their own region's test sets".
