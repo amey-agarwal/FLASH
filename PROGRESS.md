@@ -144,6 +144,37 @@ shift both 1.0): global / regional accuracy logreg 0.930 / 0.886, MLP 0.904 / 0.
 
 **Backup:** `runs/h11-861f22c_backup.zip` (results and reports).
 
+### Small-node check (2026-11-26; EXPLORATORY, not pre-registered, chosen after seeing the H11a results)
+- **Source:** the CinC hierarchical-arm runs (`runs/h10-af34071`, seeds 0–4), every node on its
+  own test set. `local` is the node's local-only model (identical to
+  `arms.local_only.own_test`). Report: `runs/h11-861f22c/reports/small_node_check.txt`.
+- **No size trend.** Spearman(n_train, macro-F1 global − local) across 15 nodes:
+  - no shift: logreg −0.26, MLP −0.42, 1D-CNN +0.07;
+  - shift: −0.02 to −0.32;
+  - all p > 0.1.
+- **The sparsity that matters is the minority (normal) class, not the node size.**
+  - **Local models collapse to "always abnormal":** with no shift, normal-class recall is under
+    0.05 on 7 / 1 / 8 of 15 nodes (logreg / MLP / 1D-CNN). Their accuracy stays high (around
+    0.84), because about 80% of most nodes' records are abnormal.
+  - **The global model lifts minority-class recall:** node-mean normal recall goes from
+    0.23 / 0.49 / 0.20 (local) to 0.44 / 0.68 / 0.60 (global).
+  - **Macro-F1 node by node:** global beats local on 11 / 6 / 11 of 15 nodes.
+  - **For logreg and the 1D-CNN, the only exceptions are the three ESA nodes and `leo_roscosmos`.**
+    The ESA nodes are PTB-XL plus PTB, about 45% normal, 766–1557 training records. There local
+    beats global on normal recall and macro-F1. The MLP is mixed: its local models collapse
+    less (1 of 15 nodes).- **`leo_roscosmos`** (INCART) has 0 normal records in train, validation and test. Its accuracy
+  of 1.000 and macro-F1 of 0.500 are trivial, so it says nothing about sparse-node benefit.
+- **Reading:**
+  - The own-test H1 loss on accuracy is largely accuracy rewarding majority-class local models.
+  - The pooled own-test macro-F1 row (H11a) is weighted towards the large, balanced ESA nodes
+    and the large `leo_cmsa1` node.
+  - Under the shift (magnitude 1.0), the concept part makes the Moon and Mars local models
+    perfect (1.000), so the comparison there is uninformative (the PROGRESS H10d caveat).
+- **Status:** a descriptive point for the discussion. It changes no pre-registered verdict.
+  Per-node metrics come from `hierarchy.per_node`. Flat federated per-node own-test scores are
+  not stored, so the hierarchical global model stands in for flat FL; the H2 control shows the
+  two match at no shift.
+
 ---
 
 ## Phase H11 — Figures, clinical-validation protocol, README — STARTED, STOPPED ON A FINDING (2026-11-26)
