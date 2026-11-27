@@ -203,7 +203,7 @@ shift both 1.0): global / regional accuracy logreg 0.930 / 0.886, MLP 0.904 / 0.
   - fig 2 and fig 3 sidecars equal their hypotheses inputs;
   - fig 8 recall equals the seed mean of each node's input.
 - **New docs:** `docs/clinical_validation_protocol.md` (written protocol, not a result) and
-  `README.md` (hypotheses, verdicts without numbers, limitations, the 15 modelling assumptions,
+  `README.md` (hypotheses, verdicts without numbers, limitations, the 16 modelling assumptions,
   setup, headline reproduction, figures).
 - **Other edits:** `pyproject.toml` `readme` now points to `README.md`. PREREG §7 item 3 records
   the exploratory analyses.
@@ -283,6 +283,29 @@ No `src/` changes, no new runs.
   12. **Labels are available at training time** in the fixed-split runs. Only stream mode (H7)
       models scarce, delayed labels.
   13. **Each node's data is fixed for the run.** No crew joins or leaves, and there is no drift.
+
+### Later runs (after ASGSR; not started)
+Collected here so they are not lost. Each one needs a PREREG entry before it runs.
+1. **Missions coming and going** (user, 2026-11-26).
+   - **Gap:** the topology is fixed for a whole run, with the same nodes in every round. Nodes
+     drop out only through loss of signal.
+   - **Later run:** nodes (missions) join mid-run and leave for good, on a schedule. Measure how
+     a new mission's model is brought up to date (cold start from the global model), how the
+     regions and `min_participants` cope with membership changes, and what happens to a departed
+     mission's contribution.
+   - **Store:** keep that simulation's runs and configs alongside these for comparison.
+   - Related to CLAUDE.md §9 item 3 (crew moving between regions).
+2. **Producer–consumer (listener–receiver) communication model** (user, 2026-11-26).
+   - **Gap:** the current model is round-synchronous (modelling assumption 10), and a receiver
+     takes any number of transfers at once with no queueing (assumption 1).
+   - **Later run:** nodes as producers that push updates whenever they are ready; each
+     aggregator as a consumer with a listener and a bounded receive queue that it services at a
+     finite rate. Covers asynchronous or buffered aggregation, queueing delay at a shared
+     downlink, and staleness of updates. Compare it with the synchronous results here.
+3. **Separate uplink and downlink rates, with a sensitivity sweep** (assumption 2).
+4. **Subject- and patient-level bootstrap, or holdout redraws** (test-subject sampling; deferred
+   past ASGSR).
+5. **A source for the lunar loss-of-signal profile**, or keep it labelled as a scenario value.
 
 ### Finding 1 (serious): H2(a) compares models scored on different test sets
 - **The design:** PREREG / CLAUDE.md H2 compares models "on their own region's test sets".

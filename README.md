@@ -130,6 +130,12 @@ separately from real wall-clock time.
 14. **Labels are available at training time** in the fixed-split runs. Only the stream mode
     models scarce, delayed labels.
 15. **Each node's data is fixed for the run.** No crew joins or leaves, and there is no drift.
+16. **The set of missions is fixed for the run.** No mission joins or leaves mid-run, and nodes
+    drop out only through loss of signal.
+
+Later work includes simulating missions that come and go, and a producer–consumer communication
+model: nodes push updates when ready, and aggregators listen with bounded receive queues instead
+of synchronised rounds.
 
 ## Setup
 
