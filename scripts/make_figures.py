@@ -11,6 +11,12 @@ never trains or recomputes a model. Each figure is written three ways:
 
 The style is greyscale-safe: grey fills of distinct lightness plus a hatch per series.
 
+Run directories are given as lists searched in order, the first directory with a match winning
+per sweep (the rule of ``fedastro hypotheses --output-dir``). The defaults put the Phase H11a
+reruns (``runs/h11-861f22c``: local-only with own-test scores, ``_full`` after the clock fix)
+before the older runs, whose federated, hierarchical, centralized and stream sweeps still apply.
+Fig 8 is EXPLORATORY (not pre-registered) and says so on the figure.
+
 ``--tables`` also writes ``tables_<dataset>.txt``: the all-nodes, full-architecture and
 stream tables per dataset (the same definitions as the WESAD ``h9_summary.txt``).
 
@@ -77,22 +83,53 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
-def one(root: Path, pattern: str) -> Path:
-    hits = sorted(root.glob(pattern))
+def _roots(roots) -> list[Path]:
+    return [Path(r) for r in roots] if isinstance(roots, (list, tuple)) else [Path(roots)]
+
+
+def _first_hits(roots, pattern: str) -> tuple[Path | None, list[Path]]:
+    """The matches in the first root that has any (first hit wins, as ``fedastro hypotheses
+    --output-dir``): a rerun directory listed first replaces the older runs of the same sweep."""
+    for root in _roots(roots):
+        hits = sorted(root.glob(pattern))
+        if hits:
+            return root, hits
+    return None, []
+
+
+def one(roots, pattern: str) -> Path:
+    root, hits = _first_hits(roots, pattern)
     if len(hits) != 1:
-        raise FigureInputError(f"expected exactly 1 file for {root}/{pattern}, found {len(hits)}")
+        where = root if root is not None else " | ".join(str(r) for r in _roots(roots))
+        raise FigureInputError(f"expected exactly 1 file for {where}/{pattern}, found {len(hits)}")
     return hits[0]
 
 
-def many(root: Path, pattern: str) -> list[Path]:
-    hits = sorted(root.glob(pattern))
+def many(roots, pattern: str) -> list[Path]:
+    _, hits = _first_hits(roots, pattern)
     if not hits:
-        raise FigureInputError(f"no files for {root}/{pattern}")
+        raise FigureInputError(f"no files for {' | '.join(str(r) for r in _roots(roots))}/{pattern}")
     return hits
 
 
-def sweep_summary(root: Path, dataset: str, family: str, arm: str, kind: str, mag: str) -> Path:
-    return one(root, f"h9_{dataset}_{family}_{arm}-enabledTrue-kind{kind}-magnitude{mag}-*-summary.json")
+def sweep_summary(roots, dataset: str, family: str, arm: str, kind: str, mag: str) -> Path:
+    return one(roots, f"h9_{dataset}_{family}_{arm}-enabledTrue-kind{kind}-magnitude{mag}-*-summary.json")
+
+
+def own_test_runs(roots, dataset: str, family: str, kind: str, mag: str) -> list[Path]:
+    """The local-only runs carrying ``arms.local_only.own_test`` (Phase H11a), from the first root
+    whose runs all have it; [] if no root does."""
+    pattern = f"h9_{dataset}_{family}_local_only-enabledTrue-kind{kind}-magnitude{mag}-seed*-*/result.json"
+    for root in _roots(roots):
+        paths = sorted(root.glob(pattern))
+        if paths and all(read_json(p)["arms"]["local_only"].get("own_test") for p in paths):
+            return paths
+    return []
+
+
+def own_test_ms(paths: list[Path], metric: str) -> tuple[float, float]:
+    xs = [read_json(p)["arms"]["local_only"]["own_test"]["pooled"][metric] for p in paths]
+    return statistics.mean(xs), (statistics.stdev(xs) if len(xs) > 1 else 0.0)
 
 
 def ms(d: dict) -> tuple[float, float]:
@@ -124,6 +161,16 @@ def save(fig, out: Path, name: str, data: dict, sources: list[Path], caption: st
     return side
 
 
+def finish(fig, title: str, bottom: float, top: float = 0.94, legend: dict | None = None, **kw) -> None:
+    """Lay out the axes first, then add the suptitle (and an optional figure legend) in the band
+    above them. tight_layout reserves extra room for an existing suptitle, which left a wide empty
+    band under the title."""
+    fig.tight_layout(rect=(0, bottom, 1, top), **kw)
+    fig.suptitle(title, fontsize=13, y=0.985)
+    if legend is not None:
+        fig.legend(**{"loc": "upper center", "bbox_to_anchor": (0.5, 0.94), "frameon": False, **legend})
+
+
 def bar(ax, x, h, w, key, err=None, label=None):
     face, hatch = STYLE[key]
     return ax.bar(x, h, w, yerr=err, color=face, hatch=hatch, edgecolor="black", linewidth=0.7,
@@ -131,26 +178,33 @@ def bar(ax, x, h, w, key, err=None, label=None):
 
 
 # -- figure 1: accuracy per region ------------------------------------------------------
-def fig_regions(root: Path, dataset: str, mag: str, out: Path) -> dict:
-    """Local / regional / global per region, plus the all-nodes arms, per family."""
+METRIC_NAMES = {"accuracy": "accuracy", "macro_f1": "macro-F1"}
+
+
+def fig_regions(roots, dataset: str, mag: str, out: Path, metric: str = "accuracy") -> dict:
+    """Local / regional / global per region, plus the all-nodes arms, per family. Every bar is
+    on each node's own test set: the all-nodes local-only bar is ``own_test.pooled`` (H11a)."""
     fig, axes = new_fig(1, 3, sharey=True)
     data, sources = {}, []
     for ax, fam in zip(axes, FAMILIES):
-        hier = sweep_summary(root, dataset, fam, "hierarchical", "both", mag)
-        paths = {a: sweep_summary(root, dataset, fam, a, "both", mag)
-                 for a in ("centralized", "federated", "local_only")}
-        sources += [hier, *paths.values()]
+        hier = sweep_summary(roots, dataset, fam, "hierarchical", "both", mag)
+        paths = {a: sweep_summary(roots, dataset, fam, a, "both", mag) for a in ("centralized", "federated")}
+        own = own_test_runs(roots, dataset, fam, "both", mag)
+        if not own:
+            raise FigureInputError(f"no local-only runs with own_test for {dataset} {fam} magnitude {mag} "
+                                   "(rerun local-only with the H11a fix)")
+        sources += [hier, *paths.values(), *own]
         hs, ss = read_json(hier), {a: read_json(p) for a, p in paths.items()}
         d = {}
         for r in REGIONS:
             pr = hs["hierarchy"]["per_region"][r]
-            d[r] = {m: ms(pr[m]["accuracy"]) for m in ("local", "regional", "global")}
+            d[r] = {m: ms(pr[m][metric]) for m in ("local", "regional", "global")}
         d["all"] = {
-            "centralized": ms(ss["centralized"]["arms"]["centralized"]["accuracy"]),
-            "federated": ms(ss["federated"]["arms"]["federated"]["final"]["accuracy"]),
-            "hier_global": ms(hs["arms"]["hierarchical"]["final"]["accuracy"]),
-            "hier_regional": ms(hs["arms"]["hierarchical"]["regional_final"]["accuracy"]),
-            "local_only": ms(ss["local_only"]["arms"]["local_only"]["mean_across_silos"]["accuracy"]),
+            "centralized": ms(ss["centralized"]["arms"]["centralized"][metric]),
+            "federated": ms(ss["federated"]["arms"]["federated"]["final"][metric]),
+            "hier_global": ms(hs["arms"]["hierarchical"]["final"][metric]),
+            "hier_regional": ms(hs["arms"]["hierarchical"]["regional_final"][metric]),
+            "local_only": own_test_ms(own, metric),
         }
         data[fam] = d
         w, x0 = 0.26, 0
@@ -169,16 +223,17 @@ def fig_regions(root: Path, dataset: str, mag: str, out: Path) -> dict:
         ax.set_title(FAMILY_NAMES[fam])
         ax.set_ylim(0, 1.05)
         ax.axvline(2.58, color="black", linewidth=0.5, linestyle=":")
-    axes[0].set_ylabel("Test accuracy (mean ± std, 5 seeds)")
+    axes[0].set_ylabel(f"Test {METRIC_NAMES[metric]} (mean ± std, 5 seeds)")
     shift = "no shift (magnitude 0, control)" if mag == "0p0" else f"shift both {mag.replace('p', '.')} on Moon and Mars"
-    fig.suptitle(f"{DATASET_NAMES[dataset]}: accuracy per region, {shift}", fontsize=13)
-    fig.legend(loc="upper center", bbox_to_anchor=(0.5, 0.93), ncol=5, frameon=False)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.88))
-    caption = ("All nodes: centralized, flat federated, hierarchical global and regional, local-only "
-               "(silo mean). Bars per region are the hierarchical arm's three models. ")
+    finish(fig, f"{DATASET_NAMES[dataset]}: {METRIC_NAMES[metric]} per region, {shift}", 0.08, 0.89,
+           legend={"ncol": 5})
+    caption = ("Per region: the hierarchical arm's three models on that region's nodes' test sets. All nodes: "
+               "every arm on all nodes' test sets pooled; local-only scores each node's own model on its own "
+               "test set (Phase H11a). ")
     if mag != "0p0":
         caption += SIM_NOTE + (" " + CINC_ARTIFACT if dataset == "cinc15" else "")
-    name = f"fig1_regions_{dataset}_shift{'0' if mag == '0p0' else mag.replace('p0', '')}"
+    suffix = "" if metric == "accuracy" else f"_{metric}"
+    name = f"fig1_regions_{dataset}_shift{'0' if mag == '0p0' else mag.replace('p0', '')}{suffix}"
     return save(fig, out, name, data, sources, caption)
 
 
@@ -204,8 +259,7 @@ def fig_h3(hyps: dict[str, Path], out: Path) -> dict:
         ax.set_ylim(0, 1.15)
     axes[0][0].set_ylabel("Test accuracy (mean over 5 seeds)")
     axes[0][0].legend(loc="lower left", frameon=True)
-    fig.suptitle("H3: accuracy where local, regional and global models agree vs disagree", fontsize=13)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.95))
+    finish(fig, "H3: accuracy where local, regional and global models agree vs disagree", 0.08)
     caption = ("Label: difference (agree − disagree) and paired-bootstrap 95% CI. Agreement is a flag for "
                "clinician review, not independent confirmation: the models share training data. "
                + SIM_NOTE + (" " + CINC_ARTIFACT if "cinc15" in hyps else ""))
@@ -232,6 +286,8 @@ def fig_h4(hyps: dict[str, Path], out: Path) -> dict:
     data = {}
     for ax, (ds, path) in zip(axes[0], hyps.items()):
         h = loaded[ds]
+        if ax is not axes[0][0]:
+            ax.tick_params(axis="y", length=0)
         d = {}
         for fi, fam in enumerate(FAMILIES):
             f = h["families"][fam]
@@ -252,12 +308,11 @@ def fig_h4(hyps: dict[str, Path], out: Path) -> dict:
         data[ds] = d
         ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
         ax.set_yticks(range(len(comps)), [c[1] for c in comps])
-        ax.set_xlabel("Accuracy difference, 95% CI (5 seeds)")
         ax.set_title(DATASET_NAMES[ds])
     axes[0][0].invert_yaxis()  # once: the axes share y, so inverting each would undo it
     axes[0][0].legend(loc="lower right", frameon=True)
-    fig.suptitle("H4: does the federated advantage hold across model families?", fontsize=13)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.95))
+    finish(fig, "H4: does the federated advantage hold across model families?", 0.12, w_pad=1.5)
+    fig.supxlabel("Accuracy difference, 95% CI (5 seeds)", x=0.62, y=0.075, fontsize=11)
     caption = ("PREREG §2 rule: paired by seed, hierarchical bootstrap 95% CI; above 0 = supported "
                "(control: supported unless the CI is above 0). H2 rows at shift both 1.0 on Moon and Mars. "
                + SIM_NOTE)
@@ -293,8 +348,7 @@ def fig_gap(gaps: dict[str, Path], out: Path) -> dict:
         ax.set_title(DATASET_NAMES[ds])
     axes[0][0].set_ylabel("Accuracy gap (above 0: centralized better)")
     axes[0][0].legend(loc="best", frameon=True)
-    fig.suptitle("Remaining centralized vs federated gap after validation-only tuning (Phase H8)", fontsize=13)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.95))
+    finish(fig, "Remaining centralized vs federated gap after validation-only tuning (Phase H8)", 0.07)
     caption = ("Test accuracy, 5 seeds, 95% CI; no shift. Settings selected on validation scores only "
                "(PREREG). A negative gap means federated or hierarchical beat centralized.")
     return save(fig, out, "fig4_gap", data, list(gaps.values()), caption)
@@ -342,8 +396,7 @@ def fig_secagg(secagg_root: Path, cinc_root: Path | None, out: Path) -> dict:
     a1.legend(loc="upper left", frameon=False)
     a1.set_title("Time: extra key and share round trips")
     a2.set_title("Bytes: masked words and protocol messages")
-    fig.suptitle("Simulated secure aggregation: overhead vs Mars light-time preset (SYNTHETIC data)", fontsize=13)
-    fig.tight_layout(rect=(0, 0.1, 1, 0.95))
+    finish(fig, "Simulated secure aggregation: overhead vs Mars light-time preset (SYNTHETIC data)", 0.1)
     caption = ("SYNTHETIC smoke data, seed 0, 6 rounds, 3 global merges, no dropouts, no LOS (Phase H4). "
                "All times SIMULATED, not wall-clock. Secure aggregation is a protocol simulation "
                "(seeded PRG masks), not cryptography.")
@@ -385,12 +438,11 @@ def fig_fallback(result_path: Path, out: Path) -> dict:
     ax.legend(handles=[Patch(facecolor="#f0f0f0", edgecolor="black", label="Regional aggregation ran"),
                        Patch(facecolor="#252525", label="Fallback to global (below min_participants)"),
                        Line2D([], [], marker="v", color="black", linestyle="", label="Global merge")],
-              loc="upper center", bbox_to_anchor=(0.5, 1.12), ncol=3, frameon=False)
+              loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=3, frameon=False)
     cfg = r["config"]
     fam = cfg.get("model", {}).get("arch", "?")
-    fig.suptitle(f"Threshold fallback during loss of signal: {r['topology']['name']}, {fam}, seed {r['seed']}",
-                 fontsize=13)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.9))
+    finish(fig, f"Threshold fallback during loss of signal: {r['topology']['name']}, {fam}, seed {r['seed']}",
+           0.08, 0.915)
     data = {"rounds": list(range(1, n + 1)), "sim_end_h": sim_h, "state": grid, "global_merges": merges,
             "n_fallbacks": {reg: grid[reg].count("fallback") for reg in REGIONS}, "run_id": r["run_id"]}
     caption = ("Full architecture: Mars mean light-time, loss-of-signal windows, 120 s regional deadline, "
@@ -442,7 +494,8 @@ def fig_dp(dp_root: Path, out: Path) -> dict:
         a1.errorbar(xs, mean, yerr=std, marker=mk, color="black", markerfacecolor=face, capsize=2.5,
                     linewidth=1, label=LABELS[key] if key != "federated" else "Federated")
     a1.axhline(majority, color="black", linestyle=":", linewidth=1)
-    a1.text(0, majority + 0.01, f"majority class ({majority:.3f})", fontsize=8.5)
+    a1.text(len(rows) - 1.15, majority - 0.012, f"majority class ({majority:.3f})", fontsize=8.5,
+            ha="right", va="top")
     a1.set_xticks(xs, xl)
     a1.set_xlabel("Record-level ε per silo")
     a1.set_ylabel("Holdout accuracy (mean ± std, 5 seeds)")
@@ -458,9 +511,7 @@ def fig_dp(dp_root: Path, out: Path) -> dict:
     a2.set_ylabel("Window re-identified (fraction of trials)")
     a2.set_title("Gradient-inversion attack on one released update")
     a2.legend(loc="upper left", frameon=True)
-    fig.suptitle("Phase 5 discussion: DP-SGD drives the attack to chance but collapses federated utility",
-                 fontsize=13)
-    fig.tight_layout(rect=(0, 0.08, 1, 0.95))
+    finish(fig, "Phase 5 discussion: DP-SGD drives the attack to chance but collapses federated utility", 0.08)
     caption = ("Flat five-silo WESAD, PACE runs (p5epsc), 5 seeds. Attack: final model, known labels, mean over "
                "5 silos. DP-SGD is set aside in this branch; this is a discussion point, not a headline. "
                "Without DP there is no formal privacy guarantee.")
@@ -469,28 +520,70 @@ def fig_dp(dp_root: Path, out: Path) -> dict:
     return save(fig, out, "fig7_dp_collapse", data, [*paths, res], caption)
 
 
+# -- figure 8: minority-class recall per node (EXPLORATORY) ---------------------------------
+MINORITY = 0  # class index of "normal" in CinC (fedastro.data.cinc2021.CLASS_NAMES)
+
+
+def fig_minority(roots, out: Path, dataset: str = "cinc15", mag: str = "0p0") -> dict:
+    """Normal-class recall of each node's local-only and global model on the node's own test set
+    (hierarchical arm, ``hierarchy.per_node``), nodes ordered by training size. EXPLORATORY: the
+    small-node check of PROGRESS H11a, chosen after seeing the H11a results."""
+    fig, axes = new_fig(1, 3, sharey=True)
+    data, sources = {}, []
+    for ax, fam in zip(axes, FAMILIES):
+        paths = many(roots, f"h9_{dataset}_{fam}_hierarchical-enabledTrue-kindboth-magnitude{mag}-seed*-*/result.json")
+        sources += paths
+        nodes: dict[str, dict] = {}
+        for p in paths:
+            r = read_json(p)
+            silos = {s["name"]: s for s in r["silos"]}
+            for n, v in r["hierarchy"]["per_node"].items():
+                d = nodes.setdefault(n, {"n_train": silos[n]["n_train"],
+                                         "n_normal_train": silos[n]["label_counts"].get("normal", 0),
+                                         "local": [], "global": []})
+                for m in ("local", "global"):
+                    d[m].append(v[m]["recall_per_class"][MINORITY])
+        order = sorted(nodes, key=lambda n: nodes[n]["n_train"])
+        d = {n: {"n_train": nodes[n]["n_train"], "n_normal_train": nodes[n]["n_normal_train"],
+                 "local": statistics.mean(nodes[n]["local"]), "global": statistics.mean(nodes[n]["global"]),
+                 "n_seeds": len(nodes[n]["local"])} for n in order}
+        data[fam] = d
+        xs = range(len(order))
+        for j, m in enumerate(("local", "global")):
+            bar(ax, [x + (j - 0.5) * 0.4 for x in xs], [d[n][m] for n in order], 0.4, m,
+                label=LABELS[m] if fam == "logreg" else None)
+        labels = [n + (" ‡" if d[n]["n_normal_train"] == 0 else " †" if n.endswith("_esa") else "") for n in order]
+        ax.set_xticks(list(xs), labels, rotation=70, ha="right", fontsize=7.5)
+        ax.set_title(FAMILY_NAMES[fam])
+        ax.set_ylim(0, 1.05)
+    axes[0].set_ylabel("Normal-class recall, own test set (mean, 5 seeds)")
+    finish(fig, f"EXPLORATORY: minority-class recall per node, {DATASET_NAMES[dataset]}, no shift", 0.08, 0.89,
+           legend={"ncol": 2})
+    caption = ("Not pre-registered: chosen after seeing the H11a results. Nodes ordered by training size. "
+               "Hierarchical arm, each node's own test set; the global model stands in for flat FL (equal at no "
+               "shift, H2 control). † ESA nodes (PTB-XL + PTB, ~45% normal). ‡ no normal records "
+               "(INCART), so recall is 0 by definition.")
+    return save(fig, out, "fig8_minority_recall", data, sources, caption)
+
+
 # -- tables ------------------------------------------------------------------------------
 def fmt(m: tuple[float, float]) -> str:
     return f"{m[0]:.3f} ± {m[1]:.3f}"
 
 
-def own_test_cell(roots: list[Path], dataset: str, family: str, kind: str, mag: str, metric: str) -> str:
+def own_test_cell(roots, dataset: str, family: str, kind: str, mag: str, metric: str) -> str:
     """Local-only on each node's own test set (``arms.local_only.own_test.pooled``, Phase H11a),
-    mean ± std over the seeds, from the first root holding the local-only runs; n/a before H11a."""
-    for root in roots:
-        paths = sorted(root.glob(f"h9_{dataset}_{family}_local_only-enabledTrue-kind{kind}-magnitude{mag}-seed*-*/result.json"))
-        vals = [read_json(p)["arms"]["local_only"].get("own_test") for p in paths]
-        if paths and all(vals):
-            xs = [v["pooled"][metric] for v in vals]
-            return fmt((statistics.mean(xs), statistics.stdev(xs) if len(xs) > 1 else 0.0))
-    return "n/a"
+    mean ± std over the seeds; n/a when no root has runs with it."""
+    paths = own_test_runs(roots, dataset, family, kind, mag)
+    return fmt(own_test_ms(paths, metric)) if paths else "n/a"
 
 
-def tables(root: Path, dataset: str, own_roots: list[Path] | None = None) -> str:
-    own_roots = own_roots or [root]
-    lines = [f"H9-style tables, {dataset}, from {rel(root)}. Test set, 5 seeds, mean ± std. Shift is SIMULATED;",
-             "shifted regions moon, mars; 'both' = covariate + concept. 'local-only' = every region's test data",
-             "pooled (frozen H1 scope); 'local own-test' = each node's model on its own test set (H2 scope, H11a).", ""]
+def tables(roots, dataset: str) -> str:
+    where = " then ".join(rel(r) for r in _roots(roots))
+    lines = [f"H9-style tables, {dataset}, from {where} (first hit wins per sweep). Test set, 5 seeds, mean ± std.",
+             "Shift is SIMULATED; shifted regions moon, mars; 'both' = covariate + concept. 'local-only' = every",
+             "region's test data pooled (frozen H1 scope); 'local own-test' = each node's model on its own test set",
+             "(H2 scope, H11a).", ""]
     for metric in ("accuracy", "macro_f1"):
         lines.append(f"== Table A: test {metric} over all nodes")
         for fam in FAMILIES:
@@ -498,21 +591,21 @@ def tables(root: Path, dataset: str, own_roots: list[Path] | None = None) -> str
             lines.append(f"{'shift':<16}" + "".join(f"{c:<17}" for c in
                          ("centralized", "flat FL", "hier global", "hier regional", "local-only", "local own-test")))
             for kind, mag, lab in SHIFTS:
-                s = {a: read_json(sweep_summary(root, dataset, fam, a, kind, mag))["arms"]
+                s = {a: read_json(sweep_summary(roots, dataset, fam, a, kind, mag))["arms"]
                      for a in ("centralized", "federated", "hierarchical", "local_only")}
                 vals = (s["centralized"]["centralized"][metric], s["federated"]["federated"]["final"][metric],
                         s["hierarchical"]["hierarchical"]["final"][metric],
                         s["hierarchical"]["hierarchical"]["regional_final"][metric],
                         s["local_only"]["local_only"]["mean_across_silos"][metric])
                 lines.append(f"{lab:<16}" + "".join(f"{fmt(ms(v)):<17}" for v in vals)
-                             + own_test_cell(own_roots, dataset, fam, kind, mag, metric))
+                             + own_test_cell(roots, dataset, fam, kind, mag, metric))
         lines.append("")
     lines.append("== Full architecture (Mars mean, LOS, 120 s regional deadline, secagg + update gate; shift both 1.0)")
     lines.append("family  hier global      hier regional    local-only       gate rejected / offered (mean/run)  "
                  "secagg MB  secagg sim h  fallbacks/run  sim end h")
     for fam in FAMILIES:
-        summ = read_json(one(root, f"h9_{dataset}_{fam}_full-*-summary.json"))
-        rs = [read_json(p) for p in many(root, f"h9_{dataset}_{fam}_full-*-seed*-*/result.json")]
+        summ = read_json(one(roots, f"h9_{dataset}_{fam}_full-*-summary.json"))
+        rs = [read_json(p) for p in many(roots, f"h9_{dataset}_{fam}_full-*-seed*-*/result.json")]
         hier = summ["arms"]["hierarchical"]
         rej = statistics.mean(r["updates"]["n_rejected"] for r in rs)
         off = statistics.mean(r["updates"]["n_offered"] for r in rs)
@@ -531,7 +624,7 @@ def tables(root: Path, dataset: str, own_roots: list[Path] | None = None) -> str
     for fam in FAMILIES:
         cells = []
         for frac, delay in (("0p1", 0), ("0p1", 1), ("1p0", 0), ("1p0", 1)):
-            s = read_json(one(root, f"h9_{dataset}_{fam}_stream-label_fraction{frac}-label_delay_rounds{delay}-*-summary.json"))
+            s = read_json(one(roots, f"h9_{dataset}_{fam}_stream-label_fraction{frac}-label_delay_rounds{delay}-*-summary.json"))
             mo = s["stream"]["models"]
             cells.append(f"{frac.replace('p', '.')} labels, delay {delay}: "
                          + " / ".join(f"{mo[m]['accuracy']['mean']:.3f}" for m in ("local", "regional", "global")))
@@ -543,17 +636,20 @@ def tables(root: Path, dataset: str, own_roots: list[Path] | None = None) -> str
 def build(args) -> list[str]:
     out = Path(args.out)
     done = []
-    hyps = {"cinc15": Path(args.cinc) / "hypotheses_cinc15.json", "wesad12": Path(args.wesad) / "hypotheses_wesad12.json"}
+    cinc, wesad = [Path(x) for x in args.cinc], [Path(x) for x in args.wesad]
+    hyps = {"cinc15": Path(args.cinc_hyp), "wesad12": Path(args.wesad_hyp)}
     gaps = {"cinc15": Path(args.cinc_gap), "wesad12": Path(args.wesad_gap)}
     jobs = [
-        ("fig1", lambda: [fig_regions(Path(root), ds, mag, out) for ds, root in (("cinc15", args.cinc), ("wesad12", args.wesad))
-                          for mag in ("0p0", "1p0")]),
+        ("fig1", lambda: [fig_regions(roots, ds, mag, out, metric)
+                          for ds, roots in (("cinc15", cinc), ("wesad12", wesad))
+                          for mag in ("0p0", "1p0") for metric in ("accuracy", "macro_f1")]),
         ("fig2", lambda: fig_h3(hyps, out)),
         ("fig3", lambda: fig_h4(hyps, out)),
         ("fig4", lambda: fig_gap(gaps, out)),
-        ("fig5", lambda: fig_secagg(Path(args.secagg), Path(args.cinc), out)),
-        ("fig6", lambda: fig_fallback(one(Path(args.cinc), f"h9_cinc15_{args.fallback_family}_full-*-seed{args.fallback_seed}-*/result.json"), out)),
+        ("fig5", lambda: fig_secagg(Path(args.secagg), cinc, out)),
+        ("fig6", lambda: fig_fallback(one(cinc, f"h9_cinc15_{args.fallback_family}_full-*-seed{args.fallback_seed}-*/result.json"), out)),
         ("fig7", lambda: fig_dp(Path(args.dp), out)),
+        ("fig8", lambda: fig_minority(cinc, out)),
     ]
     for key, fn in jobs:
         if args.only and key not in args.only:
@@ -561,16 +657,22 @@ def build(args) -> list[str]:
         fn()
         done.append(key)
     if args.tables:
-        for ds, root in (("cinc15", args.cinc), ("wesad12", args.wesad)):
-            (out / f"tables_{ds}.txt").write_text(tables(Path(root), ds, [Path(x) for x in args.rerun] + [Path(root)]))
+        out.mkdir(parents=True, exist_ok=True)
+        for ds, roots in (("cinc15", cinc), ("wesad12", wesad)):
+            (out / f"tables_{ds}.txt").write_text(tables(roots, ds))
             done.append(f"tables_{ds}")
     return done
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--cinc", default="runs/h10-af34071", help="CinC H9-style runs (H10c step 3)")
-    ap.add_argument("--wesad", default="runs/h9-84a40ec", help="WESAD H9 runs")
+    ap.add_argument("--cinc", nargs="+", default=["runs/h11-861f22c", "runs/h10-af34071"],
+                    help="CinC H9-style run directories, searched in order, first hit wins per sweep "
+                         "(default: the H11a reruns, then H10c step 3)")
+    ap.add_argument("--wesad", nargs="+", default=["runs/h11-861f22c", "runs/h9-84a40ec"],
+                    help="WESAD H9 run directories, searched in order, first hit wins per sweep")
+    ap.add_argument("--cinc-hyp", default="runs/h11-861f22c/reports/hypotheses_cinc15.json")
+    ap.add_argument("--wesad-hyp", default="runs/h11-861f22c/reports/hypotheses_wesad12.json")
     ap.add_argument("--cinc-gap", default="runs/h10-f7db96a/gap_cinc15.json")
     ap.add_argument("--wesad-gap", default="runs/h8-62cf33b/gap_wesad12.json")
     ap.add_argument("--secagg", default="runs/h4secagg", help="Phase H4 Mars-preset sweep (SYNTHETIC)")
@@ -580,8 +682,6 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default="figures")
     ap.add_argument("--only", nargs="*", help="e.g. --only fig1 fig4")
     ap.add_argument("--tables", action="store_true", help="also write tables_<dataset>.txt")
-    ap.add_argument("--rerun", nargs="*", default=[],
-                    help="directories with the Phase H11a local-only reruns (own-test column), searched first")
     args = ap.parse_args(argv)
     try:
         done = build(args)

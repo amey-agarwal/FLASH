@@ -20,7 +20,8 @@ Its 435 runs are DONE on PACE and backed up, and the CinC H1–H4 verdicts are r
 (2026-11-26, "Phase H11"). **Phase H11a (the scoring audit, the own-test fix and the clock fix) is
 committed (`861f22c`). Its 42 PACE reruns (210 runs) are DONE and backed up, and the corrected
 H1–H4 verdicts are recorded (2026-11-26, "Phase H11a", "Reruns on PACE"). CinC H2 is now not
-supported (H2(a) ≈ 0), and CinC H1 is negative under own-test scoring.** H11 resumes next.
+supported (H2(a) ≈ 0), and CinC H1 is negative under own-test scoring.** H11 (figures, clinical
+protocol, README) is BUILT and awaiting the user's commit; slides are planned separately.
 Everything below the H0 entry is the record of the earlier plans; where it says
 "CLAUDE2.md" or "not committed", read it as history (Phases 10–12 are committed, `4586d64`).
 
@@ -177,7 +178,46 @@ shift both 1.0): global / regional accuracy logreg 0.930 / 0.886, MLP 0.904 / 0.
 
 ---
 
-## Phase H11 — Figures, clinical-validation protocol, README — STARTED, STOPPED ON A FINDING (2026-11-26)
+## Phase H11 — Figures, clinical-validation protocol, README — BUILT, NOT COMMITTED (2026-11-26)
+
+### Resumed after H11a (2026-11-26; plan approved, same plan file)
+- **`scripts/make_figures.py`:**
+  - **Inputs:** `--cinc` / `--wesad` take run directories searched in order, the first with a
+    match winning per sweep (the `fedastro hypotheses` rule). The defaults put `runs/h11-861f22c`
+    before `runs/h10-af34071` / `runs/h9-84a40ec`. New `--cinc-hyp` / `--wesad-hyp` default to
+    the H11a hypotheses JSON. `--rerun` is removed.
+  - **Layout:** `finish()` lays out the axes before adding the suptitle. tight_layout had been
+    reserving extra room for an existing suptitle, pushing the panels to 0.83 of the height,
+    against 0.89 without one; this caused the empty bands in figs 1–8. Fig 3 has one shared x
+    label. Fig 7's majority-class label moved off the data.
+  - **Fig 1:** the all-nodes local-only bar is the own-test score (`own_test.pooled`), matching
+    the per-region bars; the pooled number stays in the tables and in fig 3. New macro-F1
+    versions (`*_macro_f1`).
+  - **Fig 6:** from the rerun (logreg seed 0 now advances through every round).
+  - **New fig 8, EXPLORATORY:** normal-class recall per CinC node, local against global, no
+    shift.
+  - **Outputs:** 15 figures (PNG, PDF and JSON sidecar each) plus 2 tables, in about 30 s.
+- **`tests/test_make_figures.py`** (4 tests, synthetic inputs only):
+  - first-hit resolution;
+  - own-test runs skip pre-H11a roots;
+  - fig 2 and fig 3 sidecars equal their hypotheses inputs;
+  - fig 8 recall equals the seed mean of each node's input.
+- **New docs:** `docs/clinical_validation_protocol.md` (written protocol, not a result) and
+  `README.md` (hypotheses, verdicts without numbers, limitations, the 15 modelling assumptions,
+  setup, headline reproduction, figures).
+- **Other edits:** `pyproject.toml` `readme` now points to `README.md`. PREREG §7 item 3 records
+  the exploratory analyses.
+
+### Acceptance (H11)
+| Check | Result |
+|---|---|
+| Figures render legibly in greyscale | **Yes.** All 15 PNGs converted to greyscale and viewed; every series stays distinct (hatches and markers) |
+| Every number in a figure traces to a result file | **Yes.** A check script recomputed 342 sidecar numbers (figs 1, 2, 3, 8) from the files each sidecar lists: 0 mismatches, 0 missing sources. Tables identical to the H11a review copies below the header |
+| README reproduces a headline result from a clean clone | **Yes.** `git clone` of `ef5d3e7` into the scratchpad, `uv sync --frozen` (offline), `data/raw` linked, then the README command: centralized 0.8491, federated 0.6698, local-only 0.6311, identical to `tests/golden/flat_wesad_g1.json` seed 0. Run time 8 min 46 s (with the test suite running alongside) |
+| `pytest` | **Pass after one rerun.** `caffeinate -i pytest` (default suite, laptop, 2026-11-26): **414 passed, 1 failed, 1 skipped, 8 deselected (slow), 39 warnings**, 25 min 04 s. That is 411 earlier tests plus the 4 new ones. The failure was a Ray crash in `test_models_h6.py::test_every_family_runs_through_every_arm_and_the_hierarchy[cnn1d]` ("owner's node has crashed", broken pipes), the known Ray flake (H10c open items), while the clean-clone run used the same machine. Rerun alone: 1 passed (2 min 46 s). Warnings now include a pyparsing deprecation notice from matplotlib's mathtext |
+| Run-id lock | `golden.py ids`: run ids match the lock |
+
+### Before H11a (kept as history)
 
 Plan approved 2026-11-26 (`~/.claude/plans/noble-frolicking-lerdorf-*.md`): figures from `runs/`
 only, `docs/clinical_validation_protocol.md`, `README.md`, and the CinC `_full`/`_stream` tables.

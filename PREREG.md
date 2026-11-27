@@ -413,3 +413,12 @@ subset, topology `cinc15` and node splits of §5a. Evaluation seeds 0–4.
      - **Fix:** both fixed (`fl/hierarchy._plan_secagg`, `_key_agreement`).
      - **Reruns:** all 30 `_full` runs (WESAD and CinC). They are descriptive only and do not
        enter H1–H4.
+
+3. **Exploratory analyses added after the H11a results (2026-11-26; not pre-registered).**
+   - **What:** the small-node check (minority-class recall and macro-F1 per CinC node, local-only
+     against the global model, no shift, with the rank correlation against node size) and the
+     figure built from it (fig 8, `scripts/make_figures.py`). Also macro-F1 versions of fig 1.
+   - **Why:** the H11a reruns showed CinC H1 negative under own-test scoring. The check asked
+     whether small nodes still gain from federation.
+   - **Status:** descriptive only, chosen after seeing results, so labelled EXPLORATORY wherever
+     it appears. No verdict in §2 changes. Numbers in PROGRESS.md "Phase H11a", "Small-node check".

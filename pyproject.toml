@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "fedastro"
 version = "0.0.1"
 description = "Cross-silo sparse federated learning simulation for autonomous astronaut healthcare (ASGSR 2026 poster)."
-readme = "CLAUDE.md"
+readme = "README.md"
 requires-python = ">=3.11,<3.12"
 # Direct dependencies are pinned exactly. Transitive pins live in uv.lock.
 # Version constraints, verified 2026-10-15 (see PROGRESS.md, Phase 0):
